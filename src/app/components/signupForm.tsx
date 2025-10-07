@@ -102,9 +102,14 @@ export default function SignupForm({ role, user }: Props) {
             setLoading(false);
             router.push("/homePage")
 
-        } catch (err: any) {
-            console.error(err);
-            setErrorMsg(err.message || "Une erreur est survenue.");
+        } catch (err) {
+            if (err instanceof Error) {
+              console.error(err);
+              setErrorMsg(err.message || "Une erreur est survenue.");
+            } else {
+              console.error(err);
+              setErrorMsg("Une erreur inconnue est survenue.");
+            }
             setLoading(false);
         }
     };
@@ -257,7 +262,7 @@ export default function SignupForm({ role, user }: Props) {
                             onChange={handleChange}
                             className="w-full appearance-none bg-white border border-blue-500 text-blue-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-500"
                         >
-                            <option value="">Type d'invitée</option>
+                            <option value="">Type d&apos;invitée</option>
                             <option value="picasso">Étudiante</option>
                             <option value="monet">Autre</option>
                         </select>
