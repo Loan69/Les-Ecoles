@@ -1,0 +1,67 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "../lib/supabaseClient";
+import SignupForm from "@/app/components/signupForm";
+import { User } from "@supabase/supabase-js";
+
+type Role = "residente" | "invitee";
+
+export default function CompletionProfileClient() {
+  const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<Role>("residente");
+  const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const email = searchParams.get("email");
+
+  useEffect(() => {
+    if (!email) {
+      router.push("/signin");
+      return;
+    }
+
+    const init = async () => {
+      try {
+        const { data: pendingUser, error: pendingError } = await supabase
+          .from("pending_users")
+          .select("*")
+          .eq("emailInscription", email)
+          .single();
+
+        if (pendingError || !pendingUser) throw new Error("Utilisateur temporaire non trouvé");
+
+        setRole(pendingUser.role);
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError || !user) throw new Error("Utilisateur non connecté");
+
+        setUser(user);
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        router.push("/signin");
+      }
+    };
+
+    init();
+  }, [email, router]);
+
+  if (loading)
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-blue-600">Chargement...</p>
+      </div>
+    );
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gray-50">
+      <SignupForm role={role} user={user} />
+    </div>
+  );
+}
