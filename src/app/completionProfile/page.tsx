@@ -1,5 +1,8 @@
 'use client';
 
+// Next.js indique à Vercel “ne pré-rends pas cette page”, elle sera servie côté client uniquement.
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
