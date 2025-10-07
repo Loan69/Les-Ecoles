@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 import SignupForm from "@/app/components/signupForm";
 import { User } from "@supabase/supabase-js";
-import { Suspense } from "react";
 
 type Role = "residente" | "invitee";
 
@@ -65,10 +64,8 @@ export default function CompletionProfile() {
     }
 
     return (
-        <Suspense fallback={<div>Chargement...</div>}>
-            <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gray-50">
-                <SignupForm role={role} user={user} />
-            </div>
-        </Suspense>
+        <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gray-50">
+            <SignupForm role={role} user={user} />
+        </div>
     );
 }
