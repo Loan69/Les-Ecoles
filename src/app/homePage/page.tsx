@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabaseClient";
 import Image from "next/image";
 import { Eye } from "lucide-react";
 import InviteModal from "../components/inviteModal";
+import { useRouter } from "next/navigation";
 
 export default function HomePage() {
     const [dateJour, setDateJour] = useState("");
@@ -14,6 +15,7 @@ export default function HomePage() {
     const [nbDiner, setNbDiner] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [confirmationMsg, setConfirmationMsg] = useState("");
+    const router = useRouter();
 
     // Gérer l'ouverture de modal d'invitation
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -202,7 +204,10 @@ export default function HomePage() {
             )}
 
             <div className="flex justify-between mt-6">
-                <button className="border border-blue-700 text-blue-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-50 cursor-pointer">
+                <button
+                    className="border border-blue-700 text-blue-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-50 cursor-pointer"
+                    onClick={() => (router.push("/admin/repas"))}
+                >
                 Voir les inscriptions
                 </button>
                 <button
@@ -212,10 +217,11 @@ export default function HomePage() {
                 </button>
             </div>
             {/* Gestion des modales */}
-            <InviteModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-            />
+            <button onClick={() => setIsModalOpen(true)} />
+                <InviteModal 
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                />
         </section>
     </main>
     );

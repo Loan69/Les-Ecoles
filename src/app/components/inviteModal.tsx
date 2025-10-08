@@ -25,18 +25,19 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onCl
                 exit={{ opacity: 0 }}
             >
                 <motion.div 
-                className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6"
+                className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
                 >
                 {/* En-tête */}
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-semibold text-blue-900">Ajouter un invité</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <div className="flex justify-between items-center mb-1">
+                    <h2 className="text-lg text-blue-800">Ajouter un invité</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer">
                     <X className="w-5 h-5" />
                     </button>
                 </div>
+                <div className="w-full bg-blue-500 h-[1px] mb-2" />
 
                 {/* Champs */}
                 <div className="space-y-3">
@@ -46,7 +47,7 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onCl
                     value={nom}
                     onChange={(e) => setNom(e.target.value)}
                     className="w-full mb-3 px-4 py-2 border border-black text-black
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg p-2"
+                    focus:outline-none focus:ring-2 focus:ring-black rounded-lg p-2"
                     />
                     <input
                     type="text"
@@ -54,23 +55,24 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onCl
                     value={prenom}
                     onChange={(e) => setPrenom(e.target.value)}
                     className="w-full mb-3 px-4 py-2 border border-black text-black
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg p-2"
+                    focus:outline-none focus:ring-2 focus:ring-black rounded-lg p-2"
                     />
+
                     <div className="mb-4">
                         <div className="relative">
                             <select
                                 value={repas}
                                 onChange={(e) => setRepas(e.target.value)}
-                                className="w-full appearance-none bg-white border border-blue-500 text-blue-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-500"
+                                className="w-full appearance-none bg-white rounded-lg border border-black text-black px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                             >
-                                <option value="">Sélectionner</option>
+                                <option value="">Sélectionner votre repas</option>
                                 <option value="12">Repas adulte</option>
                                 <option value="36">Repas enfant</option>
                             </select>
-                            {/* Flèche bleue custom */}
+                            {/* Flèche custom */}
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
-                                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500 pointer-events-none cursor-pointer"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black pointer-events-none cursor-pointer"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -87,7 +89,7 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onCl
                 </div>
 
                 {/* Boutons */}
-                <div className="flex justify-end gap-2 mt-6">
+                <div className="flex justify-center gap-1 mt-6">
                     <button
                     onClick={handleConfirm}
                     className="px-4 py-2 border border-blue-700 text-blue-700 rounded-lg hover:bg-blue-50 transition"

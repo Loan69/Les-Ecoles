@@ -17,58 +17,136 @@ export default function SignInPage() {
 
     // Connexion
     const handleSignIn = async () => {
-    setLoading(true);
-    setErrorMsg("");
-    const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-    });
-    if (error) setErrorMsg(error.message);
-    else {
-        setLoading(false);
-        router.push("/homePage")
+        setLoading(true);
+        setErrorMsg("");
+        setSuccessMsg("");
+      
+        // 1️⃣ Vérification côté client
+        if (!email || !password) {
+          setErrorMsg("Merci de remplir votre adresse e-mail et votre mot de passe.");
+          setLoading(false);
+          return;
         }
-    }
+      
+        // 2️⃣ Appel Supabase
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+      
+        // 3️⃣ Gestion des erreurs
+        if (error) {
+          handleAuthError(error);
+          setLoading(false);
+          return;
+        }
+      
+        // 4️⃣ Succès
+        setLoading(false);
+        router.push("/homePage");
+    };
+      
+    // Fonction pour traduire les messages Supabase
+    const handleAuthError = (error: Error) => {
+        const message = error.message || "";
+        
+        if (message.includes("Invalid login credentials")) {
+            setErrorMsg("Adresse e-mail ou mot de passe incorrect.");
+        } else if (message.includes("Email not confirmed")) {
+            setErrorMsg("Votre e-mail n’a pas encore été confirmé. Vérifiez votre boîte mail.");
+        } else if (message.includes("Unable to validate email address: invalid format")) {
+            setErrorMsg("Format d'email incorrect");
+        } else {
+            setErrorMsg("Une erreur est survenue. Veuillez réessayer.");
+        }
+    };
+      
 
     // Inscription
     const handleSignUp = async (role: string) => {
+        // Éviter le double clic
+        if (loadingInscription) return;
+      
+        // Validation basique
         if (!emailInscription) {
-            alert('Veuillez entrer votre email.')
-            return
-          }
+          setErrorMsg("Veuillez entrer votre adresse e-mail.");
+          return;
+        }
+      
         setLoadingInscription(true);
         setSuccessMsg("");
-
-        // Ajouter dans pending_users
-        const { error: pendingError } = await supabase
-        .from("pending_users")
-        .insert({ emailInscription, role });
-
-        if (pendingError) {
-            setErrorMsg(pendingError.message)
-        };
-
-        // mot de passe temporaire
-        const tempPassword = Math.random().toString(36).slice(-8);
-
-        const { error } = await supabase.auth.signUp({
-        email: emailInscription,
-        password: tempPassword,
-        options: {
-            emailRedirectTo: `${window.location.origin}/completionProfile?email=${emailInscription}`,
-            data: { role },
-        },
-        });
-
-        if (error) {
-        setErrorMsg(error.message);
-        } else {
-        setSuccessMsg("Un email de confirmation vous a été envoyé !");
+        setErrorMsg("");
+      
+        try {
+          // Vérifier si l'email existe déjà dans pending_users
+          const { data: existingPending, error: pendingCheckError } = await supabase
+            .from("pending_users")
+            .select("emailInscription")
+            .eq("emailInscription", emailInscription)
+            .single();
+      
+          if (pendingCheckError && pendingCheckError.code !== "PGRST116") {
+            // PGRST116 = Pas de ligne trouvée (normal)
+            throw new Error("Erreur lors de la vérification de l'email existant.");
+          }
+      
+          if (existingPending) {
+            setErrorMsg("Cette adresse e-mail a déjà été utilisée pour une inscription.");
+            setLoadingInscription(false);
+            return;
+          }
+      
+          // Générer un mot de passe temporaire
+          const tempPassword = Math.random().toString(36).slice(-8);
+      
+          // Créer le compte dans Supabase Auth
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: emailInscription,
+            password: tempPassword,
+            options: {
+              emailRedirectTo: `${window.location.origin}/completionProfile?email=${emailInscription}`,
+              data: { role },
+            },
+          });
+      
+          if (signUpError) {
+            // Erreurs côté Supabase
+            if (signUpError.message.includes("User already registered")) {
+              setErrorMsg("Un compte existe déjà avec cette adresse e-mail.");
+            } else {
+                handleAuthError(signUpError);
+            }
+            setLoadingInscription(false);
+            return;
+          }
+      
+          // Ajouter dans la table pending_users
+          const { error: pendingError } = await supabase
+            .from("pending_users")
+            .insert([{ emailInscription, role }]);
+      
+          if (pendingError) {
+            console.error(pendingError.message);
+            setErrorMsg("Une erreur est survenue lors de l’ajout du compte en attente.");
+            setLoadingInscription(false);
+            return;
+          }
+      
+          // Succès
+          setSuccessMsg("Un e-mail de confirmation vous a été envoyé !");
+        } catch (err) {
+            if (err instanceof Error) {
+                console.error(err);
+                setErrorMsg(err.message || "Une erreur est survenue.");
+              } else {
+                console.error(err);
+                setErrorMsg("Une erreur inconnue est survenue.");
+              }
+        } finally {
+          setLoadingInscription(false);
         }
-
-        setLoadingInscription(false);
-    };
-
+      };
+      
     return (
         <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gray-50">
             {/* Logo */}
