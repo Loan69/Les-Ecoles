@@ -4,20 +4,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { CalendarDays, Sun, Moon } from "lucide-react";
 import { motion } from "framer-motion";
+import { Personne } from "@/types/Personne";
+import { Repas } from "@/types/repas";
 
-type Personne = {
-  id_user: string;
-  nom: string;
-  prenom: string;
-  type: "Résidente" | "Invitée";
-};
-
-type Repas = {
-  id: number;
-  date_repas: string;
-  type_repas: "midi" | "soir";
-  id_user: string;
-};
 
 export default function AdminRepasView() {
   const [date, setDate] = useState<string>(
@@ -34,20 +23,20 @@ export default function AdminRepasView() {
 
       // --- Récupération des inscriptions ---
       const { data: repas, error: repasError } = await supabase
-        .from("repas")
-        .select("id, id_user, date_repas, type_repas")
+        .from("presences")
+        .select("user_id, date_repas, type_repas")
         .eq("date_repas", date);
 
       if (repasError) console.error("Erreur repas :", repasError);
 
       // --- Récupération des personnes ---
       const { data: residentesData } = await supabase
-        .from("résidentes")
-        .select("id_user, nom, prenom");
+        .from("residentes")
+        .select("user_id, nom, prenom");
 
       const { data: inviteesData } = await supabase
-        .from("invitées")
-        .select("id_user, nom, prenom");
+        .from("invitees")
+        .select("user_id, nom, prenom");
 
       // --- Formatage des personnes ---
       const residentesFormatted: Personne[] =
@@ -68,18 +57,18 @@ export default function AdminRepasView() {
   const toutesPersonnes: Personne[] = [...residentes, ...invitees];
 
   // --- Groupement par type de repas ---
-  const repasMidi = repasData.filter((r) => r.type_repas === "midi");
-  const repasSoir = repasData.filter((r) => r.type_repas === "soir");
+  const repasMidi = repasData.filter((r) => r.type_repas === "dejeuner");
+  const repasSoir = repasData.filter((r) => r.type_repas === "diner");
 
   const findPerson = (id_user: string) =>
-    toutesPersonnes.find((p) => p.id_user === id_user);
+    toutesPersonnes.find((p) => p.user_id === id_user);
 
-  const personnesMidi = repasMidi.map((r) => findPerson(r.id_user)).filter(Boolean);
-  const personnesSoir = repasSoir.map((r) => findPerson(r.id_user)).filter(Boolean);
+  const personnesMidi = repasMidi.map((r) => findPerson(r.user_id)).filter(Boolean);
+  const personnesSoir = repasSoir.map((r) => findPerson(r.user_id)).filter(Boolean);
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen text-gray-500">
+      <div className="flex justify-center items-center h-screen text-gray-500 bg-white">
         Chargement des données…
       </div>
     );
@@ -105,7 +94,7 @@ export default function AdminRepasView() {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="border border-amber-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="border border-amber-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 text-black"
           />
         </div>
 
@@ -116,7 +105,7 @@ export default function AdminRepasView() {
             <div className="flex items-center gap-2 mb-4">
               <Sun className="text-orange-600 w-5 h-5" />
               <h2 className="text-xl font-semibold text-orange-800">
-                Repas du midi
+                Déjeuner
               </h2>
             </div>
 
@@ -137,7 +126,7 @@ export default function AdminRepasView() {
               >
                 {personnesMidi.map((p) => (
                   <li
-                    key={p?.id_user}
+                    key={p?.user_id}
                     className="bg-white rounded-xl px-4 py-2 shadow-sm flex justify-between items-center"
                   >
                     <span className="font-medium text-gray-800">
@@ -167,7 +156,7 @@ export default function AdminRepasView() {
             <div className="flex items-center gap-2 mb-4">
               <Moon className="text-amber-600 w-5 h-5" />
               <h2 className="text-xl font-semibold text-amber-800">
-                Repas du soir
+                Diner
               </h2>
             </div>
 
@@ -188,7 +177,7 @@ export default function AdminRepasView() {
               >
                 {personnesSoir.map((p) => (
                   <li
-                    key={p?.id_user}
+                    key={p?.user_id}
                     className="bg-white rounded-xl px-4 py-2 shadow-sm flex justify-between items-center"
                   >
                     <span className="font-medium text-gray-800">

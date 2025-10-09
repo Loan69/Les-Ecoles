@@ -11,11 +11,14 @@ import { useRouter } from "next/navigation";
 
 export default function HomePage() {
     const [dateJour, setDateJour] = useState("");
+    const [repasDejeuner, setRepasDejeuner] = useState(false);
+    const [repasDiner, setRepasDiner] = useState(false);
     const [nbDejeuner, setNbDejeuner] = useState<number | null>(null);
     const [nbDiner, setNbDiner] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [confirmationMsg, setConfirmationMsg] = useState("");
     const router = useRouter();
+    const [locked, setLocked] = useState(false);
 
     // Gérer l'ouverture de modal d'invitation
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -32,71 +35,123 @@ export default function HomePage() {
     setDateJour(formatted.charAt(0).toUpperCase() + formatted.slice(1));
     }, []);
 
-    // Récupération des présences
-    const fetchPresences = async () => {
+    // --- Vérifie si modification possible (avant 8h30 heure FR) ---
+  useEffect(() => {
+    const now = new Date();
+    const parisTime = new Date(
+      now.toLocaleString("en-US", { timeZone: "Europe/Paris" })
+    );
+
+    if (
+      parisTime.getHours() > 8 ||
+      (parisTime.getHours() === 8 && parisTime.getMinutes() >= 30)
+    ) {
+      setLocked(true);
+      setConfirmationMsg("Les présences ne sont plus modifiables après 8h30.");
+    } else {
+      setLocked(false);
+      setConfirmationMsg("");
+    }
+  }, []);
+
+  // --- Récupération des présences globales et perso ---
+  const fetchPresences = async () => {
     setLoading(true);
+    const dateToday = new Date().toISOString().split("T")[0];
+
+    // Récupère les présences totales
     const { data, error } = await supabase
-        .from("presences")
-        .select("repas_type")
-        .eq("date", new Date().toISOString().split("T")[0]);
+      .from("presences")
+      .select("user_id, type_repas, date_repas")
+      .eq("date_repas", dateToday);
 
     if (error) {
-        console.error(error);
-        setLoading(false);
-        return;
+      console.error(error);
+      setLoading(false);
+      return;
     }
 
-    const dejeunerCount = data.filter((p) => p.repas_type === "dejeuner").length;
-    const dinerCount = data.filter((p) => p.repas_type === "diner").length;
-
+    // Compte pour affichage
+    const dejeunerCount = data.filter((p) => p.type_repas === "dejeuner").length;
+    const dinerCount = data.filter((p) => p.type_repas === "diner").length;
     setNbDejeuner(dejeunerCount);
     setNbDiner(dinerCount);
+
+    // Récupère l’utilisateur courant
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const userPresences = data.filter((p) => p.user_id === user.id);
+      setRepasDejeuner(userPresences.some((p) => p.type_repas === "dejeuner"));
+      setRepasDiner(userPresences.some((p) => p.type_repas === "diner"));
+    }
+
     setLoading(false);
-    };
+  };
 
-    useEffect(() => {
+  useEffect(() => {
     fetchPresences();
-    }, []);
+  }, []);
 
-    // Confirmation de présence
-    const handleConfirm = async (repas: "dejeuner" | "diner") => {
-    setConfirmationMsg("");
+  // --- Fonction toggle repas (insert/delete) ---
+  const handleToggleRepas = async (repas: "dejeuner" | "diner") => {
+    if (locked) {
+      setConfirmationMsg("Les présences ne sont plus modifiables après 8h30.");
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-        setConfirmationMsg("Vous devez être connectée pour confirmer votre présence.");
-        return;
+      setConfirmationMsg("Vous devez être connectée pour modifier vos repas.");
+      return;
     }
 
     const dateToday = new Date().toISOString().split("T")[0];
 
     const { data: existing } = await supabase
-        .from("presences")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("date", dateToday)
-        .eq("repas_type", repas)
-        .maybeSingle();
+      .from("presences")
+      .select("id_repas")
+      .eq("user_id", user.id)
+      .eq("date_repas", dateToday)
+      .eq("type_repas", repas)
+      .maybeSingle();
 
     if (existing) {
-        setConfirmationMsg(`Vous avez déjà confirmé votre présence pour le ${repas}.`);
-        return;
-    }
+      // 🔴 Supprime la présence
+      const { error } = await supabase
+        .from("presences")
+        .delete()
+        .eq("id_repas", existing.id_repas);
 
-    const { error } = await supabase.from("presences").insert({
-        user_id: user.id,
-        repas_type: repas,
-        date: dateToday,
-    });
-
-    if (error) {
+      if (error) {
         console.error(error);
-        setConfirmationMsg("Erreur lors de la confirmation de votre présence.");
+        setConfirmationMsg("Erreur lors de la désinscription.");
         return;
+      }
+      if (repas === "dejeuner") setRepasDejeuner(false);
+      else setRepasDiner(false);
+    } else {
+      // 🟢 Ajoute la présence
+      const { error } = await supabase
+        .from("presences")
+        .insert({
+            user_id: user.id,
+            type_repas: repas,
+            date_repas: dateToday,
+        });
+
+      if (error) {
+        console.error(error);
+        setConfirmationMsg("Erreur lors de l'enregistrement.");
+        return;
+      }
+      if (repas === "dejeuner") setRepasDejeuner(true);
+      else setRepasDiner(true);
     }
 
-    setConfirmationMsg(`Votre présence pour le ${repas} a bien été enregistrée !`);
+    // Actualise les compteurs
     fetchPresences();
-    };
+  };
+
 
     return (
     <main className="min-h-screen flex flex-col items-center justify-start bg-white px-4 pt-6">
@@ -165,37 +220,61 @@ export default function HomePage() {
                 <p className="text-gray-500">Chargement...</p>
             ) : (
                 <>
-                <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
+                    {/* Déjeuner */}
+                    <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
                     <div className="flex items-center space-x-2">
-                    <p className="font-semibold text-blue-900">Déjeuner</p>
-                    <div className="flex items-center text-blue-700">
+                        <p className="font-semibold text-blue-900">Déjeuner</p>
+                        <div className="flex items-center text-blue-700">
                         <Eye className="w-4 h-4 mr-1" />
                         <span className="font-medium">{nbDejeuner}</span>
+                        </div>
                     </div>
-                    </div>
-                    <button
-                    onClick={() => handleConfirm("dejeuner")}
-                    className="bg-blue-700 text-white text-sm px-4 py-1 rounded-lg hover:bg-blue-900 cursor-pointer"
-                    >
-                    Je viens
-                    </button>
-                </div>
 
-                <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3">
+                    <button
+                        onClick={() => handleToggleRepas("dejeuner")}
+                        className={`relative w-16 h-8 rounded-full transition-all duration-300 ${
+                            locked
+                            ? "bg-gray-300 cursor-not-allowed":
+                            repasDejeuner
+                                ? "bg-blue-700"
+                                : "bg-gray-300"
+                        }`}
+                    >
+                        <span
+                        className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transform transition-transform duration-300 ${
+                            repasDejeuner ? "translate-x-8" : "translate-x-0"
+                        }`}
+                        />
+                    </button>
+                    </div>
+
+                    {/* Dîner */}
+                    <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3">
                     <div className="flex items-center space-x-2">
-                    <p className="font-semibold text-blue-900">Dîner</p>
-                    <div className="flex items-center text-blue-700">
+                        <p className="font-semibold text-blue-900">Dîner</p>
+                        <div className="flex items-center text-blue-700">
                         <Eye className="w-4 h-4 mr-1" />
                         <span className="font-medium">{nbDiner}</span>
+                        </div>
                     </div>
-                    </div>
+
                     <button
-                    onClick={() => handleConfirm("diner")}
-                    className="bg-blue-700 text-white text-sm px-4 py-1 rounded-lg hover:bg-blue-900 cursor-pointer"
+                        onClick={() => handleToggleRepas("diner")}
+                        className={`relative w-16 h-8 rounded-full transition-all duration-300 ${
+                            locked
+                            ? "bg-gray-300 cursor-not-allowed":
+                            repasDiner
+                                ? "bg-blue-700"
+                                : "bg-gray-300"
+                        }`}
                     >
-                    Je viens
+                        <span
+                        className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transform transition-transform duration-300 ${
+                            repasDiner ? "translate-x-8" : "translate-x-0"
+                        }`}
+                        />
                     </button>
-                </div>
+                    </div>
                 </>
             )}
 
