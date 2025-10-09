@@ -167,8 +167,8 @@ export default function HomePage() {
             <Image
                 src="/logo.png"
                 alt="Logo des écoles"
-                width={400}   // ajuster selon la taille souhaitée
-                height={400}
+                width={350}   // ajuster selon la taille souhaitée
+                height={350}
                 className="mb-3"
             />
         </div>
@@ -233,11 +233,11 @@ export default function HomePage() {
                     <button
                         onClick={() => handleToggleRepas("dejeuner")}
                         className={`relative w-16 h-8 rounded-full transition-all duration-300 ${
-                            locked
-                            ? "bg-gray-300 cursor-not-allowed":
                             repasDejeuner
                                 ? "bg-blue-700"
-                                : "bg-gray-300"
+                                : "bg-gray-300"}
+                                ${locked
+                            ? "cursor-not-allowed" : ""
                         }`}
                     >
                         <span
@@ -261,11 +261,11 @@ export default function HomePage() {
                     <button
                         onClick={() => handleToggleRepas("diner")}
                         className={`relative w-16 h-8 rounded-full transition-all duration-300 ${
-                            locked
-                            ? "bg-gray-300 cursor-not-allowed":
                             repasDiner
                                 ? "bg-blue-700"
-                                : "bg-gray-300"
+                                : "bg-gray-300"}
+                                ${locked
+                            ? "cursor-not-allowed" : ""
                         }`}
                     >
                         <span

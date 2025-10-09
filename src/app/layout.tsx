@@ -1,28 +1,26 @@
-"use client"
-
+"use client";
 import "./globals.css";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { SessionContextProvider } from "@supabase/auth-helpers-react";
-import { useState } from "react";
-import BottomNav from "./components/bottomNav";
 import { usePathname } from "next/navigation";
+import BottomNav from "./components/bottomNav";
+import { Providers } from './providers'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [supabase] = useState(() => createClientComponentClient());
   const pathname = usePathname();
-
-  // Liste des pages où la navbar ne doit PAS apparaître
   const hideBottomNav = ["/signin", "/signup", "/completionProfile"];
-
   const shouldHideNavbar = hideBottomNav.includes(pathname);
 
   return (
     <html lang="fr">
+      <head>
+        <link rel="icon" href="/logo.png" sizes="any" />
+        <title>Les Écoles</title>
+        <meta name="description" content="Espace des résidentes et invitées des Écoles" />
+      </head>
       <body>
-        <SessionContextProvider supabaseClient={supabase}>
+        <Providers>
           <main className="flex-1 pb-15">{children}</main>
           {!shouldHideNavbar && <BottomNav />}
-        </SessionContextProvider>
+        </Providers>
       </body>
     </html>
   );

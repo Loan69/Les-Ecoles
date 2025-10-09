@@ -6,7 +6,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import ModalAjoutEvenement from "./AjoutEventModal";
-import { EventFormData } from "./AjoutEventModal";
+import { EventFormData } from "@/types/EventFormData";
 
 /** Typage des évènements du calendrier */
 type CalendarEvent = {
@@ -16,13 +16,25 @@ type CalendarEvent = {
     type?: string;
   };
 
-type Event = {
-    id: number;
-    titre: string;
+type CalendrierViewProps = {
+    events: {
+      id: number;
+      titre: string;
+      couleur: string;
+      date: string;
+    }[];
+    onAddEvent: (data: EventFormData) => Promise<void>;
+    onEditEvent: (id: number, updates: Partial<any>) => Promise<void>;
+    onDeleteEvent: (id: number) => Promise<void>;
+  };
+  
 
-};
-
-export default function CalendrierView() {
+  export default function CalendrierView({
+    events,
+    onAddEvent,
+    onEditEvent,
+    onDeleteEvent,
+  }: CalendrierViewProps) {
     const [openModal, setOpenModal] = useState(false);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -62,21 +74,18 @@ export default function CalendrierView() {
     };
 
     const handleSaveEvent = async (data: EventFormData): Promise<void> => {
-        console.log("Nouvel évènement :", data);
+        await onAddEvent(data);
         setOpenModal(false);
-      };
+      };      
       
 
-    // --- exemples d’évènements ---
-    const eventsMap: Record<string, CalendarEvent[]> = {
-        "2025-08-02": [
-          { id: 1, titre: "Anniversaire d’Agathe ! (n°36 à 18h)", couleur: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-300" },
-          { id: 2, titre: "Lingerie : Descendre Draps avant 8h", couleur: "bg-blue-100 text-blue-700 border-blue-300" },
-        ],
-        "2025-08-09": [
-          { id: 3, titre: "Soirée Jeux", couleur: "bg-yellow-100 text-yellow-700 border-yellow-300" },
-        ],
-      };
+    // --- Liste d'évènements ---
+    const eventsMap = events.reduce<Record<string, CalendarEvent[]>>((acc, event) => {
+        if (!acc[event.date]) acc[event.date] = [];
+        acc[event.date].push(event);
+        return acc;
+      }, {});
+
 
     // date sélectionnée
     const selectedDateKey =
@@ -211,7 +220,7 @@ export default function CalendrierView() {
                     right-6 md:right-[calc(50%-24rem/2-1rem)] 
                     bg-blue-700 text-white rounded-full 
                     w-12 h-12 flex items-center justify-center text-2xl 
-                    shadow-lg z-50 hover:scale-105 transition-transform
+                    shadow-lg z-50 hover:scale-105 transition-transform cursor-pointer
                 "
                 >
                 +
