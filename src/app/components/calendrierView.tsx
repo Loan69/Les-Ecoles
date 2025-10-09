@@ -24,7 +24,7 @@ type CalendrierViewProps = {
       date: string;
     }[];
     onAddEvent: (data: EventFormData) => Promise<void>;
-    onEditEvent: (id: number, updates: Partial<any>) => Promise<void>;
+    onEditEvent: (id: number, updates: Partial<CalendarEvent>) => Promise<void>;
     onDeleteEvent: (id: number) => Promise<void>;
   };
   

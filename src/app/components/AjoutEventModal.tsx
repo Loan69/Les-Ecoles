@@ -82,7 +82,7 @@ export default function ModalAjoutEvenement({
                                 onChange={handleChange}
                                 className="w-full appearance-none bg-white rounded-lg border border-black text-black px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                             >
-                                <option value="">Type d'évènement</option>
+                                <option value="">Type d&apos;évènement</option>
                                 <option value="anniversaire">Anniversaire</option>
                                 <option value="linge">Lingerie</option>
                                 <option value="autre">Autre</option>
@@ -122,7 +122,7 @@ export default function ModalAjoutEvenement({
                                 onChange={handleChange}
                                 className="w-full appearance-none bg-white rounded-lg border border-black text-black px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                             >
-                                <option value="">Récurrence de l'évènement</option>
+                                <option value="">Récurrence de l&apos;évènement</option>
                                 <option value="aucune">Aucune</option>
                                 <option value="hebdo">Hebdomadaire</option>
                                 <option value="mensuelle">Mensuelle</option>
