@@ -6,6 +6,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import ModalAjoutEvenement from "./AjoutEventModal";
+import { EventFormData } from "./AjoutEventModal";
 
 /** Typage des évènements du calendrier */
 type CalendarEvent = {
@@ -14,6 +15,12 @@ type CalendarEvent = {
     couleur: string; // classes tailwind pour fond/texte/bord
     type?: string;
   };
+
+type Event = {
+    id: number;
+    titre: string;
+
+};
 
 export default function CalendrierView() {
     const [openModal, setOpenModal] = useState(false);
@@ -54,12 +61,11 @@ export default function CalendrierView() {
         setSelectedDay(null);
     };
 
-    const handleSaveEvent = async (data: any) => {
+    const handleSaveEvent = async (data: EventFormData): Promise<void> => {
         console.log("Nouvel évènement :", data);
-        // Ici tu pourras faire :
-        // const { error } = await supabase.from("evenements").insert([data]);
         setOpenModal(false);
       };
+      
 
     // --- exemples d’évènements ---
     const eventsMap: Record<string, CalendarEvent[]> = {
@@ -199,17 +205,17 @@ export default function CalendrierView() {
             </div>
             {/* Bouton d’ajout d’évènement */}
             <button
-  onClick={() => setOpenModal(true)}
-  className="
-    fixed bottom-20 md:bottom-24 
-    right-6 md:right-[calc(50%-24rem/2-1rem)] 
-    bg-blue-700 text-white rounded-full 
-    w-12 h-12 flex items-center justify-center text-2xl 
-    shadow-lg z-50 hover:scale-105 transition-transform
-  "
->
-  +
-</button>
+                onClick={() => setOpenModal(true)}
+                className="
+                    fixed bottom-20 md:bottom-24 
+                    right-6 md:right-[calc(50%-24rem/2-1rem)] 
+                    bg-blue-700 text-white rounded-full 
+                    w-12 h-12 flex items-center justify-center text-2xl 
+                    shadow-lg z-50 hover:scale-105 transition-transform
+                "
+                >
+                +
+            </button>
 
 
             <ModalAjoutEvenement
