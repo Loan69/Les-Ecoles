@@ -8,6 +8,7 @@ import Image from "next/image";
 import { Eye } from "lucide-react";
 import InviteModal from "../components/inviteModal";
 import { useRouter } from "next/navigation";
+import { CalendarEvent } from "@/types/CalendarEvent";
 
 export default function HomePage() {
   const [dateJour, setDateJour] = useState("");
@@ -18,7 +19,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [confirmationMsg, setConfirmationMsg] = useState("");
   const [locked, setLocked] = useState(false);
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
 
