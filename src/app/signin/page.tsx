@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from "next/navigation";
 
 export default function SignInPage() {
+    const supabase = createClientComponentClient();
     const [email, setEmail] = useState("");
     const [emailInscription, setEmailInscription] = useState("");
     const [password, setPassword] = useState("");

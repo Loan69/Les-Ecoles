@@ -7,21 +7,14 @@ import {
 } from "lucide-react";
 import ModalAjoutEvenement from "./AjoutEventModal";
 import { EventFormData } from "@/types/EventFormData";
-
-/** Typage des évènements du calendrier */
-type CalendarEvent = {
-    id: number;
-    titre: string;
-    couleur: string; // classes tailwind pour fond/texte/bord
-    type?: string;
-  };
+import { CalendarEvent } from "@/types/CalendarEvent";
 
 type CalendrierViewProps = {
     events: {
       id: number;
       titre: string;
       couleur: string;
-      date: string;
+      date_event: string;
     }[];
     onAddEvent: (data: EventFormData) => Promise<void>;
     onEditEvent: (id: number, updates: Partial<CalendarEvent>) => Promise<void>;
@@ -60,6 +53,11 @@ type CalendrierViewProps = {
     ...Array(daysInMonth).fill(0).map((_, i) => i + 1)
     ];
 
+    // --- date du jour ---
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+
     // --- navigation ---
     const prevMonth = () => {
         const prev = new Date(currentYear, currentDate.getMonth() - 1, 1);
@@ -81,8 +79,8 @@ type CalendrierViewProps = {
 
     // --- Liste d'évènements ---
     const eventsMap = events.reduce<Record<string, CalendarEvent[]>>((acc, event) => {
-        if (!acc[event.date]) acc[event.date] = [];
-        acc[event.date].push(event);
+        if (!acc[event.date_event]) acc[event.date_event] = [];
+        acc[event.date_event].push(event);
         return acc;
       }, {});
 
@@ -151,17 +149,20 @@ type CalendrierViewProps = {
                     const key = `${currentYear}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                     const hasEvent = !!eventsMap[key];
                     const isSelected = day === selectedDay;
+                    const isToday = key === todayKey;
 
                     return (
                             <div
                                 key={day}
                                 onClick={() => setSelectedDay(day)}
                                 className={`relative flex flex-col items-center justify-center w-10 h-10 rounded-full cursor-pointer text-sm font-medium transition-all
-                                ${
-                                isSelected
-                                    ? "bg-blue-700 text-white"
-                                    : "text-slate-700 hover:bg-blue-50"
-                                }`}
+                                        ${
+                                            isSelected
+                                            ? "bg-blue-700 text-white"
+                                            : isToday
+                                            ? "bg-yellow-100 text-yellow-700 font-semibold border border-yellow-300"
+                                            : "text-slate-700 hover:bg-blue-50"
+                                        }`}
                             >
                                 {day}
                                 {hasEvent && (

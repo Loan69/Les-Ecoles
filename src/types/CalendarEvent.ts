@@ -3,5 +3,5 @@ export interface CalendarEvent {
     titre: string;
     couleur: string;
     type?: string;
-    date: string;
+    date_event: string;
   }
