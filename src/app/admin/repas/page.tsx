@@ -6,6 +6,7 @@ import { CalendarDays, Sun, Moon } from "lucide-react";
 import { motion } from "framer-motion";
 import { Personne } from "@/types/Personne";
 import { Repas } from "@/types/repas";
+import LoadingSpinner from "@/app/components/LoadingSpinner";
 
 
 export default function AdminRepasView() {
@@ -68,9 +69,9 @@ export default function AdminRepasView() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen text-gray-500 bg-white">
-        Chargement des données…
-      </div>
+      <main className="flex items-center justify-center min-h-screen bg-white">
+        <LoadingSpinner />
+      </main>
     );
   }
 
@@ -102,20 +103,17 @@ export default function AdminRepasView() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Repas du midi */}
           <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <Sun className="text-orange-600 w-5 h-5" />
-              <h2 className="text-xl font-semibold text-orange-800">
-                Déjeuner
-              </h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Sun className="text-orange-600 w-5 h-5" />
+                <h2 className="text-xl font-semibold text-orange-800">
+                  Déjeuner
+                </h2>
+              </div>
+              <span className="text-sm font-bold text-orange-700">
+                Total : {personnesMidi.length} personne{personnesMidi.length > 1 ? "s" : ""}
+              </span>
             </div>
-
-            <p className="text-sm text-gray-600 mb-4">
-              Total :{" "}
-              <span className="font-bold text-orange-700">
-                {personnesMidi.length}
-              </span>{" "}
-              personne{personnesMidi.length > 1 ? "s" : ""}
-            </p>
 
             {personnesMidi.length > 0 ? (
               <motion.ul
@@ -152,21 +150,18 @@ export default function AdminRepasView() {
           </div>
 
           {/* Repas du soir */}
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <Moon className="text-amber-600 w-5 h-5" />
-              <h2 className="text-xl font-semibold text-amber-800">
-                Diner
-              </h2>
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Sun className="text-orange-600 w-5 h-5" />
+                <h2 className="text-xl font-semibold text-orange-800">
+                  Diner
+                </h2>
+              </div>
+              <span className="text-sm font-bold text-orange-700">
+                Total : {personnesSoir.length} personne{personnesSoir.length > 1 ? "s" : ""}
+              </span>
             </div>
-
-            <p className="text-sm text-gray-600 mb-4">
-              Total :{" "}
-              <span className="font-bold text-amber-700">
-                {personnesSoir.length}
-              </span>{" "}
-              personne{personnesSoir.length > 1 ? "s" : ""}
-            </p>
 
             {personnesSoir.length > 0 ? (
               <motion.ul

@@ -30,7 +30,9 @@ type CalendrierViewProps = {
   }: CalendrierViewProps) {
     const [openModal, setOpenModal] = useState(false);
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedDay, setSelectedDay] = useState<number | null>(null);
+    const today = new Date();
+    const [selectedDay, setSelectedDay] = useState<number | null>(today.getDate());
+
 
     const monthNames = [
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -54,7 +56,6 @@ type CalendrierViewProps = {
     ];
 
     // --- date du jour ---
-    const today = new Date();
     const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
 

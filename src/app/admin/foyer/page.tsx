@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { motion } from "framer-motion";
 import { Home, Moon, Search, Calendar } from "lucide-react";
+import LoadingSpinner from "@/app/components/LoadingSpinner";
 
 type Personne = {
   user_id: string;
@@ -71,9 +72,9 @@ export default function AdminFoyerView() {
 
     if (loading) {
     return (
-        <div className="flex justify-center bg-white items-center h-screen text-black text-lg">
-            Chargement des données…
-        </div>
+        <main className="flex items-center justify-center min-h-screen bg-white">
+            <LoadingSpinner />
+      </main>
     );
     }
 
@@ -118,63 +119,28 @@ export default function AdminFoyerView() {
 
             {/* --- Grille principale --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* --- Présentes --- */}
+               {/* --- Présentes --- */}
                 <div className="bg-green-50 border border-green-200 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                    <Home className="text-green-600 w-5 h-5" />
-                    <h2 className="text-xl font-semibold text-green-800">
-                    Présentes au foyer
-                    </h2>
-                </div>
-
-                {filterBySearch(presentes).length > 0 ? (
-                    <motion.ul
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                    className="space-y-2"
-                    >
-                    {filterBySearch(presentes).map((p) => (
-                        <li
-                        key={p.user_id}
-                        className="bg-white rounded-xl px-4 py-2 shadow-sm flex justify-between items-center"
-                        >
-                        <div>
-                            <span className="font-medium text-gray-800">
-                            {p.prenom} {p.nom}
-                            </span>
-                            <span className="ml-2 text-xs text-gray-500 italic">
-                            ({p.type})
-                            </span>
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                        <Home className="text-green-600 w-5 h-5" />
+                        <h2 className="text-xl font-semibold text-green-800">
+                            Présentes au foyer
+                        </h2>
                         </div>
-                        <span className="text-xs text-green-700 bg-green-100 px-2 py-1 rounded-full">
-                            au foyer
+                        <span className="text-sm text-green-700 font-medium">
+                        Total : {presentes.length} {presentes.length > 1 ? "personnes" : "personne"}
                         </span>
-                        </li>
-                    ))}
-                    </motion.ul>
-                ) : (
-                    <p className="text-gray-500 italic">Aucune habitante trouvée.</p>
-                )}
-                </div>
+                    </div>
 
-                {/* --- Sorties --- */}
-                <div className="bg-pink-50 border border-pink-200 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                    <Moon className="text-pink-600 w-5 h-5" />
-                    <h2 className="text-xl font-semibold text-pink-800">
-                    Sorties ce soir
-                    </h2>
-                </div>
-
-                {filterBySearch(sorties).length > 0 ? (
-                    <motion.ul
+                    {filterBySearch(presentes).length > 0 ? (
+                        <motion.ul
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4 }}
                         className="space-y-2"
-                    >
-                        {filterBySearch(sorties).map((p) => (
+                        >
+                        {filterBySearch(presentes).map((p) => (
                             <li
                             key={p.user_id}
                             className="bg-white rounded-xl px-4 py-2 shadow-sm flex justify-between items-center"
@@ -187,15 +153,61 @@ export default function AdminFoyerView() {
                                 ({p.type})
                                 </span>
                             </div>
-                            <span className="text-xs text-pink-700 bg-pink-100 px-2 py-1 rounded-full">
-                                sortie
+                            <span className="text-xs text-green-700 bg-green-100 px-2 py-1 rounded-full">
+                                au foyer
                             </span>
                             </li>
                         ))}
-                    </motion.ul>
-                ) : (
-                    <p className="text-gray-500 italic">Aucune habitante trouvée.</p>
-                )}
+                        </motion.ul>
+                    ) : (
+                        <p className="text-gray-500 italic">Aucune habitante trouvée.</p>
+                    )}
+                </div>
+
+                {/* --- Sorties --- */}
+                <div className="bg-pink-50 border border-pink-200 rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                        <Moon className="text-pink-600 w-5 h-5" />
+                        <h2 className="text-xl font-semibold text-pink-800">
+                            Sorties ce soir
+                        </h2>
+                        </div>
+                        <span className="text-sm text-pink-700 font-medium">
+                        {sorties.length} {sorties.length > 1 ? "personnes" : "personne"}
+                        </span>
+                    </div>
+                
+
+                    {filterBySearch(sorties).length > 0 ? (
+                        <motion.ul
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4 }}
+                            className="space-y-2"
+                        >
+                            {filterBySearch(sorties).map((p) => (
+                                <li
+                                key={p.user_id}
+                                className="bg-white rounded-xl px-4 py-2 shadow-sm flex justify-between items-center"
+                                >
+                                <div>
+                                    <span className="font-medium text-gray-800">
+                                    {p.prenom} {p.nom}
+                                    </span>
+                                    <span className="ml-2 text-xs text-gray-500 italic">
+                                    ({p.type})
+                                    </span>
+                                </div>
+                                <span className="text-xs text-pink-700 bg-pink-100 px-2 py-1 rounded-full">
+                                    sortie
+                                </span>
+                                </li>
+                            ))}
+                        </motion.ul>
+                    ) : (
+                        <p className="text-gray-500 italic">Aucune habitante trouvée.</p>
+                    )}
                 </div>
             </div>
             </div>
