@@ -71,11 +71,17 @@ export async function POST() {
     if (deleteError) throw deleteError;
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error("Erreur sync-user:", error.message);
+  } catch (error: unknown) {
+    let message = "Erreur lors de la synchronisation utilisateur.";
+    
+    if (error instanceof Error) {
+      message = error.message;
+    }
+  
+    console.error("Erreur sync-user:", message);
     return NextResponse.json(
-      { error: "Erreur lors de la synchronisation utilisateur." },
+      { error: message },
       { status: 500 }
-    );
+    );  
   }
 }
