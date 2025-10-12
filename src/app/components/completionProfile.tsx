@@ -1,67 +1,70 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 import SignupForm from "@/app/components/signupForm";
-import { User } from "@supabase/supabase-js";
+import LoadingSpinner from "./LoadingSpinner";
 
 type Role = "residente" | "invitee";
 
 export default function CompletionProfileClient() {
-  const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<Role>("residente");
   const [loading, setLoading] = useState(true);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const searchParams = useSearchParams();
   const router = useRouter();
-  const email = searchParams.get("email");
 
   useEffect(() => {
-    if (!email) {
+    const urlRole = searchParams.get("role");
+    if (urlRole === "residente" || urlRole === "invitee") {
+      setRole(urlRole);
+      setLoading(false);
+    } else {
       router.push("/signin");
-      return;
     }
+  }, [searchParams, router]);
 
-    const init = async () => {
-      try {
-        const { data: pendingUser, error: pendingError } = await supabase
-          .from("pending_users")
-          .select("*")
-          .eq("emailInscription", email)
-          .single();
+  const handleCreateAccount = async (email: string, password: string) => {
+    setSuccessMsg(null);
+    setErrorMsg(null);
 
-        if (pendingError || !pendingUser) throw new Error("Utilisateur temporaire non trouvé");
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/signin?email=${encodeURIComponent(email)}`,
+          data: { role },
+        },
+      });
 
-        setRole(pendingUser.role);
-
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError || !user) throw new Error("Utilisateur non connecté");
-
-        setUser(user);
-        setLoading(false);
-      } catch (err) {
-        console.error(err);
-        router.push("/signin");
+      if (error) {
+        setErrorMsg(error.message);
+        return;
       }
-    };
 
-    init();
-  }, [email, router]);
+      setSuccessMsg("Un e-mail de confirmation a été envoyé ! Vérifiez votre boîte mail.");
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Une erreur est survenue lors de la création du compte.");
+    }
+  };
 
   if (loading)
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-blue-600">Chargement...</p>
-      </div>
+      <main className="flex items-center justify-center min-h-screen bg-white">
+        <LoadingSpinner />
+      </main>
     );
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gray-50">
-      <SignupForm role={role} user={user} />
+      <SignupForm role={role} onSubmit={handleCreateAccount} />
+      {errorMsg && <p className="text-red-500 mt-4 text-center">{errorMsg}</p>}
+      {successMsg && <p className="text-green-600 mt-4 text-center">{successMsg}</p>}
     </div>
   );
 }

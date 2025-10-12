@@ -4,17 +4,27 @@ import Image from "next/image";
 import { useState } from "react";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function SignInPage() {
     const supabase = createClientComponentClient();
     const [email, setEmail] = useState("");
-    const [emailInscription, setEmailInscription] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
-    const [loadingInscription, setLoadingInscription] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
     const [successMsg, setSuccessMsg] = useState("");
     const router = useRouter();
+
+    useEffect(() => {
+      // 1️⃣ Récupère depuis localStorage
+      const savedEmail = localStorage.getItem("pendingEmail");
+    
+      if (savedEmail) {
+        setEmail(savedEmail);
+        localStorage.removeItem("pendingEmail");
+        return;
+      }
+    }, []);
 
     // Connexion
     const handleSignIn = async () => {
@@ -60,93 +70,7 @@ export default function SignInPage() {
         } else {
             setErrorMsg("Une erreur est survenue. Veuillez réessayer.");
         }
-    };
-      
-
-    // Inscription
-    const handleSignUp = async (role: string) => {
-        // Éviter le double clic
-        if (loadingInscription) return;
-      
-        // Validation basique
-        if (!emailInscription) {
-          setErrorMsg("Veuillez entrer votre adresse e-mail.");
-          return;
-        }
-      
-        setLoadingInscription(true);
-        setSuccessMsg("");
-        setErrorMsg("");
-      
-        try {
-          // Vérifier si l'email existe déjà dans pending_users
-          const { data: existingPending, error: pendingCheckError } = await supabase
-            .from("pending_users")
-            .select("emailInscription")
-            .eq("emailInscription", emailInscription)
-            .single();
-      
-          if (pendingCheckError && pendingCheckError.code !== "PGRST116") {
-            // PGRST116 = Pas de ligne trouvée (normal)
-            throw new Error("Erreur lors de la vérification de l'email existant.");
-          }
-      
-          if (existingPending) {
-            setErrorMsg("Cette adresse e-mail a déjà été utilisée pour une inscription.");
-            setLoadingInscription(false);
-            return;
-          }
-      
-          // Générer un mot de passe temporaire
-          const tempPassword = Math.random().toString(36).slice(-8);
-      
-          // Créer le compte dans Supabase Auth
-          const { error: signUpError } = await supabase.auth.signUp({
-            email: emailInscription,
-            password: tempPassword,
-            options: {
-              emailRedirectTo: `${window.location.origin}/completionProfile?email=${emailInscription}`,
-              data: { role },
-            },
-          });
-      
-          if (signUpError) {
-            // Erreurs côté Supabase
-            if (signUpError.message.includes("User already registered")) {
-              setErrorMsg("Un compte existe déjà avec cette adresse e-mail.");
-            } else {
-                handleAuthError(signUpError);
-            }
-            setLoadingInscription(false);
-            return;
-          }
-      
-          // Ajouter dans la table pending_users
-          const { error: pendingError } = await supabase
-            .from("pending_users")
-            .insert([{ emailInscription, role }]);
-      
-          if (pendingError) {
-            console.error(pendingError.message);
-            setErrorMsg("Une erreur est survenue lors de l’ajout du compte en attente.");
-            setLoadingInscription(false);
-            return;
-          }
-      
-          // Succès
-          setSuccessMsg("Un e-mail de confirmation vous a été envoyé !");
-        } catch (err) {
-            if (err instanceof Error) {
-                console.error(err);
-                setErrorMsg(err.message || "Une erreur est survenue.");
-              } else {
-                console.error(err);
-                setErrorMsg("Une erreur inconnue est survenue.");
-              }
-        } finally {
-          setLoadingInscription(false);
-        }
-      };
+    };  
       
     return (
         <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gray-50">
@@ -196,29 +120,19 @@ export default function SignInPage() {
             <div className="mt-8">
                 <h1 className="text-2xl text-blue-800 font-bold">Ou inscrivez-vous</h1>
                 <div className="w-full bg-blue-500 h-[2px] mb-2" />
-                    {/* Email */}
-                    <input
-                        type="email"
-                        placeholder="Entrer un email"
-                        value={emailInscription}
-                        onChange={(e) => setEmailInscription(e.target.value)}
-                        className="w-full mb-3 px-4 py-2 border border-blue-500 text-blue-800 
-                        focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-
                     <div className="flex gap-4 justify-center">
-                        <button
-                        onClick={() => handleSignUp("residente")}
-                        className="px-6 py-2 border border-blue-600 text-white font-bold bg-blue-600 rounded-lg hover:bg-blue-800 transition cursor-pointer"
-                        >
+                      <button
+                      onClick={() => router.push(`/completionProfile?role=residente`)}
+                      className="px-6 py-2 border border-blue-600 text-white font-bold bg-blue-600 rounded-lg hover:bg-blue-800 transition cursor-pointer"
+                      >
                         Résidente
-                        </button>
-                        <button
-                        onClick={() => handleSignUp("invitee")}
-                        className="px-6 py-2 border border-blue-600 text-white font-bold bg-blue-600 rounded-lg hover:bg-blue-800 transition cursor-pointer"
-                        >
-                        Invitée
-                        </button>
+                      </button>
+                      <button
+                      onClick={() => router.push(`/completionProfile?role=invitee`)}
+                      className="px-6 py-2 border border-blue-600 text-white font-bold bg-blue-600 rounded-lg hover:bg-blue-800 transition cursor-pointer"
+                      >
+                      Invitée
+                      </button>
                     </div>
                 </div>
                 {/* Messages */}

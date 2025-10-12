@@ -1,20 +1,21 @@
 'use client';
 
-import { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
-type Props = {
-    role: "residente" | "invitee";
-    user: User | null;
-};
+type Role = "residente" | "invitee";
 
-export default function SignupForm({ role, user }: Props) {
+interface Props {
+    role: Role;
+    onSubmit: (email: string, password: string) => Promise<void>;
+  }
+
+export default function SignupForm({ role, onSubmit }: Props) {
     const [formData, setFormData] = useState({
         nom: "",
         prenom: "",
-        dateNaissance: "",
+        datenaissance: "",
         residence: "",
         etage: "",
         chambre: "",
@@ -29,6 +30,17 @@ export default function SignupForm({ role, user }: Props) {
     const [successMsg, setSuccessMsg] = useState("");
     const router = useRouter();
 
+    // Regarder si l'email est déjà associé à un compte
+    const checkUserExists = async (email: string) => {
+        const res = await fetch('/api/check-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        return data.exists;
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
@@ -37,6 +49,7 @@ export default function SignupForm({ role, user }: Props) {
         e.preventDefault();
         setLoading(true);
         setErrorMsg("");
+        setSuccessMsg("");
 
         if (!formData.password || !formData.confirmPassword) {
             setErrorMsg("Veuillez renseigner le mot de passe et sa confirmation.");
@@ -51,56 +64,53 @@ export default function SignupForm({ role, user }: Props) {
         }
 
         try {
-            // 1️⃣ Vérifier que l'utilisateur est connecté
-            if (!user) {
-                setErrorMsg("Vous devez être connectée pour compléter votre profil.");
+            // On vérifie si l'adresse mail n'existe pas déjà
+            const exists = await checkUserExists(formData.email);
+  
+            if (exists) {
+                setErrorMsg("Un compte existe déjà avec cette adresse email. Veuillez vous connecter.");
                 setLoading(false);
                 return;
             }
+            
+            // Création du compte supabase
+            const email = formData.email
+            const password = formData.password
+            
+            // On enregistre l'email
+            localStorage.setItem("pendingEmail", email);
 
-            // 2️⃣ Mise à jour du mot de passe
-            const { error: pwError } = await supabase.auth.updateUser({
-                password: formData.password,
+            const { error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: { emailRedirectTo: `${window.location.origin}/signin` }
             });
-            if (pwError) {
-                throw pwError;
+        
+            if (error) {
+                setErrorMsg(`Erreur lors de la création du compte : ${error.message}`);
             }
 
-            // 3️⃣ Insertion dans la table appropriée
-            const table = role === "residente" ? "residentes" : "invitees";
-            const insertData =
-                role === "residente"
-                    ? {
-                        user_id: user.id,
-                        nom: formData.nom,
-                        prenom: formData.prenom,
-                        date_naissance: formData.dateNaissance,
-                        residence: formData.residence,
-                        etage: formData.etage,
-                        chambre: formData.chambre,
-                        email: user.email,
-                    }
-                    : {
-                        user_id: user.id,
-                        nom: formData.nom,
-                        prenom: formData.prenom,
-                        type_invitee: formData.typeInvitee,
-                        email: user.email,
-                    };
+            // Insertion dans la table pending_user
+            const insertData = {
+                email: formData.email,
+                role: role,
+                nom: formData.nom,
+                prenom: formData.prenom,
+                datenaissance: role === "residente" ? formData.datenaissance : null,
+                residence: role === "residente" ? formData.residence : null,
+                etage: role === "residente" ? formData.etage : null,
+                chambre: role === "residente" ? formData.chambre : null,
+              };
+            
+            //const { error: insertError } = await supabase.from("pending_users").insert(insertData);
 
-            const { error: insertError } = await supabase.from(table).insert(insertData);
-            if (insertError) throw insertError;
+            //if (insertError) {
+              //  setErrorMsg("Erreur lors de la création du compte");
+                //console.error(insertError)
+            //};
 
-            // 4️⃣ Supprimer la ligne dans pending_users
-            const { error: pendingDeleteError } = await supabase
-                .from("pending_users")
-                .delete()
-                .eq("emailInscription", user.email);
-            if (pendingDeleteError) throw pendingDeleteError;
-
-            setSuccessMsg("Compte complété avec succès ! Redirection...");
+            setSuccessMsg("Compte créé avec succès ! Vérifiez votre email pour confirmer votre inscription.");
             setLoading(false);
-            router.push("/homePage")
 
         } catch (err) {
             if (err instanceof Error) {
@@ -150,9 +160,9 @@ export default function SignupForm({ role, user }: Props) {
                     {/* Date de naissance */} 
                     <input
                         type="text"
-                        name="dateNaissance"
+                        name="datenaissance"
                         placeholder="Date de naissance"
-                        value={formData.dateNaissance}
+                        value={formData.datenaissance}
                         onChange={handleChange}
                         className="w-full mb-3 px-4 py-2 border border-blue-500 text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
@@ -288,6 +298,16 @@ export default function SignupForm({ role, user }: Props) {
                 <h2 className="text-lg font-semibold text-blue-800 mt-2">Informations personnelles</h2>
                 <div className="w-full bg-blue-500 h-[2px]" />
             </div>
+            {/* Prénom */}
+            <input
+                type="text"
+                name="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={handleChange} 
+                className="w-full mb-3 px-4 py-2 border border-blue-500 text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+            />
             {/* Mot de passe */}
             <input
                 type="password"

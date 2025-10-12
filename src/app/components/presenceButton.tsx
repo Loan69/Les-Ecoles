@@ -4,11 +4,12 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@supabase/auth-helpers-react";
 
-export default function PresenceSwitch() {
+export default function presenceButton() {
     const [isAbsent, setIsAbsent] = useState(false);
     const [locked, setLocked] = useState(false);
-    const [userId, setUserId] = useState<string | null>(null);
+    const user = useUser();
     const [isAdmin, setIsAdmin] = useState(false);
     const router = useRouter();
 
@@ -18,61 +19,49 @@ export default function PresenceSwitch() {
     useEffect(() => {
         const now = new Date();
         const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-        if (parisTime.getHours() >= 21) setLocked(true);
+        if (parisTime.getHours() >= 23) setLocked(true);
 
         const fetchStatus = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
-            setUserId(user.id);
-
-            // Vérifier si l'utilisateur est admin
-            const { data: profile } = await supabase
-            .from("residentes")
-            .select("is_admin")
-            .eq("user_id", user.id)
-            .maybeSingle();
-            
-            setIsAdmin(profile?.is_admin || false);
-
-            // Vérifier s'il est absent aujourd'hui
-            const { data } = await supabase
-            .from("absences")
-            .select("id")
-            .eq("user_id", user.id)
-            .eq("date_absence", today)
-            .maybeSingle();
-
-            setIsAbsent(!!data);
+          
+            const res = await fetch("/api/get-presence-foyer", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ date: today }),
+            });
+          
+            const result = await res.json();
+            setIsAbsent(result.isAbsent);
         };
 
         fetchStatus();
-        }, [today]);
+    }, [today, user]);
 
     const togglePresence = async () => {
-        if (!userId || locked) return;
-
-        if (isAbsent) {
-            await supabase
-            .from("absences")
-            .delete()
-            .eq("user_id", userId)
-            .eq("date_absence", today);
-            setIsAbsent(false);
+        if (locked) return
+      
+        const res = await fetch('/api/presence-foyer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isAbsent, date: today })
+        })
+      
+        const result = await res.json()
+        if (res.ok) {
+          setIsAbsent(!isAbsent)
         } else {
-            await supabase
-            .from("absences")
-            .insert({ user_id: userId, date_absence: today });
-            setIsAbsent(true);
+          console.error(result.error)
         }
-    };
+    }
+      
 
     // --- Texte principal ---
-    const labelText = isAbsent ? "Je suis sortie" : "Je suis rentrée";
+    const labelText = isAbsent ? "Je dors à l'extérieur" : "Je dors au foyer";
 
     // --- Texte de l’infobulle ---
     const tooltipText = locked
-    ? "Vous ne pouvez plus modifier car il est plus de 21h."
-    : "Modification possible jusqu'à 21h.";
+    ? "Vous ne pouvez plus modifier car il est plus de 23h."
+    : "Modification possible jusqu'à 23h.";
 
     return (
         <div className="flex flex-col items-center">
@@ -100,7 +89,7 @@ export default function PresenceSwitch() {
                     >
                         <span
                         className={`absolute top-1 left-1 w-8 h-8 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
-                            isAbsent ? "translate-x-0" : "translate-x-10"
+                            isAbsent ? "translate-x-0" : "translate-x-8.5 md:translate-x-10"
                         }`}
                         />
                     </button>

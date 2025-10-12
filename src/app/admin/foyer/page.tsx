@@ -95,13 +95,13 @@ export default function AdminFoyerView() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
                 {/* Recherche */}
                 <div className="relative w-full md:w-1/2">
-                    <Search className="absolute left-3 top-2.5 text-gray-400 w-5 h-5" />
+                    <Search className="absolute left-3 top-2.5 text-black w-5 h-5" />
                     <input
                         type="text"
                         placeholder="Rechercher une habitante..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 text-blackdfv rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
+                        className="w-full pl-10 pr-4 py-2 text-black border border-gray-300 text-blackdfv rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
                     />
                 </div>
 

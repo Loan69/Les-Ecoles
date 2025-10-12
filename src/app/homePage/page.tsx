@@ -51,8 +51,8 @@ export default function HomePage() {
     );
 
     if (
-      parisTime.getHours() > 8 ||
-      (parisTime.getHours() === 8 && parisTime.getMinutes() >= 30)
+      parisTime.getHours() > 20 ||
+      (parisTime.getHours() === 20 && parisTime.getMinutes() >= 30)
     ) {
       setLocked(true);
       setConfirmationMsg("Les présences ne sont plus modifiables après 8h30.");
@@ -112,45 +112,42 @@ export default function HomePage() {
   }, [user]);
 
   // --- Toggle repas ---
-  const handleToggleRepas = async (repas: "dejeuner" | "diner") => {
+  const handleToggleRepas = async (repas: 'dejeuner' | 'diner') => {
     if (locked) {
-      setConfirmationMsg("Les présences ne sont plus modifiables après 8h30.");
+      setConfirmationMsg("Les présences ne sont plus modifiables après 9h.");
       return;
     }
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setConfirmationMsg("Vous devez être connectée pour modifier vos repas.");
+  
+    const response = await fetch('/api/presence-repas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ repas }),
+    });
+  
+    const result = await response.json();
+  
+    if (!response.ok || !result.success) {
+      console.error(result.error || result.message);
+      setConfirmationMsg(result.message || "Erreur lors de la modification du repas.");
       return;
     }
-
-    const dateToday = new Date().toISOString().split("T")[0];
-    const { data: existing } = await supabase
-      .from("presences")
-      .select("id_repas")
-      .eq("user_id", user.id)
-      .eq("date_repas", dateToday)
-      .eq("type_repas", repas)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase.from("presences").delete().eq("id_repas", existing.id_repas);
-      if (repas === "dejeuner") setRepasDejeuner(false);
-      else setRepasDiner(false);
-    } else {
-      await supabase.from("presences").insert({
-        user_id: user.id,
-        type_repas: repas,
-        date_repas: dateToday,
-      });
-      if (repas === "dejeuner") setRepasDejeuner(true);
+  
+    // ✅ Met à jour le toggle
+    if (result.action === 'inserted') {
+      if (repas === 'dejeuner') setRepasDejeuner(true);
       else setRepasDiner(true);
+    } else {
+      if (repas === 'dejeuner') setRepasDejeuner(false);
+      else setRepasDiner(false);
     }
+  
+    // ✅ Message utilisateur clair
+    setConfirmationMsg(result.message);  
 
     // Actualisation rapide
-    setIsReady(false);
-    await new Promise(resolve => setTimeout(resolve, 200)); // léger delay pour éviter flash
-    setIsReady(true);
+    //setIsReady(false);
+    //await new Promise(resolve => setTimeout(resolve, 200)); // léger delay pour éviter flash
+    //setIsReady(true);
   };
 
   // --- Loader central si pas prêt ---
@@ -233,7 +230,7 @@ export default function HomePage() {
           </div>
           <button
             onClick={() => handleToggleRepas("dejeuner")}
-            className={`relative w-16 h-8 rounded-full transition-all duration-300 ${
+            className={`relative w-16 h-8 rounded-full transition-all duration-300 cursor-pointer ${
               repasDejeuner ? "bg-blue-700" : "bg-gray-300"
             } ${locked ? "cursor-not-allowed" : ""}`}
           >
