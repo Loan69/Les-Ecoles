@@ -6,7 +6,7 @@ import { Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@supabase/auth-helpers-react";
 
-export default function presenceButton() {
+export default function PresenceButton() {
     const [isAbsent, setIsAbsent] = useState(false);
     const [locked, setLocked] = useState(false);
     const user = useUser();
