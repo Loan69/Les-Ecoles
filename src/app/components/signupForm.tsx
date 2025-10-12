@@ -102,12 +102,12 @@ export default function SignupForm({ role, onSubmit }: Props) {
                 chambre: role === "residente" ? formData.chambre : null,
               };
             
-            //const { error: insertError } = await supabase.from("pending_users").insert(insertData);
+            const { error: insertError } = await supabase.from("pending_users").insert(insertData);
 
-            //if (insertError) {
-              //  setErrorMsg("Erreur lors de la création du compte");
-                //console.error(insertError)
-            //};
+            if (insertError) {
+                setErrorMsg("Erreur lors de la création du compte");
+                console.error(insertError)
+            };
 
             setSuccessMsg("Compte créé avec succès ! Vérifiez votre email pour confirmer votre inscription.");
             setLoading(false);

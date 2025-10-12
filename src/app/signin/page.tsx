@@ -53,8 +53,12 @@ export default function SignInPage() {
         }
       
         // 4️⃣ Succès
+        // Appel de la route serveur
+        await fetch("/api/sync-user", { method: "POST" });
+
+        router.push("/homePage")
         setLoading(false);
-        router.push("/homePage");
+
     };
       
     // Fonction pour traduire les messages Supabase
