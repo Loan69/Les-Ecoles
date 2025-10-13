@@ -42,7 +42,7 @@ export default function AdminRepasView() {
 
       const { data: repas, error: repasError } = await supabase
         .from("presences")
-        .select("user_id, date_repas, type_repas")
+        .select("user_id, date_repas, type_repas, choix_repas")
         .eq("date_repas", date);
 
       if (repasError) console.error("Erreur repas :", repasError);
