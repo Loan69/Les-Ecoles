@@ -164,8 +164,8 @@ export default function ModalAjoutEvenement({
                                 className="w-full appearance-none bg-white rounded-lg border border-black text-black px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                             >
                                 <option value="">Lieux</option>
-                                <option value="salle-commune">Salle commune</option>
-                                <option value="jardin">Jardin</option>
+                                <option value="12">12</option>
+                                <option value="36">36</option>
                             </select>
                             {/* Flèche custom */}
                             <svg

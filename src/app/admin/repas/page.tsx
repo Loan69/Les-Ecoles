@@ -2,27 +2,44 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
-import { CalendarDays, Sun, Moon } from "lucide-react";
+import { CalendarDays, Sun } from "lucide-react";
 import { motion } from "framer-motion";
 import { Personne } from "@/types/Personne";
 import { Repas } from "@/types/repas";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 
-
 export default function AdminRepasView() {
-  const [date, setDate] = useState<string>(
-    new Date().toISOString().slice(0, 10)
-  );
+  const [date, setDate] = useState<string>(""); // ← vide au départ
   const [repasData, setRepasData] = useState<Repas[]>([]);
   const [residentes, setResidentes] = useState<Personne[]>([]);
   const [invitees, setInvitees] = useState<Personne[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // --- Lecture du localStorage APRÈS le montage ---
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedDate =
+        localStorage.getItem("dateSelectionnee") ||
+        new Date().toISOString().slice(0, 10);
+      console.log(savedDate)
+      setDate(savedDate);
+    }
+  }, []);
+
+  // --- Sauvegarde de la date dans le localStorage quand elle change ---
+  useEffect(() => {
+    if (typeof window !== "undefined" && date) {
+      localStorage.setItem("dateSelectionnee", date);
+    }
+  }, [date]);
+
+  console.log(date)
+  // --- Requête Supabase ---
+  useEffect(() => {
+    if (!date) return; // ⚠️ éviter d’exécuter avant d’avoir la date
     const fetchRepas = async () => {
       setLoading(true);
 
-      // --- Récupération des inscriptions ---
       const { data: repas, error: repasError } = await supabase
         .from("presences")
         .select("user_id, date_repas, type_repas")
@@ -30,7 +47,6 @@ export default function AdminRepasView() {
 
       if (repasError) console.error("Erreur repas :", repasError);
 
-      // --- Récupération des personnes ---
       const { data: residentesData } = await supabase
         .from("residentes")
         .select("user_id, nom, prenom");
@@ -39,7 +55,6 @@ export default function AdminRepasView() {
         .from("invitees")
         .select("user_id, nom, prenom");
 
-      // --- Formatage des personnes ---
       const residentesFormatted: Personne[] =
         residentesData?.map((r) => ({ ...r, type: "Résidente" as const })) || [];
       const inviteesFormatted: Personne[] =
@@ -56,8 +71,6 @@ export default function AdminRepasView() {
 
   // --- Fusion personnes ---
   const toutesPersonnes: Personne[] = [...residentes, ...invitees];
-
-  // --- Groupement par type de repas ---
   const repasMidi = repasData.filter((r) => r.type_repas === "dejeuner");
   const repasSoir = repasData.filter((r) => r.type_repas === "diner");
 
@@ -67,7 +80,7 @@ export default function AdminRepasView() {
   const personnesMidi = repasMidi.map((r) => findPerson(r.user_id)).filter(Boolean);
   const personnesSoir = repasSoir.map((r) => findPerson(r.user_id)).filter(Boolean);
 
-  if (loading) {
+  if (loading || !date) {
     return (
       <main className="flex items-center justify-center min-h-screen bg-white">
         <LoadingSpinner />
@@ -78,7 +91,6 @@ export default function AdminRepasView() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-white py-10 px-6">
       <div className="max-w-5xl mx-auto">
-        {/* En-tête */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold text-amber-800 mb-2">
             Inscriptions aux repas
@@ -88,7 +100,6 @@ export default function AdminRepasView() {
           </p>
         </div>
 
-        {/* Sélecteur de date */}
         <div className="flex justify-center items-center mb-8 gap-3">
           <CalendarDays className="text-amber-600" />
           <input
@@ -101,14 +112,12 @@ export default function AdminRepasView() {
 
         {/* Grille repas */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Repas du midi */}
+          {/* Déjeuner */}
           <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Sun className="text-orange-600 w-5 h-5" />
-                <h2 className="text-xl font-semibold text-orange-800">
-                  Déjeuner
-                </h2>
+                <h2 className="text-xl font-semibold text-orange-800">Déjeuner</h2>
               </div>
               <span className="text-sm font-bold text-orange-700">
                 Total : {personnesMidi.length} personne{personnesMidi.length > 1 ? "s" : ""}
@@ -149,14 +158,12 @@ export default function AdminRepasView() {
             )}
           </div>
 
-          {/* Repas du soir */}
+          {/* Dîner */}
           <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Sun className="text-orange-600 w-5 h-5" />
-                <h2 className="text-xl font-semibold text-orange-800">
-                  Diner
-                </h2>
+                <h2 className="text-xl font-semibold text-orange-800">Dîner</h2>
               </div>
               <span className="text-sm font-bold text-orange-700">
                 Total : {personnesSoir.length} personne{personnesSoir.length > 1 ? "s" : ""}

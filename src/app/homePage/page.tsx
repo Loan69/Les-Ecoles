@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import LogoutButton from "../components/logoutButton";
 import PresenceButton from "../components/presenceButton";
 import { supabase } from "../lib/supabaseClient";
 import Image from "next/image";
-import { Eye } from "lucide-react";
+import { Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import InviteModal from "../components/inviteModal";
 import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
@@ -17,42 +18,115 @@ export default function HomePage() {
   const user = useUser();
   const router = useRouter();
 
-  // --- States principaux ---
+  // --- États principaux ---
   const [profil, setProfil] = useState<Residente | null>(null);
-  const [dateJour, setDateJour] = useState("");
-  const [repasDejeuner, setRepasDejeuner] = useState(false);
-  const [repasDiner, setRepasDiner] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [direction, setDirection] = useState<-1 | 0 | 1>(0); // pour l’animation
+  const [repasDejeuner, setRepasDejeuner] = useState<boolean | null>(null);
+  const [repasDiner, setRepasDiner] = useState<boolean | null>(null);
   const [nbDejeuner, setNbDejeuner] = useState<number>(0);
   const [nbDiner, setNbDiner] = useState<number>(0);
   const [locked, setLocked] = useState(false);
   const [confirmationMsg, setConfirmationMsg] = useState("");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const [selectedResidence, setSelectedResidence] = useState<string>("12");
+  const [isAbsent, setIsAbsent] = useState(false);
+  const [isAbsentReady, setIsAbsentReady] = useState(false);
+  // États pour le swipe
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchEndX, setTouchEndX] = useState<number | null>(null);
 
-  const [isReady, setIsReady] = useState(false); // ✅ Chargement global
-
-  // --- Format date en français ---
   useEffect(() => {
-    const today = new Date();
-    const formatted = today.toLocaleDateString("fr-FR", {
+    // côté client seulement
+    localStorage.setItem("dateSelectionnee", currentDate.toISOString().slice(0, 10));
+  }, [currentDate]);
+
+  // --- Format date FR ---
+  const formatDate = (date: Date) => {
+    const formatted = date.toLocaleDateString("fr-FR", {
       weekday: "long",
       day: "numeric",
       month: "long",
       year: "numeric",
     });
-    setDateJour(formatted.charAt(0).toUpperCase() + formatted.slice(1));
-  }, []);
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  };
 
-  // --- Verrouillage après 8h30 ---
+  // --- Navigation entre jours ---
+  const goToPreviousDay = () => {
+    setDirection(-1);
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev);
+      newDate.setDate(prev.getDate() - 1);
+      localStorage.setItem("dateSelectionnee", newDate.toISOString().slice(0, 10));
+      return newDate;
+    });
+  };
+
+  const goToNextDay = () => {
+    setDirection(1);
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev);
+      newDate.setDate(prev.getDate() + 1);
+      localStorage.setItem("dateSelectionnee", newDate.toISOString().slice(0, 10));
+      return newDate;
+    });
+  };
+
+  // --- Gestion de la présence de l'utilisatrice au foyer ---
+  // --- Récupération de la présence pour la date sélectionnée ---
+  useEffect(() => {
+    const fetchStatus = async () => {
+      if (!user) return;
+
+      const res = await fetch("/api/get-is-absent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: currentDate }),
+      });
+
+      const result = await res.json();
+      setIsAbsent(result.isAbsent);
+      setIsAbsentReady(true);
+    };
+
+    fetchStatus();
+  }, [currentDate, user]);
+
+  // --- Toggle présence ---
+  const togglePresence = async () => {
+    if (locked) return;
+
+    const res = await fetch("/api/presence-foyer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isAbsent, date: currentDate }),
+    });
+
+    const result = await res.json();
+    if (res.ok) {
+      setIsAbsent(!isAbsent);
+    } else {
+      console.error(result.error);
+    }
+  };
+
+  // --- Verrouillage après 8h30 pour le jour actuel uniquement ---
   useEffect(() => {
     const now = new Date();
     const parisTime = new Date(
       now.toLocaleString("en-US", { timeZone: "Europe/Paris" })
     );
 
+    const isToday =
+      currentDate.toDateString() === parisTime.toDateString();
+
     if (
-      parisTime.getHours() > 20 ||
-      (parisTime.getHours() === 20 && parisTime.getMinutes() >= 30)
+      isToday &&
+      (parisTime.getHours() > 8 ||
+        (parisTime.getHours() === 8 && parisTime.getMinutes() >= 30))
     ) {
       setLocked(true);
       setConfirmationMsg("Les présences ne sont plus modifiables après 8h30.");
@@ -60,12 +134,15 @@ export default function HomePage() {
       setLocked(false);
       setConfirmationMsg("");
     }
-  }, []);
+  }, [currentDate]);
 
-  // --- Chargement centralisé : profil + présences + événements ---
+  // --- Chargement : profil + présences repas + événements ---
   useEffect(() => {
     const fetchAllData = async () => {
       if (!user) return;
+      setIsReady(false);
+
+      const dateIso = currentDate.toISOString().split("T")[0];
 
       // 1️⃣ Profil
       const { data: profilData, error: profilError } = await supabase
@@ -77,81 +154,83 @@ export default function HomePage() {
       if (profilData) setProfil(profilData);
 
       // 2️⃣ Présences repas
-      const dateToday = new Date().toISOString().split("T")[0];
       const { data: presences, error: presencesError } = await supabase
         .from("presences")
         .select("user_id, type_repas, date_repas")
-        .eq("date_repas", dateToday);
+        .eq("date_repas", dateIso);
 
       if (presencesError) console.error("Erreur présences :", presencesError);
 
-      const dejeunerCount = presences?.filter(p => p.type_repas === "dejeuner").length || 0;
-      const dinerCount = presences?.filter(p => p.type_repas === "diner").length || 0;
+      const dejeunerCount =
+        presences?.filter((p) => p.type_repas === "dejeuner").length || 0;
+      const dinerCount =
+        presences?.filter((p) => p.type_repas === "diner").length || 0;
       setNbDejeuner(dejeunerCount);
       setNbDiner(dinerCount);
 
       if (user && presences) {
-        const userPresences = presences.filter(p => p.user_id === user.id);
-        setRepasDejeuner(userPresences.some(p => p.type_repas === "dejeuner"));
-        setRepasDiner(userPresences.some(p => p.type_repas === "diner"));
+        const userPresences = presences.filter((p) => p.user_id === user.id);
+        setRepasDejeuner(
+          userPresences.some((p) => p.type_repas === "dejeuner")
+        );
+        setRepasDiner(userPresences.some((p) => p.type_repas === "diner"));
       }
 
       // 3️⃣ Événements du jour
       const { data: eventsData, error: eventsError } = await supabase
         .from("evenements")
         .select("*")
-        .eq("date_event", dateToday);
+        .eq("date_event", dateIso);
+
       if (eventsError) console.error("Erreur événements :", eventsError);
       if (eventsData) setEvents(eventsData);
 
-      // ✅ Tout est prêt
       setIsReady(true);
     };
 
     fetchAllData();
-  }, [user]);
+  }, [user, currentDate]);
 
   // --- Toggle repas ---
-  const handleToggleRepas = async (repas: 'dejeuner' | 'diner') => {
+  const handleToggleRepas = async (repas: "dejeuner" | "diner") => {
     if (locked) {
-      setConfirmationMsg("Les présences ne sont plus modifiables après 9h.");
+      setConfirmationMsg(
+        "Les présences ne sont plus modifiables après 8h30."
+      );
       return;
     }
-  
-    const response = await fetch('/api/presence-repas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ repas }),
+
+    const response = await fetch("/api/presence-repas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repas, date: currentDate.toISOString().split("T")[0] }),
     });
-  
+
     const result = await response.json();
-  
+
     if (!response.ok || !result.success) {
       console.error(result.error || result.message);
-      setConfirmationMsg(result.message || "Erreur lors de la modification du repas.");
+      setConfirmationMsg(
+        result.message || "Erreur lors de la modification du repas."
+      );
       return;
     }
-  
-    // ✅ Met à jour le toggle
-    if (result.action === 'inserted') {
-      if (repas === 'dejeuner') setRepasDejeuner(true);
-      else setRepasDiner(true);
-    } else {
-      if (repas === 'dejeuner') setRepasDejeuner(false);
-      else setRepasDiner(false);
-    }
-  
-    // ✅ Message utilisateur clair
-    setConfirmationMsg(result.message);  
 
-    // Actualisation rapide
-    //setIsReady(false);
-    //await new Promise(resolve => setTimeout(resolve, 200)); // léger delay pour éviter flash
-    //setIsReady(true);
+    if (result.action === "inserted") {
+      repas === "dejeuner"
+        ? setRepasDejeuner(true)
+        : setRepasDiner(true);
+    } else {
+      repas === "dejeuner"
+        ? setRepasDejeuner(false)
+        : setRepasDiner(false);
+    }
+
+    setConfirmationMsg(result.message);
   };
 
-  // --- Loader central si pas prêt ---
-  if (!isReady) {
+  // --- Loader global --- 
+  if (!isReady || !isAbsentReady || repasDejeuner === null || repasDiner === null) {
     return (
       <main className="flex items-center justify-center min-h-screen bg-white">
         <LoadingSpinner />
@@ -159,117 +238,239 @@ export default function HomePage() {
     );
   }
 
+  // --- Filtrage des événements par résidence ---
+  const filteredEvents = events.filter((event) =>
+    event.lieu?.split(",").map((r) => r.trim()).includes(selectedResidence)
+  );
+
+  // --- Animation (slide + fade) ---
+  const variants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 100 : -100,
+      opacity: 0,
+    }),
+    center: { x: 0, opacity: 1 },
+    exit: (direction: number) => ({
+      x: direction > 0 ? -100 : 100,
+      opacity: 0,
+    }),
+  };
+
+  // --- Gestion du swipe sur mobile ---
+
+  // Seuil minimum pour déclencher un swipe
+  const minSwipeDistance = 50;
+
+  // Détecter le début du touch
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.changedTouches[0].clientX);
+  };
+
+  // Détecter la fin du touch et calculer la distance
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    setTouchEndX(e.changedTouches[0].clientX);
+
+    if (touchStartX === null) return;
+
+    const distance = e.changedTouches[0].clientX - touchStartX;
+
+    if (distance > minSwipeDistance) {
+      // Swipe vers la droite → jour précédent
+      goToPreviousDay();
+    } else if (distance < -minSwipeDistance) {
+      // Swipe vers la gauche → jour suivant
+      goToNextDay();
+    }
+
+    // Reset
+    setTouchStartX(null);
+    setTouchEndX(null);
+  };
+
+
   // --- Rendu principal ---
   return (
-    <main className="min-h-screen flex flex-col items-center bg-white px-4 pt-6">
+    <main 
+      className="min-h-screen flex flex-col items-center bg-white px-4 pt-6"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}  
+    >
+      {/* Flèche gauche */}
+      <button
+        onClick={goToPreviousDay}
+        className="
+          hidden md:flex items-center justify-center 
+          absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-[calc(50%+210px)]
+          bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700
+          transition-transform duration-200 hover:scale-110 cursor-pointer
+          flex md:hidden
+          top-1/2 left-4 -translate-y-1/2
+        "
+      >
+        <ChevronLeft className="w-6 h-6" />
+      </button>
+
+      {/* Flèche droite */}
+      <button
+        onClick={goToNextDay}
+        className="
+          hidden md:flex items-center justify-center 
+          absolute top-1/2 left-1/2 -translate-y-1/2 translate-x-[calc(50%+165px)]
+          bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700
+          transition-transform duration-200 hover:scale-110 cursor-pointer
+          flex md:hidden
+          top-1/2 right-4 -translate-y-1/2
+        "
+      >
+        <ChevronRight className="w-6 h-6" />
+      </button>
+
       {/* Bouton de déconnexion */}
       <div className="w-full max-w-md flex justify-end mb-4">
         <LogoutButton />
       </div>
 
       {/* Logo */}
-      <Image src="/logo.png" alt="Logo" width={350} height={350} className="mb-3" />
+      <Image
+        src="/logo.png"
+        alt="Logo"
+        width={350}
+        height={350}
+        className="mb-3"
+      />
 
       {/* Présence au foyer */}
       <div className="flex flex-col items-center mt-4 space-y-2 mb-5">
-        <PresenceButton />
+        <PresenceButton 
+          date={currentDate.toISOString().slice(0, 10)}
+          isAbsent={isAbsent}
+          togglePresence={togglePresence}
+          isAdmin={profil?.is_admin}
+        />
       </div>
 
-      {/* Résidences */}
-      {profil?.residence && (
-        <div className="relative flex justify-center mb-[-10px] z-10">
-          {["12", "36"].map((num, index) => {
-            const isUserResidence = String(profil.residence)
-              .split(",")
-              .map(r => r.trim())
-              .includes(num);
+      {/* Onglets Résidences */}
+      <div className="relative flex justify-center mb-4 z-10">
+        <div
+          className="absolute top-0 h-12 w-20 bg-yellow-400 rounded-t-xl transition-all duration-300"
+          style={{
+            left: selectedResidence === "12" ? "0px" : "81px",
+          }}
+        />
 
-            return (
-              <div
-                key={num}
-                className={`flex items-center justify-center w-18 h-12 text-lg font-bold border shadow-sm
-                  ${isUserResidence ? "bg-yellow-400 text-white border-yellow-400" : "bg-white text-blue-800 border-gray-300"}
-                  rounded-tl-lg rounded-tr-lg
-                `}
-              >
-                {num}
-              </div>
-            );
-          })}
+        {["12", "36"].map((num) => (
+          <button
+            key={num}
+            onClick={() => setSelectedResidence(num)}
+            className={`cursor-pointer relative flex items-center justify-center w-20 h-12 text-lg font-bold border rounded-t-xl transition-colors z-10
+              ${
+                selectedResidence === num
+                  ? "text-white border-yellow-400"
+                  : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"
+              }`}
+          >
+            {num}
+          </button>
+        ))}
+      </div>
+
+      {/* Bloc principal animé */}
+      <section className="w-full max-w-md bg-white rounded-xl shadow-lg p-5 overflow-hidden relative">
+        <div className="flex justify-center items-center mb-5 space-x-4">
+          <h2 className="text-xl font-semibold text-center text-blue-800">
+            {formatDate(currentDate)}
+          </h2>
         </div>
-      )}
 
-      {/* Bloc combiné Évènements + Repas */}
-      <section className="w-full max-w-md bg-white rounded-xl shadow-lg p-5">
-        <div className="mb-10">
-          <h2 className="text-xl font-semibold text-center text-blue-800 mb-5">{dateJour}</h2>
-          {events.length === 0 ? (
-            <p className="text-gray-500 italic text-sm mb-4">Aucun évènement prévu aujourd’hui.</p>
-          ) : (
-            events.map(event => (
-              <div key={event.id} className="flex items-center mb-2">
-                <p className={`text-gray-700 text-sm text-center flex-1 ${event.couleur} rounded px-1 py-2`}>
-                  {event.titre} (à partir de {event.heures}, lieu : {event.lieu})
+        <AnimatePresence custom={direction} mode="wait">
+          <motion.div
+            key={currentDate.toDateString()}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.25 }}
+          >
+            {/* Événements */}
+            <div className="mb-10">
+              {filteredEvents.length === 0 ? (
+                <p className="text-gray-500 italic text-sm mb-4">
+                  Aucun évènement prévu pour la résidence {selectedResidence}.
                 </p>
+              ) : (
+                filteredEvents.map((event) => (
+                  <div key={event.id} className="flex items-center mb-2">
+                    <p
+                      className={`text-gray-700 text-sm text-center flex-1 ${event.couleur} rounded px-1 py-2`}
+                    >
+                      {event.titre} (à partir de {event.heures}, lieu : {event.lieu})
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Présence repas */}
+            <h2 className="text-xl font-semibold text-center text-blue-800 mb-4">
+              Présence aux repas
+            </h2>
+
+            {/* Déjeuner */}
+            <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
+              <div className="flex items-center space-x-2">
+                <p className="font-semibold text-blue-900">Déjeuner</p>
+                <div className="flex items-center text-blue-700">
+                  <Eye className="w-4 h-4 mr-1" />
+                  <span className="font-medium">{nbDejeuner}</span>
+                </div>
               </div>
-            ))
-          )}
-        </div>
-
-        {/* Présence repas */}
-        <h2 className="text-xl font-semibold text-center text-blue-800 mb-4">Présence aux repas</h2>
-
-        {/* Déjeuner */}
-        <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
-          <div className="flex items-center space-x-2">
-            <p className="font-semibold text-blue-900">Déjeuner</p>
-            <div className="flex items-center text-blue-700">
-              <Eye className="w-4 h-4 mr-1" />
-              <span className="font-medium">{nbDejeuner}</span>
+              <button
+                onClick={() => handleToggleRepas("dejeuner")}
+                className={`relative w-16 h-8 rounded-full transition-all duration-300 cursor-pointer ${
+                  repasDejeuner ? "bg-blue-700" : "bg-gray-300"
+                } ${locked ? "cursor-not-allowed" : ""}`}
+              >
+                <span
+                  className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transform transition-transform duration-300 ${
+                    repasDejeuner ? "translate-x-8" : "translate-x-0"
+                  }`}
+                />
+              </button>
             </div>
-          </div>
-          <button
-            onClick={() => handleToggleRepas("dejeuner")}
-            className={`relative w-16 h-8 rounded-full transition-all duration-300 cursor-pointer ${
-              repasDejeuner ? "bg-blue-700" : "bg-gray-300"
-            } ${locked ? "cursor-not-allowed" : ""}`}
-          >
-            <span
-              className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transform transition-transform duration-300 ${
-                repasDejeuner ? "translate-x-8" : "translate-x-0"
-              }`}
-            />
-          </button>
-        </div>
 
-        {/* Dîner */}
-        <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3">
-          <div className="flex items-center space-x-2">
-            <p className="font-semibold text-blue-900">Dîner</p>
-            <div className="flex items-center text-blue-700">
-              <Eye className="w-4 h-4 mr-1" />
-              <span className="font-medium">{nbDiner}</span>
+            {/* Dîner */}
+            <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3">
+              <div className="flex items-center space-x-2">
+                <p className="font-semibold text-blue-900">Dîner</p>
+                <div className="flex items-center text-blue-700">
+                  <Eye className="w-4 h-4 mr-1" />
+                  <span className="font-medium">{nbDiner}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => handleToggleRepas("diner")}
+                className={`relative w-16 h-8 rounded-full transition-all duration-300 ${
+                  repasDiner ? "bg-blue-700" : "bg-gray-300"
+                } ${locked ? "cursor-not-allowed" : ""}`}
+              >
+                <span
+                  className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transform transition-transform duration-300 ${
+                    repasDiner ? "translate-x-8" : "translate-x-0"
+                  }`}
+                />
+              </button>
             </div>
-          </div>
-          <button
-            onClick={() => handleToggleRepas("diner")}
-            className={`relative w-16 h-8 rounded-full transition-all duration-300 ${
-              repasDiner ? "bg-blue-700" : "bg-gray-300"
-            } ${locked ? "cursor-not-allowed" : ""}`}
-          >
-            <span
-              className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transform transition-transform duration-300 ${
-                repasDiner ? "translate-x-8" : "translate-x-0"
-              }`}
-            />
-          </button>
-        </div>
 
-        {confirmationMsg && (
-          <p className="mt-3 text-green-600 font-semibold text-sm">{confirmationMsg}</p>
-        )}
+            {confirmationMsg && (
+              <p className="mt-3 text-green-600 font-semibold text-sm">
+                {confirmationMsg}
+              </p>
+            )}
+          </motion.div>
+        </AnimatePresence>
 
-        {/* Boutons */}
+        {/* Boutons bas */}
         <div className="flex justify-between mt-6">
           <button
             className="border border-blue-700 text-blue-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-50 cursor-pointer"
@@ -286,7 +487,10 @@ export default function HomePage() {
         </div>
 
         {/* Modal */}
-        <InviteModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+        <InviteModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
       </section>
     </main>
   );

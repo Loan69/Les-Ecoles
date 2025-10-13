@@ -13,8 +13,6 @@ export default function CalendrierPage() {
   const supabase = createClientComponentClient();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const user = useUser();
-    
-  console.log("Utilisateur actuel :", user);
 
   // 🟢 Charger les évènements depuis Supabase
   const fetchEvents = async () => {
@@ -42,9 +40,6 @@ export default function CalendrierPage() {
         : type === "linge"
         ? "bg-blue-100 text-blue-700 border-blue-300"
         : "bg-yellow-100 text-yellow-700 border-yellow-300";
-    
-    console.log("📦 Données envoyées :", data);
-    console.log(user?.id)
 
     const { data: inserted, error } = await supabase
       .from("evenements")
