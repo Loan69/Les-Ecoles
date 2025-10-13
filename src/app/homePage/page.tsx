@@ -22,8 +22,8 @@ export default function HomePage() {
   const [profil, setProfil] = useState<Residente | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [direction, setDirection] = useState<-1 | 0 | 1>(0); // pour l’animation
-  const [repasDejeuner, setRepasDejeuner] = useState<boolean | null>(null);
-  const [repasDiner, setRepasDiner] = useState<boolean | null>(null);
+  const [repasDejeuner, setRepasDejeuner] = useState<string | null>(null);
+  const [repasDiner, setRepasDiner] = useState<string | null>(null);
   const [nbDejeuner, setNbDejeuner] = useState<number>(0);
   const [nbDiner, setNbDiner] = useState<number>(0);
   const [locked, setLocked] = useState(false);
@@ -156,25 +156,30 @@ export default function HomePage() {
       // 2️⃣ Présences repas
       const { data: presences, error: presencesError } = await supabase
         .from("presences")
-        .select("user_id, type_repas, date_repas")
+        .select("user_id, type_repas, date_repas, choix_repas")
         .eq("date_repas", dateIso);
 
       if (presencesError) console.error("Erreur présences :", presencesError);
 
       const dejeunerCount =
         presences?.filter((p) => p.type_repas === "dejeuner").length || 0;
+
       const dinerCount =
         presences?.filter((p) => p.type_repas === "diner").length || 0;
+
       setNbDejeuner(dejeunerCount);
       setNbDiner(dinerCount);
 
       if (user && presences) {
         const userPresences = presences.filter((p) => p.user_id === user.id);
-        setRepasDejeuner(
-          userPresences.some((p) => p.type_repas === "dejeuner")
-        );
-        setRepasDiner(userPresences.some((p) => p.type_repas === "diner"));
+      
+        const dejeuner = userPresences.find((p) => p.type_repas === "dejeuner");
+        const diner = userPresences.find((p) => p.type_repas === "diner");
+      
+        setRepasDejeuner(dejeuner?.choix_repas || null);
+        setRepasDiner(diner?.choix_repas || null);
       }
+      
 
       // 3️⃣ Événements du jour
       const { data: eventsData, error: eventsError } = await supabase
@@ -191,46 +196,61 @@ export default function HomePage() {
     fetchAllData();
   }, [user, currentDate]);
 
-  // --- Toggle repas ---
-  const handleToggleRepas = async (repas: "dejeuner" | "diner") => {
+  // Sélection des présences et du types de repas
+  const repasOptions = {
+    dejeuner: [
+      { value: "non", label: "Non" },
+      { value: "12", label: "Oui au 12" },
+      { value: "36", label: "Oui au 36" },
+      { value: "Pique-nique chaud", label: "Pique-nique chaud" },
+      { value: "Pique-nique froid", label: "Pique-nique froid" },
+    ],
+    diner: [
+      { value: "non", label: "Non" },
+      { value: "12", label: "Oui au 12" },
+      { value: "36", label: "Oui au 36" },
+      { value: "plateau-repas", label: "Plateau repas" },
+    ],
+  };
+
+  const handleSelectRepas = async (
+    repas: "dejeuner" | "diner",
+    choix: string
+  ) => {
     if (locked) {
-      setConfirmationMsg(
-        "Les présences ne sont plus modifiables après 8h30."
-      );
+      setConfirmationMsg("Les présences ne sont plus modifiables après 8h30.");
       return;
     }
-
+    
+    
     const response = await fetch("/api/presence-repas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ repas, date: currentDate.toISOString().split("T")[0] }),
+      body: JSON.stringify({
+        repas,
+        choix,
+        date: currentDate.toISOString().split("T")[0],
+      }),
     });
-
+  
     const result = await response.json();
-
+  
     if (!response.ok || !result.success) {
       console.error(result.error || result.message);
-      setConfirmationMsg(
-        result.message || "Erreur lors de la modification du repas."
-      );
+      setConfirmationMsg(result.message || "Erreur lors de la modification.");
       return;
     }
-
-    if (result.action === "inserted") {
-      repas === "dejeuner"
-        ? setRepasDejeuner(true)
-        : setRepasDiner(true);
-    } else {
-      repas === "dejeuner"
-        ? setRepasDejeuner(false)
-        : setRepasDiner(false);
-    }
-
+  
+    repas === "dejeuner"
+      ? setRepasDejeuner(choix)
+      : setRepasDiner(choix);
+  
     setConfirmationMsg(result.message);
   };
+  
 
   // --- Loader global --- 
-  if (!isReady || !isAbsentReady || repasDejeuner === null || repasDiner === null) {
+  if (!isReady || !isAbsentReady) {
     return (
       <main className="flex items-center justify-center min-h-screen bg-white">
         <LoadingSpinner />
@@ -422,41 +442,78 @@ export default function HomePage() {
                   <span className="font-medium">{nbDejeuner}</span>
                 </div>
               </div>
-              <button
-                onClick={() => handleToggleRepas("dejeuner")}
-                className={`relative w-16 h-8 rounded-full transition-all duration-300 cursor-pointer ${
-                  repasDejeuner ? "bg-blue-700" : "bg-gray-300"
-                } ${locked ? "cursor-not-allowed" : ""}`}
-              >
-                <span
-                  className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transform transition-transform duration-300 ${
-                    repasDejeuner ? "translate-x-8" : "translate-x-0"
-                  }`}
-                />
-              </button>
+              
+              <div className="flex items-center">
+                <div className="relative">
+                  <select
+                    value={repasDejeuner || ""}
+                    onChange={(e) => handleSelectRepas("dejeuner", e.target.value)}
+                    className="cursor-pointer appearance-none bg-white border border-blue-500 text-blue-800 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-500"
+                  >
+                    {repasOptions.dejeuner.map((opt) => {
+                      const isWeekend = [0, 6].includes(new Date(currentDate).getDay());
+                      const isDisabled = opt.value === "oui_12" && !isWeekend;
+                      return (
+                        <option key={opt.value} value={opt.value} disabled={isDisabled}>
+                          {opt.label}
+                        </option>
+                      );
+                    })}
+                  </select>
+
+                  {/* Flèche bleue custom */}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500 pointer-events-none"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
             </div>
 
+
             {/* Dîner */}
-            <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3">
+            <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
               <div className="flex items-center space-x-2">
-                <p className="font-semibold text-blue-900">Dîner</p>
+                <p className="font-semibold text-blue-900">Diner</p>
                 <div className="flex items-center text-blue-700">
                   <Eye className="w-4 h-4 mr-1" />
                   <span className="font-medium">{nbDiner}</span>
                 </div>
               </div>
-              <button
-                onClick={() => handleToggleRepas("diner")}
-                className={`relative w-16 h-8 rounded-full transition-all duration-300 ${
-                  repasDiner ? "bg-blue-700" : "bg-gray-300"
-                } ${locked ? "cursor-not-allowed" : ""}`}
-              >
-                <span
-                  className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transform transition-transform duration-300 ${
-                    repasDiner ? "translate-x-8" : "translate-x-0"
-                  }`}
-                />
-              </button>
+              
+              <div className="flex items-center">
+                <div className="relative">
+                  <select
+                    value={repasDiner || ""}
+                    onChange={(e) => handleSelectRepas("diner", e.target.value)}
+                    className="cursor-pointer appearance-none bg-white border border-blue-500 text-blue-800 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-500"
+                  >
+                    {repasOptions.diner.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Flèche bleue custom */}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500 pointer-events-none"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
             </div>
 
             {confirmationMsg && (

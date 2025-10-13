@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -28,7 +27,6 @@ export default function SignupForm({ role, onSubmit }: Props) {
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
     const [successMsg, setSuccessMsg] = useState("");
-    const router = useRouter();
 
     // Regarder si l'email est déjà associé à un compte
     const checkUserExists = async (email: string) => {

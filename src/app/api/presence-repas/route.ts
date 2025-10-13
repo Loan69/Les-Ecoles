@@ -1,93 +1,186 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { NextRequest, NextResponse } from "next/server";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 
-type RepasType = 'dejeuner' | 'diner'
+type RepasType = "dejeuner" | "diner";
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createServerComponentClient({ cookies })
-    const { data: { session } } = await supabase.auth.getSession()
+    const supabase = createServerComponentClient({ cookies });
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
     if (!session) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
-        message: "Vous devez être connectée pour modifier vos repas." 
-      }, { status: 401 })
+        message: "Vous devez être connectée pour modifier vos repas.",
+      });
     }
 
-    const { repas, date }: { repas: RepasType; date?: string } = await req.json()
-    const userId = session.user.id
-    const dateToday = date || new Date().toISOString().split('T')[0]
+    const {
+      repas,
+      date,
+      choix,
+    }: { repas: RepasType; date?: string; choix: string } = await req.json();
 
-    // Vérifie si un repas existe déjà
+    const userId = session.user.id;
+    const dateToday = date || new Date().toISOString().split("T")[0];
+
+    // --- Obtenir "maintenant" en heure de Paris ---
+    const nowParis = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" })
+    );
+
+    // --- Construire targetDate à minuit Paris ---
+    const [year, month, day] = dateToday.split("-").map(Number);
+    const targetDateParis = new Date(
+      nowParis.getFullYear(),  // Remplace si tu veux utiliser l'année de dateToday
+      month - 1,
+      day,
+      0,
+      0,
+      0
+    );
+
+    // --- Comparer les jours ---
+    const isPast = targetDateParis < new Date(
+      nowParis.getFullYear(),
+      nowParis.getMonth(),
+      nowParis.getDate(),
+      0, 0, 0
+    );
+
+    if (isPast) {
+      return NextResponse.json({
+        success: false,
+        message: "Vous ne pouvez plus modifier les repas d'une date passée.",
+      });
+    }
+
+    // --- Vérifier si jour même et après 8h30 ---
+    const isSameDay =
+      targetDateParis.getFullYear() === nowParis.getFullYear() &&
+      targetDateParis.getMonth() === nowParis.getMonth() &&
+      targetDateParis.getDate() === nowParis.getDate();
+
+    if (isSameDay) {
+      const limite = new Date(
+        nowParis.getFullYear(),
+        nowParis.getMonth(),
+        nowParis.getDate(),
+        8, 30, 0
+      );
+      if (nowParis > limite) {
+        return NextResponse.json({
+          success: false,
+          message: "Les présences ne sont plus modifiables après 8h30.",
+        });
+      }
+    }
+
+
+    // --- 🔍 Vérifie si un repas existe déjà ---
     const { data: existing, error: selectError } = await supabase
-      .from('presences')
-      .select('id_repas')
-      .eq('user_id', userId)
-      .eq('date_repas', dateToday)
-      .eq('type_repas', repas)
-      .maybeSingle()
+      .from("presences")
+      .select("id_repas")
+      .eq("user_id", userId)
+      .eq("date_repas", dateToday)
+      .eq("type_repas", repas)
+      .maybeSingle();
 
     if (selectError) {
-      return NextResponse.json({ 
+      console.error("Erreur select repas:", selectError.message);
+      return NextResponse.json({
         success: false,
         message: "Erreur lors de la vérification du repas.",
-        error: selectError.message 
-      }, { status: 500 })
+      });
     }
 
-    if (existing) {
-      // 🔹 Suppression
-      const { error: deleteError } = await supabase
-        .from('presences')
-        .delete()
-        .eq('id_repas', existing.id_repas)
+    // --- ❌ Suppression si "non" ---
+    if (choix === "non") {
+      if (existing) {
+        const { error: deleteError } = await supabase
+          .from("presences")
+          .delete()
+          .eq("id_repas", existing.id_repas);
 
-      if (deleteError) {
-        return NextResponse.json({ 
-          success: false,
-          message: "Erreur lors de la suppression du repas.",
-          error: deleteError.message 
-        }, { status: 500 })
+        if (deleteError) {
+          console.error("Erreur delete repas:", deleteError.message);
+          return NextResponse.json({
+            success: false,
+            message: "Erreur lors de la suppression du repas.",
+          });
+        }
+
+        return NextResponse.json({
+          success: true,
+          action: "deleted",
+          repas,
+          choix,
+          message: `Vous êtes désinscrite pour le ${repas}.`,
+        });
       }
 
       return NextResponse.json({
         success: true,
-        action: 'deleted',
+        action: "noop",
         repas,
-        message: repas === 'dejeuner'
-          ? 'Vous êtes désinscrite pour le déjeuner.'
-          : 'Vous êtes désinscrite pour le dîner.'
-      })
+        choix,
+        message: `Aucun repas à supprimer pour le ${repas}.`,
+      });
     }
 
-    // 🔹 Insertion
-    const { error: insertError } = await supabase.from('presences').insert({
+    // --- 🔄 Mise à jour si déjà existant ---
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from("presences")
+        .update({ choix_repas: choix })
+        .eq("id_repas", existing.id_repas);
+
+      if (updateError) {
+        console.error("Erreur update repas:", updateError.message);
+        return NextResponse.json({
+          success: false,
+          message: "Erreur lors de la mise à jour du repas.",
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        action: "updated",
+        repas,
+        choix,
+        message: `Votre choix du ${repas} a été mis à jour.`,
+      });
+    }
+
+    // --- ➕ Insertion sinon ---
+    const { error: insertError } = await supabase.from("presences").insert({
       user_id: userId,
       type_repas: repas,
       date_repas: dateToday,
-    })
+      choix_repas: choix,
+    });
 
     if (insertError) {
-      return NextResponse.json({ 
+      console.error("Erreur insert repas:", insertError.message);
+      return NextResponse.json({
         success: false,
         message: "Erreur lors de l’ajout du repas.",
-        error: insertError.message 
-      }, { status: 500 })
+      });
     }
 
     return NextResponse.json({
       success: true,
-      action: 'inserted',
+      action: "inserted",
       repas,
-      message: repas === 'dejeuner'
-        ? 'Vous êtes inscrite pour le déjeuner.'
-        : 'Vous êtes inscrite pour le dîner.'
-    })
-
+      choix,
+      message: `Vous êtes inscrite pour le ${repas} (${choix}).`,
+    });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ success: false, message }, { status: 500 })
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("Erreur serveur:", message);
+    return NextResponse.json({ success: false, message });
   }
 }
