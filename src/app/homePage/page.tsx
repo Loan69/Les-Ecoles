@@ -295,35 +295,32 @@ export default function HomePage() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}  
     >
-      {/* Flèche gauche */}
+      {/* Flèche gauche (desktop uniquement) */}
       <button
         onClick={goToPreviousDay}
         className="
-          hidden md:flex items-center justify-center 
+          hidden md:flex items-center justify-center
           absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-[calc(50%+210px)]
           bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700
           transition-transform duration-200 hover:scale-110 cursor-pointer
-          flex md:hidden
-          top-1/2 left-4 -translate-y-1/2
         "
       >
         <ChevronLeft className="w-6 h-6" />
       </button>
 
-      {/* Flèche droite */}
+      {/* Flèche droite (desktop uniquement) */}
       <button
         onClick={goToNextDay}
         className="
-          hidden md:flex items-center justify-center 
+          hidden md:flex items-center justify-center
           absolute top-1/2 left-1/2 -translate-y-1/2 translate-x-[calc(50%+165px)]
           bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700
           transition-transform duration-200 hover:scale-110 cursor-pointer
-          flex md:hidden
-          top-1/2 right-4 -translate-y-1/2
         "
       >
         <ChevronRight className="w-6 h-6" />
       </button>
+
 
       {/* Bouton de déconnexion */}
       <div className="w-full max-w-md flex justify-end mb-4">
