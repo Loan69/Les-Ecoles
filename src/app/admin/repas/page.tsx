@@ -8,6 +8,12 @@ import { Personne } from "@/types/Personne";
 import { Repas } from "@/types/repas";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 
+type RepasDetail = Personne & {
+  choix_repas: string | null;
+  commentaire: string | null;
+};
+
+
 export default function AdminRepasView() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -78,7 +84,7 @@ export default function AdminRepasView() {
 
   // --- Agrégation par jour ---
   const summary: Record<string, { midi: number; soir: number }> = {};
-  const details: Record<string, { midi: any[]; soir: any[] }> = {};
+  const details: Record<string, { midi: RepasDetail[]; soir: RepasDetail[] }> = {};
 
   repasData.forEach((r) => {
     if (!summary[r.date_repas]) summary[r.date_repas] = { midi: 0, soir: 0 };
@@ -89,10 +95,10 @@ export default function AdminRepasView() {
 
     if (r.type_repas === "dejeuner") {
       summary[r.date_repas].midi++;
-      details[r.date_repas].midi.push({ ...personne, choix_repas: r.choix_repas, commentaire: r.commentaire });
+      details[r.date_repas].midi.push({ ...personne, choix_repas: r.choix_repas, commentaire: r.commentaire ?? null });
     } else {
       summary[r.date_repas].soir++;
-      details[r.date_repas].soir.push({ ...personne, choix_repas: r.choix_repas, commentaire: r.commentaire });
+      details[r.date_repas].soir.push({ ...personne, choix_repas: r.choix_repas, commentaire: r.commentaire ?? null});
     }
   });
 
