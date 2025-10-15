@@ -3,5 +3,6 @@ export interface Personne {
     nom: string;
     prenom: string;
     type: "Résidente" | "Invitée";
+    residence?: string;
 }
   

@@ -22,6 +22,7 @@ export default function PresenceButton({
   const now = new Date();
   const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
   const isToday = parisTime.toISOString().split("T")[0] === date;
+
   const locked = isToday && (parisTime.getHours() > 23 || (parisTime.getHours() === 23 && parisTime.getMinutes() >= 30));
 
   // --- Libellés ---

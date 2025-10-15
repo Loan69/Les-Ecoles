@@ -39,8 +39,10 @@ export default function HomePage() {
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
 
   useEffect(() => {
-    // côté client seulement
+    // Réglage des dates pour synchro
     localStorage.setItem("dateSelectionnee", currentDate.toISOString().slice(0, 10));
+    localStorage.setItem("startDate", currentDate.toISOString().slice(0, 10));
+    localStorage.setItem("endDate", currentDate.toISOString().slice(0, 10));
   }, [currentDate]);
 
   // --- Format date FR ---
@@ -97,7 +99,6 @@ export default function HomePage() {
 
   // --- Toggle présence ---
   const togglePresence = async () => {
-    if (locked) return;
 
     const res = await fetch("/api/presence-foyer", {
       method: "POST",
@@ -448,17 +449,18 @@ export default function HomePage() {
                   <select
                     value={repasDejeuner || ""}
                     onChange={(e) => handleSelectRepas("dejeuner", e.target.value)}
-                    className="cursor-pointer appearance-none bg-white border border-blue-500 text-blue-800 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-500"
+                    disabled={locked} // ✅ désactive si locked
+                    className={`appearance-none border text-blue-800 px-4 py-2 pr-10 rounded-md focus:outline-none focus:ring-2 
+                      ${locked 
+                        ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed" 
+                        : "bg-white border-blue-500 focus:ring-blue-300 focus:border-blue-500 cursor-pointer"
+                      }`}
                   >
-                    {repasOptions.dejeuner.map((opt) => {
-                      const isWeekend = [0, 6].includes(new Date(currentDate).getDay());
-                      const isDisabled = opt.value === "oui_12" && !isWeekend;
-                      return (
-                        <option key={opt.value} value={opt.value} disabled={isDisabled}>
-                          {opt.label}
-                        </option>
-                      );
-                    })}
+                    {repasOptions.dejeuner.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
 
                   {/* Flèche bleue custom */}
@@ -492,7 +494,12 @@ export default function HomePage() {
                   <select
                     value={repasDiner || ""}
                     onChange={(e) => handleSelectRepas("diner", e.target.value)}
-                    className="cursor-pointer appearance-none bg-white border border-blue-500 text-blue-800 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-500"
+                    disabled={locked} // ✅ désactive si locked
+                    className={`appearance-none border text-blue-800 px-4 py-2 pr-10 rounded-md focus:outline-none focus:ring-2 
+                      ${locked 
+                        ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed" 
+                        : "bg-white border-blue-500 focus:ring-blue-300 focus:border-blue-500 cursor-pointer"
+                      }`}
                   >
                     {repasOptions.diner.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -500,6 +507,7 @@ export default function HomePage() {
                       </option>
                     ))}
                   </select>
+
 
                   {/* Flèche bleue custom */}
                   <svg
