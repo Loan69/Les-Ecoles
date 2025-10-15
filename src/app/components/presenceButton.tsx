@@ -22,8 +22,10 @@ export default function PresenceButton({
   const now = new Date();
   const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
   const isToday = parisTime.toISOString().split("T")[0] === date;
+  const today = parisTime.toISOString().split("T")[0];
 
-  const locked = isToday && (parisTime.getHours() > 23 || (parisTime.getHours() === 23 && parisTime.getMinutes() >= 30));
+  const locked = date < today || isToday && 
+    (parisTime.getHours() > 23 || (parisTime.getHours() === 23 && parisTime.getMinutes() >= 30));
 
   // --- Libellés ---
   const labelText = isAbsent ? "Je dors à l'extérieur" : "Je dors au foyer";

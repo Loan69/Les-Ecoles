@@ -122,7 +122,7 @@ export default function HomePage() {
     const isToday =
       currentDate.toDateString() === parisTime.toDateString();
 
-    if (
+    if (currentDate < parisTime ||
       isToday &&
       (parisTime.getHours() > 8 ||
         (parisTime.getHours() === 8 && parisTime.getMinutes() >= 30))

@@ -12,7 +12,23 @@ import LogoutButton from "../components/logoutButton";
 export default function CalendrierPage() {
   const supabase = createClientComponentClient();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [is_admin, setIsAdmin] = useState<boolean | null>(false);
   const user = useUser();
+
+  // Charger les données de l'utilisatrice pour voir si elle est admin
+  const fetchProfile = async () => {
+    const { data, error } = await supabase
+      .from("residentes")
+      .select("is_admin")
+      .eq("user_id", user?.id)
+      .maybeSingle();
+    if (error) console.error(error);
+    else setIsAdmin(data?.is_admin);
+  }
+
+  useEffect(() => {
+    fetchProfile();
+  }, [user]);
 
   // 🟢 Charger les évènements depuis Supabase
   const fetchEvents = async () => {
@@ -89,6 +105,7 @@ export default function CalendrierPage() {
         onAddEvent={handleAddEvent}
         onDeleteEvent={handleDeleteEvent}
         onEditEvent={handleEditEvent}
+        is_admin={is_admin ?? false}
       />
     </div>
   </main>

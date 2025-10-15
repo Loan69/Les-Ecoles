@@ -19,6 +19,7 @@ type CalendrierViewProps = {
     onAddEvent: (data: EventFormData) => Promise<void>;
     onEditEvent: (id: number, updates: Partial<CalendarEvent>) => Promise<void>;
     onDeleteEvent: (id: number) => Promise<void>;
+    is_admin: boolean;
   };
   
 
@@ -27,6 +28,7 @@ type CalendrierViewProps = {
     onAddEvent,
     onEditEvent,
     onDeleteEvent,
+    is_admin,
   }: CalendrierViewProps) {
     const [openModal, setOpenModal] = useState(false);
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -215,18 +217,21 @@ type CalendrierViewProps = {
                 )}
             </div>
             {/* Bouton d’ajout d’évènement */}
-            <button
-                onClick={() => setOpenModal(true)}
-                className="
-                    fixed bottom-20 md:bottom-24 
-                    right-6 md:right-[calc(50%-24rem/2-1rem)] 
-                    bg-blue-700 text-white rounded-full 
-                    w-12 h-12 flex items-center justify-center text-2xl 
-                    shadow-lg z-50 hover:scale-105 transition-transform cursor-pointer
-                "
-                >
-                +
-            </button>
+            {is_admin && (
+                <button
+                    onClick={() => setOpenModal(true)}
+                    className="
+                        fixed bottom-20 md:bottom-24 
+                        right-6 md:right-[calc(50%-24rem/2-1rem)] 
+                        bg-blue-700 text-white rounded-full 
+                        w-12 h-12 flex items-center justify-center text-2xl 
+                        shadow-lg z-50 hover:scale-105 transition-transform cursor-pointer
+                    "
+                    >
+                    +
+                </button>
+            )}
+            
 
 
             <ModalAjoutEvenement
