@@ -6,7 +6,7 @@ import LogoutButton from "../components/logoutButton";
 import PresenceButton from "../components/presenceButton";
 import { supabase } from "../lib/supabaseClient";
 import Image from "next/image";
-import { Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import InviteModal from "../components/inviteModal";
 import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
@@ -24,8 +24,6 @@ export default function HomePage() {
   const [direction, setDirection] = useState<-1 | 0 | 1>(0); // pour l’animation
   const [repasDejeuner, setRepasDejeuner] = useState<string | null>(null);
   const [repasDiner, setRepasDiner] = useState<string | null>(null);
-  const [nbDejeuner, setNbDejeuner] = useState<number>(0);
-  const [nbDiner, setNbDiner] = useState<number>(0);
   const [locked, setLocked] = useState(false);
   const [confirmationMsg, setConfirmationMsg] = useState("");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -162,14 +160,6 @@ export default function HomePage() {
 
       if (presencesError) console.error("Erreur présences :", presencesError);
 
-      const dejeunerCount =
-        presences?.filter((p) => p.type_repas === "dejeuner").length || 0;
-
-      const dinerCount =
-        presences?.filter((p) => p.type_repas === "diner").length || 0;
-
-      setNbDejeuner(dejeunerCount);
-      setNbDiner(dinerCount);
 
       if (user && presences) {
         const userPresences = presences.filter((p) => p.user_id === user.id);
@@ -180,7 +170,6 @@ export default function HomePage() {
         setRepasDejeuner(dejeuner?.choix_repas || null);
         setRepasDiner(diner?.choix_repas || null);
       }
-      
 
       // 3️⃣ Événements du jour
       const { data: eventsData, error: eventsError } = await supabase
@@ -210,6 +199,8 @@ export default function HomePage() {
       { value: "non", label: "Non" },
       { value: "12", label: "Oui au 12" },
       { value: "36", label: "Oui au 36" },
+      { value: "Pique-nique chaud", label: "Pique-nique chaud" },
+      { value: "Pique-nique froid", label: "Pique-nique froid" },
       { value: "plateau-repas", label: "Plateau repas" },
     ],
   };
@@ -438,10 +429,6 @@ export default function HomePage() {
             <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
               <div className="flex items-center space-x-2">
                 <p className="font-semibold text-blue-900">Déjeuner</p>
-                <div className="flex items-center text-blue-700">
-                  <Eye className="w-4 h-4 mr-1" />
-                  <span className="font-medium">{nbDejeuner}</span>
-                </div>
               </div>
               
               <div className="flex items-center">
@@ -483,10 +470,6 @@ export default function HomePage() {
             <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
               <div className="flex items-center space-x-2">
                 <p className="font-semibold text-blue-900">Diner</p>
-                <div className="flex items-center text-blue-700">
-                  <Eye className="w-4 h-4 mr-1" />
-                  <span className="font-medium">{nbDiner}</span>
-                </div>
               </div>
               
               <div className="flex items-center">
