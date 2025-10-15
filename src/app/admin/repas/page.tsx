@@ -273,7 +273,7 @@ export default function AdminRepasView() {
         <div className="space-y-10">
           <h2 className="text-2xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
           <UserRound />
-              Total par lieu de résidences des utilisatrices
+              Total par lieu de résidence des utilisatrices
           </h2>
           {(["12", "36"] as const).map((res) => (
             <div key={res} className="bg-white shadow-sm border border-gray-200 rounded-xl p-6">
