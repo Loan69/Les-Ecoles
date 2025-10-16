@@ -4,19 +4,22 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import LogoutButton from "../components/logoutButton";
 import PresenceButton from "../components/presenceButton";
-import { supabase } from "../lib/supabaseClient";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import InviteModal from "../components/inviteModal";
 import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { useUser } from "@supabase/auth-helpers-react";
 import { Residente } from "@/types/Residente";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { Repas } from "@/types/Repas";
+import CommentModal from "../components/commentModal";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 export default function HomePage() {
   const user = useUser();
   const router = useRouter();
+  const supabase = createClientComponentClient()
 
   // --- États principaux ---
   const [profil, setProfil] = useState<Residente | null>(null);
@@ -32,9 +35,17 @@ export default function HomePage() {
   const [selectedResidence, setSelectedResidence] = useState<string>("12");
   const [isAbsent, setIsAbsent] = useState(false);
   const [isAbsentReady, setIsAbsentReady] = useState(false);
+  const [dejeuner, setDejeuner] = useState<Repas | null>(null);
+  const [diner, setDiner] = useState<Repas | null>(null);
   // États pour le swipe
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
+
+  // Variables pour le commentaire
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [selectedRepasId, setSelectedRepasId] = useState<number | null>(null);
+  const [commentValue, setCommentValue] = useState('');
+
 
   useEffect(() => {
     // Réglage des dates pour synchro
@@ -155,7 +166,7 @@ export default function HomePage() {
       // 2️⃣ Présences repas
       const { data: presences, error: presencesError } = await supabase
         .from("presences")
-        .select("user_id, type_repas, date_repas, choix_repas")
+        .select("id_repas, user_id, type_repas, date_repas, choix_repas, commentaire")
         .eq("date_repas", dateIso);
 
       if (presencesError) console.error("Erreur présences :", presencesError);
@@ -164,11 +175,13 @@ export default function HomePage() {
       if (user && presences) {
         const userPresences = presences.filter((p) => p.user_id === user.id);
       
-        const dejeuner = userPresences.find((p) => p.type_repas === "dejeuner");
-        const diner = userPresences.find((p) => p.type_repas === "diner");
-      
-        setRepasDejeuner(dejeuner?.choix_repas || null);
-        setRepasDiner(diner?.choix_repas || null);
+        const dejeunerData = userPresences.find((p) => p.type_repas === "dejeuner");
+        const dinerData = userPresences.find((p) => p.type_repas === "diner");
+
+        setRepasDejeuner(dejeunerData?.choix_repas || "non");
+        setRepasDiner(dinerData?.choix_repas || "non");
+        setDejeuner(dejeunerData ?? null);
+        setDiner(dinerData  ?? null)
       }
 
       // 3️⃣ Événements du jour
@@ -239,6 +252,46 @@ export default function HomePage() {
   
     setConfirmationMsg(result.message);
   };
+
+  // Ajout d'un commentaire à un repas
+  const handleSaveComment = async (newComment: string) => {
+    if (!selectedRepasId) return;
+
+    // 1️⃣ Mise à jour en base
+    const { error: updateError } = await supabase
+      .from("presences")
+      .update({ commentaire: newComment })
+      .eq("id_repas", selectedRepasId);
+
+    if (updateError) {
+      console.error("Erreur lors de la mise à jour du commentaire :", updateError);
+      return;
+    }
+
+    // 2️⃣ Recharge la ligne mise à jour
+    const { data: updatedRow, error: fetchError } = await supabase
+      .from("presences")
+      .select("id_repas, type_repas, commentaire")
+      .eq("id_repas", selectedRepasId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("Erreur lors du rechargement du commentaire :", fetchError);
+      return;
+    }
+
+    // 3️⃣ Mets à jour les states locaux selon le type de repas
+    if (updatedRow?.type_repas === "dejeuner") {
+      setDejeuner((prev) => (prev ? { ...prev, commentaire: updatedRow.commentaire } : prev));
+    } else if (updatedRow?.type_repas === "diner") {
+      setDiner((prev) => (prev ? { ...prev, commentaire: updatedRow.commentaire } : prev));
+    }
+
+    // 4️⃣ Mets à jour la valeur du commentaire utilisée par la modale
+    setCommentValue(updatedRow?.commentaire || "");
+  };
+
+  
   
 
   // --- Loader global --- 
@@ -431,37 +484,56 @@ export default function HomePage() {
                 <p className="font-semibold text-blue-900">Déjeuner</p>
               </div>
               
-              <div className="flex items-center">
-                <div className="relative">
-                  <select
-                    value={repasDejeuner || ""}
-                    onChange={(e) => handleSelectRepas("dejeuner", e.target.value)}
-                    disabled={locked} // ✅ désactive si locked
-                    className={`appearance-none border text-blue-800 px-4 py-2 pr-10 rounded-md focus:outline-none focus:ring-2 
-                      ${locked 
-                        ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed" 
-                        : "bg-white border-blue-500 focus:ring-blue-300 focus:border-blue-500 cursor-pointer"
-                      }`}
-                  >
-                    {repasOptions.dejeuner.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center">
+                  <div className="relative">
+                    <select
+                      value={repasDejeuner || ""}
+                      onChange={(e) => handleSelectRepas("dejeuner", e.target.value)}
+                      disabled={locked}
+                      className={`appearance-none border text-blue-800 px-4 py-2 pr-10 rounded-md focus:outline-none focus:ring-2 
+                        ${locked 
+                          ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed" 
+                          : "bg-white border-blue-500 focus:ring-blue-300 focus:border-blue-500 cursor-pointer"
+                        }`}
+                    >
+                      {repasOptions.dejeuner.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
 
-                  {/* Flèche bleue custom */}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500 pointer-events-none"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
+                    {/* Flèche bleue custom */}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500 pointer-events-none"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
                 </div>
+                <button
+                  onClick={() => {
+                    if (repasDejeuner !== 'non') {
+                      setShowCommentModal(true)
+                      setSelectedRepasId(dejeuner?.id_repas ?? -1)
+                      setCommentValue(dejeuner?.commentaire ?? '')
+                    }
+                  }}
+                  disabled={repasDejeuner === 'non'}
+                  className={`p-2 rounded-full transition ${
+                    repasDejeuner === 'non' || locked
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-blue-500 text-white hover:bg-blue-900 cursor-pointer'
+                  }`}
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
               </div>
             </div>
 
@@ -472,7 +544,7 @@ export default function HomePage() {
                 <p className="font-semibold text-blue-900">Diner</p>
               </div>
               
-              <div className="flex items-center">
+              <div className="flex items-center gap-2">
                 <div className="relative">
                   <select
                     value={repasDiner || ""}
@@ -504,6 +576,24 @@ export default function HomePage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
+
+                <button
+                  onClick={() => {
+                    if (repasDiner !== 'non') {
+                      setShowCommentModal(true)
+                      setSelectedRepasId(diner?.id_repas ?? -1)
+                      setCommentValue(diner?.commentaire ?? '')
+                    }
+                  }}
+                  disabled={repasDiner === 'non'}
+                  className={`p-2 rounded-full transition ${
+                    repasDiner === 'non' || locked
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      : 'bg-blue-500 text-white hover:bg-blue-900 cursor-pointer'
+                  }`}
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
               </div>
             </div>
 
@@ -517,12 +607,15 @@ export default function HomePage() {
 
         {/* Boutons bas */}
         <div className="flex justify-between mt-6">
-          <button
-            className="border border-blue-700 text-blue-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-50 cursor-pointer"
-            onClick={() => router.push("/admin/repas")}
-          >
-            Voir les inscriptions
-          </button>
+          {profil?.is_admin && (
+            <button
+              className="border border-blue-700 text-blue-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-50 cursor-pointer"
+              onClick={() => router.push("/admin/repas")}
+            >
+              Voir les inscriptions
+            </button>
+          )}
+          
           <button
             onClick={() => setIsModalOpen(true)}
             className="bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
@@ -531,10 +624,22 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* Modal */}
+        {/* Modals */}
+        {/* Modal d'ajout d'un invité au repas */}
         <InviteModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
+        />
+        
+        {/* Modal d'ajout d'un commentaire au repas */}
+        <CommentModal
+          isOpen={showCommentModal}
+          onClose={() => {setShowCommentModal(false);
+                          setSelectedRepasId(null)
+                          setCommentValue("")
+                    }}
+          onSave={handleSaveComment}
+          initialComment={commentValue}
         />
       </section>
     </main>

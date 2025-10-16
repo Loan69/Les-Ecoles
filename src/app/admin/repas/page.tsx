@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/app/lib/supabaseClient";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { CalendarDays, Search, HouseHeart, UserRound } from "lucide-react";
 import { Personne } from "@/types/Personne";
-import { Repas } from "@/types/repas";
+import { Repas } from "@/types/Repas";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import {
   Dialog,
@@ -19,6 +19,7 @@ type RepasDetail = Personne & {
 };
 
 export default function AdminRepasView() {
+  const supabase = createClientComponentClient()
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [repasData, setRepasData] = useState<Repas[]>([]);
@@ -62,9 +63,10 @@ export default function AdminRepasView() {
 
       const { data: repas, error: repasError } = await supabase
         .from("presences")
-        .select("user_id, date_repas, type_repas, choix_repas, commentaire")
+        .select("id_repas, user_id, date_repas, type_repas, choix_repas, commentaire")
         .gte("date_repas", startDate)
         .lte("date_repas", tomorrowStr); // 🟢 inclut le lendemain
+      
 
       if (repasError) console.error("Erreur repas :", repasError);
 

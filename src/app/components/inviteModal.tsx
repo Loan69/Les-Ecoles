@@ -3,17 +3,47 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
+import { supabase } from "../lib/supabaseClient"
+import { useUser } from '@supabase/auth-helpers-react'
 
 export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-  const [nom, setNom] = useState('')
-  const [prenom, setPrenom] = useState('')
-  const [repas, setRepas] = useState('')
+    const [nom, setNom] = useState('')
+    const [prenom, setPrenom] = useState('')
+    const [repas, setRepas] = useState('')
+    const [date, setDate] = useState('');
+    const user = useUser();
 
-  const handleConfirm = () => {
-    // ici tu géreras l’ajout d’un invité (ex: envoi à Supabase)
-    console.log({ nom, prenom, repas })
-    onClose()
-  }
+    const handleConfirm = async () => {
+        if (!nom || !prenom || !date || !repas) {
+          alert("Merci de remplir tous les champs");
+          return;
+        }
+      
+        try {
+          const res = await fetch("/api/invite-repas", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              nom,
+              prenom,
+              date,
+              repas,
+              userId: user?.id,
+            }),
+          });
+      
+          const data = await res.json();
+      
+          if (!res.ok) throw new Error(data.error || "Erreur inconnue");
+      
+          alert("Invité ajouté !");
+          onClose();
+        } catch (err) {
+          console.error(err);
+          alert("Erreur lors de l’ajout de l’invité");
+        }
+      };
+      
 
     return (
         <AnimatePresence>
@@ -57,6 +87,14 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onCl
                     className="w-full mb-3 px-4 py-2 border border-black text-black
                     focus:outline-none focus:ring-2 focus:ring-black rounded-lg p-2"
                     />
+                    {/* ✅ Nouveau champ date */}
+                    <input
+                        type="date"
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        className="w-full mb-3 px-4 py-2 border border-black text-black
+                        focus:outline-none focus:ring-2 focus:ring-black rounded-lg p-2"
+                    />
 
                     <div className="mb-4">
                         <div className="relative">
@@ -66,8 +104,8 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onCl
                                 className="w-full appearance-none bg-white rounded-lg border border-black text-black px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                             >
                                 <option value="">Sélectionner votre repas</option>
-                                <option value="12">Repas adulte</option>
-                                <option value="36">Repas enfant</option>
+                                <option value="déjeuner">Déjeuner</option>
+                                <option value="diner">Diner</option>
                             </select>
                             {/* Flèche custom */}
                             <svg
@@ -89,16 +127,10 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onCl
                 </div>
 
                 {/* Boutons */}
-                <div className="flex justify-center gap-1 mt-6">
+                <div className="flex justify-center mt-3">
                     <button
                     onClick={handleConfirm}
-                    className="px-4 py-2 border border-blue-700 text-blue-700 rounded-lg hover:bg-blue-50 transition"
-                    >
-                    Confirmer et ajouter un nouvel invité
-                    </button>
-                    <button
-                    onClick={handleConfirm}
-                    className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition"
+                    className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition cursor-pointer"
                     >
                     Confirmer
                     </button>
