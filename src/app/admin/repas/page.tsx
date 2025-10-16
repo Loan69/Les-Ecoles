@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { CalendarDays, Search, HouseHeart, UserRound } from "lucide-react";
 import { Personne } from "@/types/Personne";
-import { Repas } from "@/types/Repas";
+import { Repas } from "@/types/repas";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import {
   Dialog,
