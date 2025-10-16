@@ -1,3 +1,5 @@
+export {}; 
+
 export interface Repas {
     id_repas: number;
     date_repas: string;
