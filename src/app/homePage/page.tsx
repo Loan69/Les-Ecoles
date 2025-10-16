@@ -12,7 +12,7 @@ import { CalendarEvent } from "@/types/CalendarEvent";
 import { useUser } from "@supabase/auth-helpers-react";
 import { Residente } from "@/types/Residente";
 import LoadingSpinner from "../components/LoadingSpinner";
-import { Repas } from "@/types/Repas";
+import { Repas } from "@/types/repas";
 import CommentModal from "../components/commentModal";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
