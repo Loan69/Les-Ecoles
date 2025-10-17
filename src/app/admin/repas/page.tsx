@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { InviteRepas } from "@/types/InviteRepas";
 
 export default function AdminRepasView() {
   const supabase = createClientComponentClient();
@@ -19,7 +20,7 @@ export default function AdminRepasView() {
   const [endDate, setEndDate] = useState("");
   const [repasData, setRepasData] = useState<Repas[]>([]);
   const [residentes, setResidentes] = useState<Personne[]>([]);
-  const [invites, setInvites] = useState<any[]>([]);
+  const [invites, setInvites] = useState<InviteRepas[]>([]);
   const [loading, setLoading] = useState(true);
   const [openLieu, setOpenLieu] = useState<"12" | "36" | null>(null);
 
