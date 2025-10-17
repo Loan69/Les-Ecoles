@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       if (nowParis > limite) {
         return NextResponse.json({
           success: false,
-          message: "Les présences ne sont plus modifiables après 8h30.",
+          message: "Les présences aux repas ne sont plus modifiables après 8h30.",
         });
       }
     }

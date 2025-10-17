@@ -139,7 +139,7 @@ export default function HomePage() {
         (parisTime.getHours() === 8 && parisTime.getMinutes() >= 30))
     ) {
       setLocked(true);
-      setConfirmationMsg("Les présences ne sont plus modifiables après 8h30.");
+      setConfirmationMsg("Les présences aux repas ne sont plus modifiables après 8h30.");
     } else {
       setLocked(false);
       setConfirmationMsg("");
