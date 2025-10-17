@@ -16,17 +16,19 @@ export default function CalendrierPage() {
   const user = useUser();
 
   // Charger les données de l'utilisatrice pour voir si elle est admin
-  const fetchProfile = async () => {
-    const { data, error } = await supabase
-      .from("residentes")
-      .select("is_admin")
-      .eq("user_id", user?.id)
-      .maybeSingle();
-    if (error) console.error(error);
-    else setIsAdmin(data?.is_admin);
-  }
-
   useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return; // ⚠️ stop si user non défini
+
+      const { data, error } = await supabase
+        .from("residentes")
+        .select("is_admin")
+        .eq("user_id", user?.id)
+        .maybeSingle();
+      if (error) console.error(error);
+      else setIsAdmin(data?.is_admin);
+    }
+
     fetchProfile();
   }, [user]);
 

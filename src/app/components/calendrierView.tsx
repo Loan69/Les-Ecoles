@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -34,6 +34,20 @@ type CalendrierViewProps = {
     const [currentDate, setCurrentDate] = useState(new Date());
     const today = new Date();
     const [selectedDay, setSelectedDay] = useState<number | null>(today.getDate());
+
+    useEffect(() => {
+        if (openModal) {
+          document.body.style.overflow = "hidden";
+        } else {
+          document.body.style.overflow = "auto";
+        }
+      
+        // Nettoyage au unmount
+        return () => {
+          document.body.style.overflow = "auto";
+        };
+      }, [openModal]);
+      
 
 
     const monthNames = [

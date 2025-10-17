@@ -2,19 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import Select from "react-select";
 import { EventFormData } from "@/types/EventFormData";
+import { residences, etages, chambres } from "../data/options";
 
-type ModalAjoutEvenementProps = {
+type ModalProps = {
   open: boolean;
   onClose: () => void;
   onSave: (data: EventFormData) => void | Promise<void>;
 };
 
-export default function ModalAjoutEvenement({
-  open,
-  onClose,
-  onSave,
-}: ModalAjoutEvenementProps) {
+type VisibiliteKeys = keyof NonNullable<EventFormData["visibilite"]>;
+
+export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProps) {
   const [form, setForm] = useState<EventFormData>({
     titre: "",
     type: "",
@@ -22,10 +22,11 @@ export default function ModalAjoutEvenement({
     recurrence: "",
     heures: "",
     lieu: "",
-    visibilite: "",
+    visibilite: { residences: [], etages: [], chambres: [] },
   });
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // 🧹 Réinitialiser le formulaire à chaque ouverture du modal
+
   useEffect(() => {
     if (open) {
       setForm({
@@ -35,7 +36,7 @@ export default function ModalAjoutEvenement({
         recurrence: "",
         heures: "",
         lieu: "",
-        visibilite: "",
+        visibilite: { residences: [], etages: [], chambres: [] },
       });
     }
   }, [open]);
@@ -45,6 +46,16 @@ export default function ModalAjoutEvenement({
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleMultiSelectChange = (name: VisibiliteKeys, values: string[]) => {
+    setForm((prev) => ({
+      ...prev,
+      visibilite: {
+        ...prev.visibilite!,
+        [name]: values,
+      },
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,7 +68,7 @@ export default function ModalAjoutEvenement({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-lg w-[90%] max-w-md p-6 relative">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm bg-white rounded-2xl shadow-lg w-[90%] max-w-md max-h-[90vh] p-6 relative overflow-y-auto">
         <button
           onClick={onClose}
           className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
@@ -65,72 +76,83 @@ export default function ModalAjoutEvenement({
           <X size={20} />
         </button>
 
-        <h2 className="text-lg font-semibold text-blue-800">
-          Ajouter un évènement
-        </h2>
-        <div className="w-full bg-blue-500 h-[1px] mb-2" />
+        <h2 className="text-lg font-semibold text-blue-800">Ajouter un évènement</h2>
+        <div className="w-full bg-blue-500 h-[1px] mb-4" />
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Titre */}
           <input
             name="titre"
             value={form.titre}
             onChange={handleChange}
-            placeholder="Titre"
-            className="w-full mb-3 px-4 py-2 border border-black text-black
-            focus:outline-none focus:ring-2 focus:ring-black rounded-lg p-2"
+            placeholder="Titre de l'évènement"
+            className="w-full px-4 py-2 border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
           />
 
-          {/* Sélecteur type */}
+          {/* Type */}
           <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Type de l&apos;évènement
+            </label>
             <div className="relative">
               <select
                 name="type"
                 value={form.type}
                 onChange={handleChange}
-                className="w-full appearance-none bg-white rounded-lg border border-black text-black px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
+                className="w-full appearance-none bg-white border border-gray-300 rounded-xl px-4 py-2.5 pr-10 text-gray-700
+                shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
               >
-                <option value="">Type d&apos;évènement</option>
                 <option value="anniversaire">Anniversaire</option>
                 <option value="linge">Lingerie</option>
                 <option value="autre">Autre</option>
               </select>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black pointer-events-none cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 strokeWidth="2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
           </div>
 
           {/* Date */}
-          <input
-            type="date"
-            name="date_event"
-            value={form.date_event}
-            onChange={handleChange}
-            className="w-full mb-3 px-4 py-2 border border-black text-black
-            focus:outline-none focus:ring-2 focus:ring-black rounded-lg p-2"
-          />
+          <div className="mb-4">
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    Date de l&apos;évènement
+  </label>
+  <input
+    type={showDatePicker ? "date" : "text"}
+    name="date_event"
+    value={form.date_event}
+    onFocus={() => setShowDatePicker(true)}
+    onBlur={(e) => {
+      if (!e.target.value) setShowDatePicker(false);
+    }}
+    onChange={handleChange}
+    placeholder="Sélectionner une date"
+    className="w-full px-4 py-2 border border-gray-300 rounded-xl text-gray-700 shadow-sm
+      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+  />
+</div>
+
 
           {/* Récurrence */}
           <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Récurrence de l&apos;évènement
+            </label>
             <div className="relative">
               <select
                 name="recurrence"
                 value={form.recurrence}
                 onChange={handleChange}
-                className="w-full appearance-none bg-white rounded-lg border border-black text-black px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
+                className="w-full appearance-none bg-white border border-gray-300 rounded-xl px-4 py-2.5 pr-10 text-gray-700
+                shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
               >
-                <option value="">Récurrence de l&apos;évènement</option>
                 <option value="aucune">Aucune</option>
                 <option value="hebdo">Hebdomadaire</option>
                 <option value="mensuelle">Mensuelle</option>
@@ -138,17 +160,13 @@ export default function ModalAjoutEvenement({
               </select>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black pointer-events-none cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 strokeWidth="2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
           </div>
@@ -159,71 +177,73 @@ export default function ModalAjoutEvenement({
             value={form.heures}
             onChange={handleChange}
             placeholder="Horaire de l'évènement"
-            className="w-full mb-3 px-4 py-2 border border-black text-black
-            focus:outline-none focus:ring-2 focus:ring-black rounded-lg p-2"
+            className="w-full px-4 py-2 border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
           />
 
           {/* Lieu */}
           <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Lieu de l&apos;évènement
+            </label>
             <div className="relative">
               <select
                 name="lieu"
                 value={form.lieu}
                 onChange={handleChange}
-                className="w-full appearance-none bg-white rounded-lg border border-black text-black px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
+                className="w-full appearance-none bg-white border border-gray-300 rounded-xl px-4 py-2.5 pr-10 text-gray-700
+                shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
               >
-                <option value="">Lieux</option>
                 <option value="12">12</option>
                 <option value="36">36</option>
               </select>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black pointer-events-none cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 strokeWidth="2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </div>
           </div>
 
-          {/* Visibilité */}
-          <div className="mb-4">
-            <div className="relative">
-              <select
-                name="visibilite"
-                value={form.visibilite}
-                onChange={handleChange}
-                className="w-full appearance-none bg-white rounded-lg border border-black text-black px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
-              >
-                <option value="">Visibilité</option>
-                <option value="toutes">Toutes</option>
-                <option value="corail">Corail</option>
-                <option value="jade">Jade</option>
-              </select>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black pointer-events-none cursor-pointer"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </div>
+          {/* Visibilité multi-critères avec React Select */}
+          <div className="space-y-3">
+            <h2 className="text-blue-800 font-semibold">Visibilité de l&apos;évènement</h2>
+            <label className="font-medium">Résidences</label>
+            <Select
+              isMulti
+              options={residences}
+              value={residences.filter(r => form.visibilite?.residences.includes(r.value))}
+              onChange={(selected) =>
+                handleMultiSelectChange("residences", selected.map(s => s.value))
+              }
+            />
+
+            <label className="font-medium">Étages</label>
+            <Select
+              isMulti
+              options={etages}
+              value={etages.filter(e => form.visibilite?.etages.includes(e.value))}
+              onChange={(selected) =>
+                handleMultiSelectChange("etages", selected.map(s => s.value))
+              }
+            />
+
+            <label className="font-medium">Chambres</label>
+            <Select
+              isMulti
+              options={chambres}
+              value={chambres.filter(c => form.visibilite?.chambres.includes(c.value))}
+              onChange={(selected) =>
+                handleMultiSelectChange("chambres", selected.map(s => s.value))
+              }
+            />
           </div>
 
+          {/* Boutons */}
           <div className="flex justify-end space-x-3 mt-4">
             <button
               type="button"

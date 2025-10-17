@@ -23,7 +23,7 @@ export default function BottomNav() {
 
 
     return (
-        <div className="fixed bottom-0 left-0 w-full flex justify-center bg-white pb-safe z-50">
+        <div className="fixed bottom-0 left-0 w-full flex justify-center bg-white pb-safe z-10">
             <nav className="w-full max-w-md bg-white border-t border-gray-200 flex justify-around items-center py-3 shadow-sm rounded-t-2xl">
             {navItems.map((item) => {
                 const isActive = active === item.path;
