@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { CalendarDays, Search, HouseHeart, UserRound } from "lucide-react";
 import { Personne } from "@/types/Personne";
 import { Repas } from "@/types/repas";
@@ -13,31 +13,44 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type RepasDetail = Personne & {
-  choix_repas: string | null;
-  commentaire: string | null;
-};
-
 export default function AdminRepasView() {
-  const supabase = createClientComponentClient()
+  const supabase = createClientComponentClient();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [repasData, setRepasData] = useState<Repas[]>([]);
   const [residentes, setResidentes] = useState<Personne[]>([]);
-  const [invitees, setInvitees] = useState<Personne[]>([]);
+  const [invites, setInvites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [openLieu, setOpenLieu] = useState<"12" | "36" | null>(null);
 
- // --- Initialisation des dates ---
+  // --- Formattage des dates (type mercredi 15 octobre 2025) ---
+  const formatDateFR = (dateString: string): string => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date
+      .toLocaleDateString("fr-FR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+      .replace(/^./, (c) => c.toUpperCase());
+  };
+
+  // --- Fonction utilitaire pour obtenir YYYY-MM-DD ---
+  const getTomorrowString = (dateString: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    date.setDate(date.getDate() + 1);
+    return date.toISOString().slice(0, 10);
+  };
+
+  // --- Initialisation des dates ---
   useEffect(() => {
     if (typeof window !== "undefined") {
       const today = new Date();
-      setStartDate(
-        localStorage.getItem("startDate") || today.toISOString().slice(0, 10)
-      );
-      setEndDate(
-        localStorage.getItem("endDate") || today.toISOString().slice(0, 10)
-      );
+      setStartDate(localStorage.getItem("startDate") || today.toISOString().slice(0, 10));
+      setEndDate(localStorage.getItem("endDate") || today.toISOString().slice(0, 10));
     }
   }, []);
 
@@ -55,36 +68,28 @@ export default function AdminRepasView() {
     const fetchRepas = async () => {
       setLoading(true);
 
-      // On récupère aussi les repas du lendemain
-      const dateObj = new Date(endDate);
-      const tomorrow = new Date(dateObj);
-      tomorrow.setDate(dateObj.getDate() + 1);
-      const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+      const tomorrowStr = getTomorrowString(endDate);
 
-      const { data: repas, error: repasError } = await supabase
-        .from("presences")
-        .select("id_repas, user_id, date_repas, type_repas, choix_repas, commentaire")
-        .gte("date_repas", startDate)
-        .lte("date_repas", tomorrowStr); // 🟢 inclut le lendemain
-      
+      const [{ data: repas, error: repasError }, { data: residentesData }, { data: invitesData }] =
+        await Promise.all([
+          supabase
+            .from("presences")
+            .select("id_repas, user_id, date_repas, type_repas, choix_repas, commentaire")
+            .gte("date_repas", startDate)
+            .lte("date_repas", tomorrowStr),
+          supabase.from("residentes").select("user_id, nom, prenom, residence"),
+          supabase
+            .from("invites_repas")
+            .select("id, nom, prenom, invite_par, lieu_repas, date_repas, type_repas")
+            .gte("date_repas", startDate)
+            .lte("date_repas", tomorrowStr),
+        ]);
 
       if (repasError) console.error("Erreur repas :", repasError);
 
-      const { data: residentesData } = await supabase
-        .from("residentes")
-        .select("user_id, nom, prenom, residence");
-
-      const { data: inviteesData } = await supabase
-        .from("invitees")
-        .select("user_id, nom, prenom");
-
       setRepasData(repas || []);
-      setResidentes(
-        residentesData?.map((r) => ({ ...r, type: "Résidente" as const })) || []
-      );
-      setInvitees(
-        inviteesData?.map((i) => ({ ...i, type: "Invitée" as const })) || []
-      );
+      setResidentes(residentesData || []);
+      setInvites(invitesData || []);
 
       setLoading(false);
     };
@@ -92,38 +97,49 @@ export default function AdminRepasView() {
     fetchRepas();
   }, [startDate, endDate]);
 
-  const toutesPersonnes: Personne[] = [...residentes, ...invitees];
-  const findPerson = (id_user: string) =>
-    toutesPersonnes.find((p) => p.user_id === id_user);
+  // --- Type pour TypeScript pour distinguer résidente vs invitée ---
+  type PersonneWithInvite = Personne & {
+    estInvite: boolean;
+    inviteParPrenom?: string;
+    inviteParNom?: string;
+  };
 
-  // --- Agrégation par lieu ---
+  // --- Toutes les personnes (résidentes + invités) ---
+  const toutesPersonnes: PersonneWithInvite[] = [
+    ...residentes.map((r) => ({ ...r, estInvite: false })),
+    ...invites.map((i) => {
+      const res = residentes.find((r) => r.user_id === i.invite_par);
+      return {
+        user_id: `invite-${i.id}`,
+        nom: i.nom,
+        prenom: i.prenom,
+        residence: i.lieu_repas,
+        estInvite: true,
+        inviteParPrenom: res?.prenom || "",
+        inviteParNom: res?.nom || "",
+      };
+    }),
+  ];
+
+  const findPerson = (id_user: string) => residentes.find((p) => p.user_id === id_user);
+
+  // --- Agrégation par lieu (startDate seulement) ---
   const summaryByLieu = (["12", "36"] as const).reduce(
     (acc, lieu) => ({
       ...acc,
       [lieu]: { dejeuner: 0, diner: 0, plateau: 0, piqueNique: 0 },
     }),
-    {} as Record<
-      "12" | "36",
-      { dejeuner: number; diner: number; plateau: number; piqueNique: number }
-    >
+    {} as Record<"12" | "36", { dejeuner: number; diner: number; plateau: number; piqueNique: number }>
   );
 
-  // --- 🧮 Comptage ---
+  const tomorrowStr = getTomorrowString(startDate);
+
+  // --- Comptage repas résidentes ---
   repasData.forEach((r) => {
     const personne = findPerson(r.user_id);
     if (!personne) return;
-
     const choix = r.choix_repas?.toLowerCase() || "";
-    const dateRepas = r.date_repas;
 
-    // 🕐 Calcul des dates utiles
-    const today = startDate; // date du jour affiché
-    const dateObj = new Date(today);
-    const tomorrow = new Date(dateObj);
-    tomorrow.setDate(dateObj.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
-
-    // 🟢 Détermine le lieu du repas
     const lieuRepas =
       choix === "12" || choix === "36"
         ? choix
@@ -133,27 +149,31 @@ export default function AdminRepasView() {
 
     if (!lieuRepas || (lieuRepas !== "12" && lieuRepas !== "36")) return;
 
-    // 🟢 Cas plateau → compte toujours pour la date du jour
-    if (choix.includes("plateau") && dateRepas === today) {
+    if (choix.includes("plateau") && r.date_repas === startDate) {
       summaryByLieu[lieuRepas].plateau++;
       return;
     }
-
-    // 🟢 Cas pique-nique → compte UNIQUEMENT si c’est pour le lendemain
-    if (choix.includes("pique") && dateRepas === tomorrowStr) {
+    if (choix.includes("pique") && r.date_repas === tomorrowStr) {
       summaryByLieu[lieuRepas].piqueNique++;
       return;
     }
-
-    // 🟢 Repas normaux : déjeuner/dîner du jour uniquement
-    if (dateRepas === today && (choix.includes("oui") || choix === "12" || choix === "36")) {
+    if (r.date_repas === startDate) {
       if (r.type_repas === "dejeuner") summaryByLieu[lieuRepas].dejeuner++;
       if (r.type_repas === "diner") summaryByLieu[lieuRepas].diner++;
     }
   });
 
+  // --- Comptage repas invités ---
+  invites
+    .filter((i) => i.date_repas === startDate)
+    .forEach((inv) => {
+      const lieu = inv.lieu_repas as "12" | "36";
+      if (!["12", "36"].includes(lieu)) return;
+      if (inv.type_repas === "dejeuner") summaryByLieu[lieu].dejeuner++;
+      if (inv.type_repas === "diner") summaryByLieu[lieu].diner++;
+    });
 
-  // VUE COMPTA PAR FOYER
+  // --- Comptabilité par résidence ---
   const comptaByResidence = (["12", "36"] as const).reduce(
     (acc, res) => ({
       ...acc,
@@ -164,16 +184,22 @@ export default function AdminRepasView() {
 
   residentes.forEach((p) => {
     const repasPerso = repasData.filter((r) => r.user_id === p.user_id);
+    const invitesPerso = invites.filter((i) => i.invite_par === p.user_id);
+
     let dejeuner = 0;
     let diner = 0;
 
     repasPerso.forEach((r) => {
       const choix = r.choix_repas?.toLowerCase() || "";
-      // Tout sauf "non" est considéré comme un repas pour la compta
       if (!choix.includes("non")) {
         if (r.type_repas === "dejeuner") dejeuner++;
         if (r.type_repas === "diner") diner++;
       }
+    });
+
+    invitesPerso.forEach((i) => {
+      if (i.type_repas === "dejeuner") dejeuner++;
+      if (i.type_repas === "diner") diner++;
     });
 
     comptaByResidence[p.residence as "12" | "36"].push({
@@ -184,7 +210,6 @@ export default function AdminRepasView() {
       total: dejeuner + diner,
     });
   });
-
 
   if (loading || !startDate || !endDate) {
     return (
@@ -198,9 +223,7 @@ export default function AdminRepasView() {
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-white py-10 px-6">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-amber-800 mb-2">
-            Inscriptions aux repas
-          </h1>
+          <h1 className="text-3xl font-bold text-amber-800 mb-2">Inscriptions aux repas</h1>
           <p className="text-gray-600">
             Consultez les inscriptions aux repas sur la période choisie.
           </p>
@@ -224,10 +247,10 @@ export default function AdminRepasView() {
           />
         </div>
 
-        {/* Résumé par lieu effectif (12 et 36) */}
+        {/* Résumé par lieu */}
         <h2 className="text-2xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
           <HouseHeart />
-            Total par lieu du repas
+          Total des repas du {formatDateFR(startDate)}
         </h2>
         <div className="flex flex-col md:flex-row justify-center gap-8 mb-10">
           {(["12", "36"] as const).map((lieu) => {
@@ -238,9 +261,7 @@ export default function AdminRepasView() {
                 className="relative bg-orange-50 border border-orange-200 rounded-2xl p-6 shadow-sm w-full md:w-1/3 text-center"
               >
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-2xl font-bold text-orange-800">
-                    Résidence {lieu}
-                  </h3>
+                  <h3 className="text-2xl font-bold text-orange-800">Résidence {lieu}</h3>
                   <button
                     onClick={() => setOpenLieu(lieu)}
                     className="cursor-pointer text-orange-700 hover:text-orange-900 transition-colors"
@@ -271,11 +292,12 @@ export default function AdminRepasView() {
             );
           })}
         </div>
-        {/* VUE COMPTA PAR FOYER */}
+
+        {/* Comptabilité */}
         <div className="space-y-10">
           <h2 className="text-2xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
-          <UserRound />
-              Total par lieu de résidence des utilisatrices
+            <UserRound />
+            Total par lieu de résidence des utilisatrices
           </h2>
           {(["12", "36"] as const).map((res) => (
             <div key={res} className="bg-white shadow-sm border border-gray-200 rounded-xl p-6">
@@ -306,35 +328,28 @@ export default function AdminRepasView() {
           ))}
         </div>
 
-        {/* Popup de détail */}
+        {/* Popup détail */}
         <Dialog open={!!openLieu} onOpenChange={() => setOpenLieu(null)}>
           <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Détails des repas - Résidence {openLieu}</DialogTitle>
             </DialogHeader>
 
-            {/* 🟢 On filtre les repas selon la plage sélectionnée */}
             {(() => {
               const repasFiltres = repasData.filter(
                 (r) => r.date_repas >= startDate && r.date_repas <= endDate
               );
-
               const datesAffichees = Array.from(
-                new Set(repasFiltres.map((r) => r.date_repas))
+                new Set([...repasFiltres.map(r => r.date_repas), ...invites.map(i => i.date_repas)])
               ).sort();
 
-              return datesAffichees.map((date) => (
+              return datesAffichees.map(date => (
                 <div key={date} className="mb-8">
                   <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                    📅{" "}
-                    {new Date(date).toLocaleDateString("fr-FR", {
-                      weekday: "long",
-                      day: "2-digit",
-                      month: "long",
-                    })}
+                    📅 {new Date(date).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}
                   </h3>
 
-                  {["dejeuner", "diner"].map((type) => (
+                  {["dejeuner", "diner"].map(type => (
                     <div key={type} className="mb-4">
                       <h4 className="text-md font-medium text-gray-700 mb-2 capitalize">
                         {type === "dejeuner" ? "☀️ Déjeuner" : "🌙 Dîner"}
@@ -350,56 +365,62 @@ export default function AdminRepasView() {
                         </thead>
                         <tbody>
                           {toutesPersonnes.map((p) => {
-                            // 🟢 Récupère les repas de cette personne pour ce jour et ce type
-                            const repasJour = repasFiltres.filter(
-                              (r) =>
-                                r.user_id === p.user_id &&
-                                r.date_repas === date &&
-                                r.type_repas === type
-                            );
-
-                            // 🟢 Calcule le lieu du repas
-                            const repasValide = repasJour.find((r) => {
-                              const choix = r.choix_repas?.toLowerCase() || "";
-                              const lieuRepas = ["pique", "plateau"].some((kw) =>
-                                choix.includes(kw)
-                              )
-                                ? p.residence?.toString()
-                                : choix;
-                              return lieuRepas === openLieu;
-                            });
-
+                            let lieuRepas: string | undefined;
                             let label = "Non";
                             let couleur = "bg-red-100 text-red-800";
                             let commentaire = "-";
 
-                            if (repasValide) {
-                              const choix = repasValide.choix_repas?.toLowerCase() || "";
-                              commentaire = repasValide.commentaire ?? "-";
-
-                              if (choix === openLieu) {
-                                label = "Oui";
-                                couleur = "bg-green-100 text-green-800";
-                              } else if (choix.includes("pique")) {
-                                label = choix.includes("chaud")
-                                  ? "Pique-nique chaud"
-                                  : "Pique-nique froid";
-                                couleur = "bg-yellow-100 text-yellow-800";
-                              } else if (choix.includes("plateau")) {
-                                label = "Plateau repas";
-                                couleur = "bg-blue-100 text-blue-800";
+                            if (p.estInvite) {
+                              const inv = invites.find(
+                                i => `invite-${i.id}` === p.user_id && i.date_repas === date && i.type_repas === type
+                              );
+                              if (!inv) return null;
+                              lieuRepas = inv.lieu_repas;
+                              label = "Oui";
+                              couleur = "bg-green-100 text-green-800";
+                              commentaire = "-";
+                            } else {
+                              const repas = repasFiltres.find(
+                                r => r.user_id === p.user_id && r.date_repas === date && r.type_repas === type
+                              );
+                              if (repas) {
+                                const choix = repas.choix_repas?.toLowerCase() || "";
+                                if (choix === "12" || choix === "36") {
+                                  lieuRepas = choix;
+                                  label = "Oui";
+                                  couleur = "bg-green-100 text-green-800";
+                                } else if (choix.includes("pique")) {
+                                  lieuRepas = p.residence;
+                                  label = choix.includes("chaud") ? "Pique-nique chaud" : "Pique-nique froid";
+                                  couleur = "bg-yellow-100 text-yellow-800";
+                                } else if (choix.includes("plateau")) {
+                                  lieuRepas = p.residence;
+                                  label = "Plateau repas";
+                                  couleur = "bg-blue-100 text-blue-800";
+                                }
+                                commentaire = repas.commentaire ?? "-";
+                              } else {
+                                lieuRepas = p.residence;
+                                label = "Non";
+                                couleur = "bg-red-100 text-red-800";
+                                commentaire = "-";
                               }
                             }
 
+                            if (lieuRepas !== openLieu) return null;
+
                             return (
-                              <tr key={`${p.user_id}-${date}-${type}`} className="border-b">
+                              <tr key={p.user_id + date + type} className="border-b">
                                 <td className="p-2 font-medium">
                                   {p.prenom} {p.nom}
+                                  {p.estInvite && p.inviteParPrenom && (
+                                    <span className="text-xs text-green-600 ml-1">
+                                      (invitée par {p.inviteParPrenom})
+                                    </span>
+                                  )}
                                 </td>
-                                <td className="p-2">
-                                  <span
-                                    className={`px-2 py-1 rounded-full text-xs ${couleur}`}
-                                  >
+                                <td className={`p-2`}>
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${couleur}`}>
                                     {label}
                                   </span>
                                 </td>

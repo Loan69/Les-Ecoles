@@ -4,21 +4,22 @@ import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { nom, prenom, date, repas, userId } = body;
+  const { nom, prenom, date, repas, lieuRepas, userId } = body;
   const supabase = createServerComponentClient({ cookies })
 
   // Vérification des champs
-  if (!nom || !prenom || !date || !repas || !userId) {
+  if (!nom || !prenom || !date || !repas || !lieuRepas || !userId) {
     return NextResponse.json({ error: "Champs manquants" }, { status: 400 });
   }
 
   // Insertion directe
-  const { error } = await supabase.from("invites").insert([
+  const { error } = await supabase.from("invites_repas").insert([
     {
       nom,
       prenom,
       date_repas: date,
       type_repas: repas,
+      lieu_repas: lieuRepas,
       invite_par: userId,
     },
   ]);
