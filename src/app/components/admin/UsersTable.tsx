@@ -23,9 +23,11 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed')
       setUsers(json.users)
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
+    } catch (e) {
+      if (e instanceof Error) setError(e.message)
+      else setError(String(e))
+    }
+     finally {
       setLoading(false)
     }
   }
@@ -50,10 +52,11 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Update failed')
-    } catch (e: any) {
-      setError(e.message)
-      setUsers(prev)
-    }
+    } catch (e) {
+      if (e instanceof Error) setError(e.message)
+      else setError(String(e))
+    }       
+    setUsers(prev)
   }
 
   return (

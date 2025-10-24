@@ -10,6 +10,17 @@ import { SelectItem } from '@/components/ui/select'
 import { SelectTrigger } from '@/components/ui/select'
 import { SelectValue } from '@/components/ui/select'
 
+type Rule = {
+    id: number
+    start_date: string;
+    end_date: string;
+    indefinite: boolean;
+    service: string;
+    options: string[];
+    admin_only: string[];
+    created_at: string;
+  }
+
 export default function MealOptionsManager() {
     const [service, setService] = useState<'midi' | 'soir'>('midi')
     const [startDate, setStartDate] = useState('')
@@ -17,7 +28,7 @@ export default function MealOptionsManager() {
     const [indefinite, setIndefinite] = useState(false)
     const [options, setOptions] = useState<string[]>([])
     const [adminOnly, setAdminOnly] = useState<string[]>([])
-    const [existingRules, setExistingRules] = useState<any[]>([])
+    const [existingRules, setExistingRules] = useState<Rule[]>([])
 
     // Chargement des règles définies
     const loadRules = async () => {
