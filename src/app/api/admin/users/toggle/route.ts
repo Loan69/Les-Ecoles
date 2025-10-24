@@ -60,8 +60,11 @@ export async function POST(req: Request) {
 
     console.log('[8] Mise à jour réussie pour:', pk)
     return NextResponse.json({ ok: true })
-  } catch (e: any) {
+  } catch (e) {
     console.error('[X] Erreur inattendue:', e)
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    const message =
+      e instanceof Error ? e.message : 'Unexpected server error'
+  
+      return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -20,7 +20,7 @@ export default async function AdminUsersPage() {
 
   return (
     <main className="max-w-6xl mx-auto py-10 px-6 space-y-8">
-      <h1 className="text-3xl font-semibold text-center mb-6">Espace d'administration</h1>
+      <h1 className="text-3xl font-semibold text-center mb-6">Espace d&apos;administration</h1>
 
       <Tabs defaultValue="users" className="w-full">
         <TabsList className="flex justify-center mb-6">

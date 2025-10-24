@@ -44,8 +44,12 @@ export async function POST(req: Request) {
         }
 
         return NextResponse.json({ ok: true })
-    } catch (e: any) {
+    } catch (e) {
         console.error('Meal rule save error', e)
-        return NextResponse.json({ error: e.message }, { status: 500 })
-    }
+        const message =
+          e instanceof Error ? e.message : 'Unexpected server error'
+      
+        return NextResponse.json({ error: message }, { status: 500 })
+      }
+      
 }
