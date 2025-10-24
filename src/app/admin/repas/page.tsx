@@ -159,8 +159,8 @@ export default function AdminRepasView() {
       return;
     }
     if (r.date_repas === startDate) {
-      if (r.type_repas === "dejeuner") summaryByLieu[lieuRepas].dejeuner++;
-      if (r.type_repas === "diner") summaryByLieu[lieuRepas].diner++;
+      if (r.type_repas === "dejeuner" && (choix.includes("36") || choix.includes("12"))) summaryByLieu[lieuRepas].dejeuner++;
+      if (r.type_repas === "diner" && (choix.includes("36") || choix.includes("12"))) summaryByLieu[lieuRepas].diner++;
     }
   });
 

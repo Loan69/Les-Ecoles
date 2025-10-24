@@ -8,6 +8,7 @@ import {
 import ModalAjoutEvenement from "./AjoutEventModal";
 import { EventFormData } from "@/types/EventFormData";
 import { CalendarEvent } from "@/types/CalendarEvent";
+import Image from "next/image";
 
 type CalendrierViewProps = {
     events: {
@@ -48,8 +49,6 @@ type CalendrierViewProps = {
         };
       }, [openModal]);
       
-
-
     const monthNames = [
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
@@ -115,26 +114,14 @@ type CalendrierViewProps = {
     return (
         <div className="relative">
             <div className="flex flex-col items-center w-full min-h-screen bg-white text-slate-700 font-sans p-4">
-                {/* HEADER */}
-                <header className="flex items-center justify-center w-full max-w-md mt-2 mb-6">
-                <img
+                {/* Logo */}
+                <Image
                     src="/logo.png"
-                    alt="Les Écoles"
-                    className="h-10 object-contain"
+                    alt="Logo"
+                    width={400}
+                    height={400}
+                    className="mb-3"
                 />
-                </header>
-
-                {/* FILTRES */}
-                <div className="flex justify-center space-x-3 mb-4">
-                    {["Vue", "Évènements", "12"].map((label) => (
-                        <button
-                        key={label}
-                        className="border border-blue-700 text-blue-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-50"
-                        >
-                        {label}
-                        </button>
-                    ))}
-                </div>
 
                 <hr className="w-full border-gray-300 mb-4" />
 

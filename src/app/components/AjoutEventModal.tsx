@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import Select from "react-select";
 import { EventFormData } from "@/types/EventFormData";
-import { residences, etages, chambres } from "../data/options";
+import DynamicSelectGroup from "./DynamicSelectGroup";
+import DynamicMultiSelectGroup from "./DynamicMultiSelectGroup";
 
 type ModalProps = {
   open: boolean;
@@ -17,58 +17,86 @@ type VisibiliteKeys = keyof NonNullable<EventFormData["visibilite"]>;
 export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProps) {
   const [form, setForm] = useState<EventFormData>({
     titre: "",
-    type: "",
+    category: "",
+    description: "",
     date_event: "",
     recurrence: "",
     heures: "",
     lieu: "",
     visibilite: { residences: [], etages: [], chambres: [] },
+    visible_invites: false,
+    demander_confirmation: false,
   });
+
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-
+  // Remet à zéro à chaque ouverture
   useEffect(() => {
     if (open) {
       setForm({
         titre: "",
-        type: "",
+        category: "",
+        description: "",
         date_event: "",
         recurrence: "",
         heures: "",
         lieu: "",
         visibilite: { residences: [], etages: [], chambres: [] },
+        visible_invites: false,
+        demander_confirmation: false,
       });
     }
   }, [open]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleMultiSelectChange = (name: VisibiliteKeys, values: string[]) => {
-    setForm((prev) => ({
+  const handleMultiSelectChange = (values: Record<string, string[]>) => {
+    setForm(prev => ({
       ...prev,
       visibilite: {
-        ...prev.visibilite!,
-        [name]: values,
+        residences: values['Résidence'] || [],
+        etages: values['Étage'] || [],
+        chambres: values['Chambre'] || [],
       },
     }));
-  };
+  };   
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault(); // On empêche le rechargement dès le début
+    console.log(form)
+    if (!form.category || !form.titre || !form.date_event || !form.lieu || !form.visibilite || !form.recurrence) {
+      alert("Merci de remplir tous les champs");
+      return
+    }
+
     await onSave(form);
     console.log("🧩 Formulaire soumis :", form);
   };
+
+  // Gestion des changements de valeur dans le formulaire
+  const handleSelectChange = (name: keyof EventFormData, value: string | string[]) => {
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+  
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm bg-white rounded-2xl shadow-lg w-[90%] max-w-md max-h-[90vh] p-6 relative overflow-y-auto">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+
+      <div
+        className="relative bg-white rounded-2xl shadow-lg w-[90%] max-w-md max-h-[90vh] p-6 overflow-y-auto transition-all duration-300 ease-out transform
+        scale-100 opacity-100"
+      >
         <button
           onClick={onClose}
           className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
@@ -79,187 +107,163 @@ export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProp
         <h2 className="text-lg font-semibold text-blue-800">Ajouter un évènement</h2>
         <div className="w-full bg-blue-500 h-[1px] mb-4" />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Titre */}
-          <input
-            name="titre"
-            value={form.titre}
-            onChange={handleChange}
-            placeholder="Titre de l'évènement"
-            className="w-full px-4 py-2 border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-          />
+          <form onSubmit={handleSubmit} className="space-y-4">
 
-          {/* Type */}
-          <div className="mb-4">
+            {/* Type d'évènement */}
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Type de l&apos;évènement
             </label>
-            <div className="relative">
-              <select
-                name="type"
-                value={form.type}
+            <DynamicSelectGroup
+              category="Évènement"
+              onChange={(value) => handleSelectChange("category", value)}
+            />
+
+            {/* Titre */}
+            <input
+              name="titre"
+              value={form.titre}
+              onChange={handleChange}
+              placeholder="Titre de l'évènement"
+              className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+
+            {/* Date */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date et horaire de l&apos;évènement
+              </label>
+              <input
+                type={showDatePicker ? "date" : "text"}
+                name="date_event"
+                value={form.date_event}
+                onFocus={() => setShowDatePicker(true)}
+                onBlur={(e) => {
+                  if (!e.target.value) setShowDatePicker(false);
+                }}
                 onChange={handleChange}
-                className="w-full appearance-none bg-white border border-gray-300 rounded-xl px-4 py-2.5 pr-10 text-gray-700
-                shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
-              >
-                <option value="anniversaire">Anniversaire</option>
-                <option value="linge">Lingerie</option>
-                <option value="autre">Autre</option>
-              </select>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+                placeholder="Sélectionner une date"
+                className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md shadow-sm
+                  focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+              />
             </div>
-          </div>
 
-          {/* Date */}
-          <div className="mb-4">
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Date de l&apos;évènement
-  </label>
-  <input
-    type={showDatePicker ? "date" : "text"}
-    name="date_event"
-    value={form.date_event}
-    onFocus={() => setShowDatePicker(true)}
-    onBlur={(e) => {
-      if (!e.target.value) setShowDatePicker(false);
-    }}
-    onChange={handleChange}
-    placeholder="Sélectionner une date"
-    className="w-full px-4 py-2 border border-gray-300 rounded-xl text-gray-700 shadow-sm
-      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
-  />
-</div>
+            {/* Heure */}
+            <input
+              name="heures"
+              value={form.heures}
+              onChange={handleChange}
+              placeholder="Horaire de l'évènement"
+              className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+
+            {/* Description */}
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description de l&apos;évènement
+              </label>
+              <textarea
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                placeholder="Ajoutez des détails sur l’évènement (ex : déroulé, matériel à prévoir...)"
+                rows={4}
+                className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              />
 
 
-          {/* Récurrence */}
-          <div className="mb-4">
+            {/* Lieu */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Lieu de l&apos;évènement
+              </label>
+              <DynamicSelectGroup 
+                category="Résidence"
+                onChange={(value) => setForm((prev) => ({ ...prev, lieu: value }))}
+                onlyParent={true}
+              />
+            </div>
+
+            {/* Récurrence */}
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Récurrence de l&apos;évènement
             </label>
-            <div className="relative">
-              <select
-                name="recurrence"
-                value={form.recurrence}
-                onChange={handleChange}
-                className="w-full appearance-none bg-white border border-gray-300 rounded-xl px-4 py-2.5 pr-10 text-gray-700
-                shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
-              >
-                <option value="aucune">Aucune</option>
-                <option value="hebdo">Hebdomadaire</option>
-                <option value="mensuelle">Mensuelle</option>
-                <option value="annuelle">Annuelle</option>
-              </select>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
+            <DynamicSelectGroup
+              category="Récurrence"
+              onChange={(value) => setForm((prev) => ({ ...prev, recurrence: value[0] }))}
+            />
 
-          {/* Heures */}
-          <input
-            name="heures"
-            value={form.heures}
-            onChange={handleChange}
-            placeholder="Horaire de l'évènement"
-            className="w-full px-4 py-2 border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-          />
+            {/* Visibilité */}
+            <h2 className="text-blue-800 font-semibold mt-4">
+              Visibilité de l&apos;évènement
+            </h2>
+            <DynamicMultiSelectGroup
+              type="Résidence"
+              onChange={handleMultiSelectChange}
+            />
 
-          {/* Lieu */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Lieu de l&apos;évènement
+
+            {/* Checkbox invités */}
+            <label className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-gray-100 transition">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-800">Visible par les invités</span>
+                <span className="text-xs text-gray-500">
+                  Rendez cet évènement accessible aux invitées.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                name="visible_invites"
+                checked={form.visible_invites || false}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    visible_invites: e.target.checked,
+                  }))
+                }
+                className="w-5 h-5 accent-blue-600 rounded-md cursor-pointer"
+              />
             </label>
-            <div className="relative">
-              <select
-                name="lieu"
-                value={form.lieu}
-                onChange={handleChange}
-                className="w-full appearance-none bg-white border border-gray-300 rounded-xl px-4 py-2.5 pr-10 text-gray-700
-                shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
+
+            {/* Checkbox confirmation */}
+            <label className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-gray-100 transition">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-800">
+                  Demander confirmation de participation
+                </span>
+                <span className="text-xs text-gray-500">
+                  Les utilisatrices devront indiquer si elles participent à cet évènement.
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                name="demander_confirmation"
+                checked={form.demander_confirmation || false}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    demander_confirmation: e.target.checked,
+                  }))
+                }
+                className="w-5 h-5 accent-blue-600 rounded-md cursor-pointer"
+              />
+            </label>
+
+            {/* Boutons */}
+            <div className="flex justify-end space-x-3 mt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border rounded-lg text-blue-700 text-sm cursor-pointer hover:bg-blue-50"
               >
-                <option value="12">12</option>
-                <option value="36">36</option>
-              </select>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="2"
+                Annuler
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-700 text-white rounded-lg text-sm cursor-pointer hover:bg-blue-800 transition"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+                Enregistrer
+              </button>
             </div>
-          </div>
-
-          {/* Visibilité multi-critères avec React Select */}
-          <div className="space-y-3">
-            <h2 className="text-blue-800 font-semibold">Visibilité de l&apos;évènement</h2>
-            <label className="font-medium">Résidences</label>
-            <Select
-              isMulti
-              options={residences}
-              value={residences.filter(r => form.visibilite?.residences.includes(r.value))}
-              onChange={(selected) =>
-                handleMultiSelectChange("residences", selected.map(s => s.value))
-              }
-            />
-
-            <label className="font-medium">Étages</label>
-            <Select
-              isMulti
-              options={etages}
-              value={etages.filter(e => form.visibilite?.etages.includes(e.value))}
-              onChange={(selected) =>
-                handleMultiSelectChange("etages", selected.map(s => s.value))
-              }
-            />
-
-            <label className="font-medium">Chambres</label>
-            <Select
-              isMulti
-              options={chambres}
-              value={chambres.filter(c => form.visibilite?.chambres.includes(c.value))}
-              onChange={(selected) =>
-                handleMultiSelectChange("chambres", selected.map(s => s.value))
-              }
-            />
-          </div>
-
-          {/* Boutons */}
-          <div className="flex justify-end space-x-3 mt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border rounded-lg text-blue-700 text-sm cursor-pointer"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-700 text-white rounded-lg text-sm cursor-pointer"
-            >
-              Enregistrer
-            </button>
-          </div>
-        </form>
+          </form>
       </div>
     </div>
   );

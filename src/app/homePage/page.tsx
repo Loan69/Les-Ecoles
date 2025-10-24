@@ -15,6 +15,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import { Repas } from "@/types/repas";
 import CommentModal from "../components/commentModal";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { Residence } from "@/types/Residence";
 
 export default function HomePage() {
   const user = useUser();
@@ -32,11 +33,14 @@ export default function HomePage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [selectedResidence, setSelectedResidence] = useState<string>("12");
+  const [selectedResidence, setSelectedResidence] = useState<number | null>(null);
   const [isAbsent, setIsAbsent] = useState(false);
   const [isAbsentReady, setIsAbsentReady] = useState(false);
   const [dejeuner, setDejeuner] = useState<Repas | null>(null);
   const [diner, setDiner] = useState<Repas | null>(null);
+  const [residenceId, setResidenceId] = useState<number[]>([]);
+  const [residences, setResidences] = useState<Residence[]>([]);
+
   // États pour le swipe
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
@@ -45,6 +49,26 @@ export default function HomePage() {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [selectedRepasId, setSelectedRepasId] = useState<number | null>(null);
   const [commentValue, setCommentValue] = useState('');
+
+  // Résidences pour les onglets
+  useEffect(() => {
+    const fetchResidences = async () => {
+      const { data, error } = await supabase
+        .from('select_options')
+        .select('id, value')
+        .eq("category", "Résidence");
+  
+        if (!error && data) {
+          const formatted = data.map((item) => ({
+            id: item.id,
+            label: item.value, // ici on renomme value → label
+          }));
+          setResidences(formatted);
+        }
+    };
+  
+    fetchResidences();
+  }, []);
 
 
   useEffect(() => {
@@ -154,7 +178,7 @@ export default function HomePage() {
 
       const dateIso = currentDate.toISOString().split("T")[0];
 
-      // 1️⃣ Profil
+      // Profil
       const { data: profilData, error: profilError } = await supabase
         .from("residentes")
         .select("*")
@@ -163,7 +187,7 @@ export default function HomePage() {
       if (profilError) console.error("Erreur profil :", profilError);
       if (profilData) setProfil(profilData);
 
-      // 2️⃣ Présences repas
+      // Présences repas
       const { data: presences, error: presencesError } = await supabase
         .from("presences")
         .select("id_repas, user_id, type_repas, date_repas, choix_repas, commentaire")
@@ -184,7 +208,7 @@ export default function HomePage() {
         setDiner(dinerData  ?? null)
       }
 
-      // 3️⃣ Événements du jour
+      // Événements du jour
       const { data: eventsData, error: eventsError } = await supabase
         .from("evenements")
         .select("*")
@@ -192,6 +216,16 @@ export default function HomePage() {
 
       if (eventsError) console.error("Erreur événements :", eventsError);
       if (eventsData) setEvents(eventsData);
+
+      // On récupère tous les IDs des résidences
+      const { data } = await supabase
+        .from("select_options")
+        .select("id")
+        .eq("category", "Résidence")
+      
+      if (data) {
+        setResidenceId(data.map(item => item.id));
+      }
 
       setIsReady(true);
     };
@@ -290,8 +324,6 @@ export default function HomePage() {
     // 4️⃣ Mets à jour la valeur du commentaire utilisée par la modale
     setCommentValue(updatedRow?.commentaire || "");
   };
-
-  
   
 
   // --- Loader global --- 
@@ -304,9 +336,15 @@ export default function HomePage() {
   }
 
   // --- Filtrage des événements par résidence ---
-  const filteredEvents = events.filter((event) =>
-    event.lieu?.split(",").map((r) => r.trim()).includes(selectedResidence)
-  );
+  const filteredEvents = selectedResidence
+    ? events.filter((event) =>
+        event.lieu
+          ?.split(",")
+          .map((r) => Number(r.trim()))
+          .includes(selectedResidence)
+      )
+    : [];
+
 
   // --- Animation (slide + fade) ---
   const variants = {
@@ -416,22 +454,22 @@ export default function HomePage() {
         <div
           className="absolute top-0 h-12 w-20 bg-yellow-400 rounded-t-xl transition-all duration-300"
           style={{
-            left: selectedResidence === "12" ? "0px" : "81px",
+            left: selectedResidence === 1 ? "0px" : "81px",
           }}
         />
 
-        {["12", "36"].map((num) => (
+        {residences.map((res) => (
           <button
-            key={num}
-            onClick={() => setSelectedResidence(num)}
+            key={res.id}
+            onClick={() => setSelectedResidence(res.id)}
             className={`cursor-pointer relative flex items-center justify-center w-20 h-12 text-lg font-bold border rounded-t-xl transition-colors z-10
               ${
-                selectedResidence === num
-                  ? "text-white border-yellow-400"
+                selectedResidence === res.id
+                  ? "text-white border-yellow-400 bg-yellow-400"
                   : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"
               }`}
           >
-            {num}
+            {res.label}
           </button>
         ))}
       </div>

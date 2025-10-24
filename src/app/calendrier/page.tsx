@@ -48,29 +48,64 @@ export default function CalendrierPage() {
 
   // 🟢 Ajout d’un évènement
   const handleAddEvent = async (data: EventFormData) => {
+    const {
+      titre,
+      category,
+      date_event,
+      description,
+      recurrence,
+      heures,
+      lieu,
+      visibilite,
+      visible_invites,
+      demander_confirmation,
+    } = data;
 
-    const { titre, type, date_event, recurrence, heures, lieu, visibilite } = data;
-
-    // On choisit la couleur automatiquement selon le type
+    // Détermination automatique de la couleur selon le type
     const couleur =
-      type === "anniversaire"
+      category === "anniversaire"
         ? "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-300"
-        : type === "linge"
+        : category === "linge"
         ? "bg-blue-100 text-blue-700 border-blue-300"
-        : "bg-yellow-100 text-yellow-700 border-yellow-300";
+        : category === "autre"
+        ? "bg-yellow-100 text-yellow-700 border-yellow-300"
+        : "bg-gray-100 text-gray-700 border-gray-300";
 
+    // Préparation des données à insérer
+    const newEvent = {
+      titre,
+      category,
+      couleur,
+      date_event,
+      description,
+      recurrence,
+      heures,
+      lieu,
+      visibilite, // objet { residences: [], etages: [], chambres: [] }
+      visible_invites,
+      demander_confirmation,
+      user_id: user?.id,
+    };
+
+    console.log("🧩 Données envoyées à Supabase :", newEvent);
+
+    // Insertion dans la table Supabase
     const { data: inserted, error } = await supabase
       .from("evenements")
-      .insert([{ titre, type, couleur, date_event, user_id: user?.id, recurrence, heures, lieu, visibilite }])
+      .insert([newEvent])
       .select();
 
     if (error) {
-      console.error("Erreur d’ajout :", error);
+      console.error("❌ Erreur d’ajout :", error);
       return;
     }
 
-    if (inserted) setEvents((prev) => [...prev, ...inserted]);
+    if (inserted && inserted.length > 0) {
+      console.log("✅ Évènement ajouté :", inserted[0]);
+      setEvents((prev) => [...prev, ...inserted]);
+    }
   };
+
 
   // 🟢 Suppression d’un évènement
   const handleDeleteEvent = async (id: number) => {
