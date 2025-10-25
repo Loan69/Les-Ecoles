@@ -1,9 +1,23 @@
 import { NextResponse } from 'next/server'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from 'next/headers'
 
 export async function GET(req: Request) {
-    const supabase = createServerComponentClient({ cookies: () => cookies() })
+    const cookieStore = await cookies();
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!, // ⚠️ service role key côté serveur uniquement
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set() {},
+          remove() {},
+        },
+      }
+    );
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -18,7 +32,21 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
-        const supabase = createServerComponentClient({ cookies: () => cookies() })
+        const cookieStore = await cookies();
+
+        const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!, // ⚠️ service role key côté serveur uniquement
+        {
+            cookies: {
+            get(name: string) {
+                return cookieStore.get(name)?.value;
+            },
+            set() {},
+            remove() {},
+            },
+        }
+        );
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

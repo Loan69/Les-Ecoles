@@ -1,19 +1,36 @@
 import { redirect } from 'next/navigation'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from 'next/headers'
 import UsersTable from '@/app/components/admin/UsersTable'
 import MealOptionsManager from '@/app/components/admin/MealOptionsManager'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 
 export default async function AdminUsersPage() {
-  const supabase = createServerComponentClient({ cookies: () => cookies() })
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.user) redirect('/login')
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!, // ⚠️ service role key côté serveur uniquement
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set() {},
+        remove() {},
+      },
+    }
+  );
+
+  const { data, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+    const user = data?.user;
+
+  if (!user) redirect('/signin')
 
   const { data: res } = await supabase
     .from('residentes')
     .select('is_admin')
-    .eq('user_id', session.user.id)
+    .eq('user_id', user.id)
     .single()
 
   if (!res?.is_admin) redirect('/')
@@ -29,7 +46,7 @@ export default async function AdminUsersPage() {
         </TabsList>
 
         <TabsContent value="users">
-          <UsersTable currentUserId={session.user.id} />
+          <UsersTable currentUserId={user.id} />
         </TabsContent>
 
         <TabsContent value="meals">
