@@ -42,8 +42,7 @@ export default function DateNaissanceField({
           const fr = `${String(newDay).padStart(2, "0")}/${String(newMonth).padStart(2, "0")}/${newYear}`;
           onChange(fr);
         }
-      };
-      
+      };      
 
     const Select = ({
         value,
@@ -52,7 +51,7 @@ export default function DateNaissanceField({
         placeholder,
     }: {
         value: string;
-        onChange: (e: any) => void;
+        onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
         children: React.ReactNode;
         placeholder: string;
     }) => (
