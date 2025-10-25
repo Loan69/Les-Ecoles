@@ -7,11 +7,22 @@ import { useSupabase } from "../providers";
 
 interface Props {
   rootCategory: string; // catégorie racine : "residence", "repas", "evenement", etc.
+  subRootCategory?: string;
   onChange: (selected: { [category: string]: Option }) => void; // renvoie toutes les options sélectionnées
   onlyParent?: boolean; // si true, on ne charge pas les enfants
+  islabel?: boolean; // si false, on n'affiche pas le label au dessus du select
+  initialValue?: string | null;
+  disabled?: boolean; // pour désactiver le composant
 }
 
-export default function DynamicSelectGroup({ rootCategory, onChange, onlyParent = false, }: Props) {
+export default function DynamicSelectGroup({
+  rootCategory, 
+  subRootCategory = rootCategory,
+  onChange, onlyParent = false,
+  islabel = true,
+  initialValue,
+  disabled = false,
+}: Props) {
   const { supabase } = useSupabase();
   const [levels, setLevels] = useState<Option[][]>([]);
   const [selected, setSelected] = useState<{ [category: string]: Option }>({});
@@ -22,7 +33,7 @@ export default function DynamicSelectGroup({ rootCategory, onChange, onlyParent 
       const { data, error } = await supabase
         .from(`select_options_${rootCategory}`)
         .select("*")
-        .eq("category", rootCategory)
+        .eq("category", subRootCategory)
         .is("parent_value", null)
         .order("label");
 
@@ -30,7 +41,15 @@ export default function DynamicSelectGroup({ rootCategory, onChange, onlyParent 
       if (data) setLevels([data]);
     };
     fetchRoot();
-  }, [rootCategory]);
+  }, [rootCategory, subRootCategory]);
+
+  // Charger une valeur initiale s'il y en a une
+  useEffect(() => {
+    if (initialValue && levels.length > 0) {
+      const option = levels[0].find(o => o.value === initialValue);
+      if (option) setSelected({ [subRootCategory]: option });
+    }
+  }, [initialValue, levels]);
 
   // Gérer la sélection d’une option
   const handleSelect = async (levelIndex: number, option: Option) => {
@@ -59,7 +78,7 @@ export default function DynamicSelectGroup({ rootCategory, onChange, onlyParent 
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-1">
       {levels.map((options, i) => {
         const key = options[0]?.category || `level${i}`;
         const label = options[0]?.label_category || key;
@@ -67,7 +86,7 @@ export default function DynamicSelectGroup({ rootCategory, onChange, onlyParent 
           <SelectField
             key={i}
             name={`level${i}`}
-            label={label} 
+            label={islabel ? label : undefined}
             value={selected[key]?.value || ""}
             onChange={(val) => {
               const option = options.find((o) => o.value === val);
@@ -75,6 +94,8 @@ export default function DynamicSelectGroup({ rootCategory, onChange, onlyParent 
             }}
             options={options}
             placeholder={`Choisissez votre ${label}`}
+            wrapperClassName="m-0"
+            disabled={disabled}
           />
         );
       })}

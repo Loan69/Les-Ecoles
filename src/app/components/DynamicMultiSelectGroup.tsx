@@ -48,16 +48,18 @@ export default function DynamicMultiSelectGroup({
         console.error(error.message);
         return;
       }
-      if (data) {
+      if (data && data.length > 0) {
+        const labelCategory = data[0]?.label_category || rootCategory;
         const allOption: Option = {
           id: -1,
           value: "ALL",
-          label: getTousLabel(rootCategory),
+          label: `${getTousLabel(labelCategory)}`, // ex : "Toutes les résidences"
           category: rootCategory,
           parent_value: null,
+          label_category: labelCategory,
         };
         setLevels([[allOption, ...data]]);
-      }
+      }      
     };
     fetchRoot();
   }, [rootCategory]);
@@ -104,18 +106,21 @@ export default function DynamicMultiSelectGroup({
 
     if (allChildren.length > 0) {
       const childCategory = allChildren[0]?.category || "Sous-catégorie";
+      const labelCategory = allChildren[0]?.label_category || childCategory;
       const allOptionChild: Option = {
         id: -1,
         value: "ALL",
-        label: getTousLabel(childCategory),
+        label: `${getTousLabel(labelCategory)}`, // ex : "Tous les évènements"
         category: childCategory,
         parent_value: null,
+        label_category: labelCategory,
       };
       newLevels.push([allOptionChild, ...allChildren]);
-    }
+    }    
 
     setLevels(newLevels);
   };
+
 
   return (
     <div className="space-y-4">

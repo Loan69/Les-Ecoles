@@ -31,11 +31,7 @@ export async function POST(req: NextRequest) {
      return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
      }
 
-    const {
-      repas,
-      date,
-      choix,
-    }: { repas: RepasType; date?: string; choix: string } = await req.json();
+    const { repas, date, choix }: { repas: RepasType; date?: string; choix: string } = await req.json();
 
     const userId = user.id;
     const dateToday = date || new Date().toISOString().split("T")[0];
@@ -70,28 +66,6 @@ export async function POST(req: NextRequest) {
         message: "Vous ne pouvez plus modifier les repas d'une date passée.",
       });
     }
-
-    // --- Vérifier si jour même et après 8h30 ---
-    const isSameDay =
-      targetDateParis.getFullYear() === nowParis.getFullYear() &&
-      targetDateParis.getMonth() === nowParis.getMonth() &&
-      targetDateParis.getDate() === nowParis.getDate();
-
-    if (isSameDay) {
-      const limite = new Date(
-        nowParis.getFullYear(),
-        nowParis.getMonth(),
-        nowParis.getDate(),
-        8, 30, 0
-      );
-      if (nowParis > limite) {
-        return NextResponse.json({
-          success: false,
-          message: "Les présences aux repas ne sont plus modifiables après 8h30.",
-        });
-      }
-    }
-
 
     // --- 🔍 Vérifie si un repas existe déjà ---
     const { data: existing, error: selectError } = await supabase

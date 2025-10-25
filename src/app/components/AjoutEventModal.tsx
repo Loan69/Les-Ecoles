@@ -128,6 +128,7 @@ export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProp
                 handleSelectChange("category", catValue);
                 setSelectionEvent(selected); // si on veut garder la sélection localement aussi
               }}
+              islabel={false}
             />
 
             {/* Titre */}
@@ -196,6 +197,7 @@ export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProp
                   setSelectionEvent(selected); // si on veut garder la sélection localement aussi
                 }}
                 onlyParent={true}
+                islabel={false}
               />
             </div>
 
@@ -211,6 +213,7 @@ export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProp
                 handleSelectChange("recurrence", catValue);
                 setSelectionEvent(selected); // si on veut garder la sélection localement aussi
               }}
+              islabel={false}
             />
 
             {/* Visibilité */}
