@@ -13,6 +13,7 @@ interface Props {
   islabel?: boolean; // si false, on n'affiche pas le label au dessus du select
   initialValue?: string | null;
   disabled?: boolean; // pour désactiver le composant
+  selectClassName?: string; 
 }
 
 export default function DynamicSelectGroup({
@@ -22,6 +23,7 @@ export default function DynamicSelectGroup({
   islabel = true,
   initialValue,
   disabled = false,
+  selectClassName = ""
 }: Props) {
   const { supabase } = useSupabase();
   const [levels, setLevels] = useState<Option[][]>([]);
@@ -96,6 +98,7 @@ export default function DynamicSelectGroup({
             placeholder={`Choisissez votre ${label}`}
             wrapperClassName="m-0"
             disabled={disabled}
+            selectClassName={selectClassName}
           />
         );
       })}

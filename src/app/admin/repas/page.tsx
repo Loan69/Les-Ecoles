@@ -13,16 +13,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { InviteRepas } from "@/types/InviteRepas";
+import { Residence } from "@/types/Residence";
 
 export default function AdminRepasView() {
-  const { supabase } = useSupabase(); // ← Remplace createClientComponentClient
+  const { supabase } = useSupabase();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [repasData, setRepasData] = useState<Repas[]>([]);
   const [residentes, setResidentes] = useState<Personne[]>([]);
   const [invites, setInvites] = useState<InviteRepas[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openLieu, setOpenLieu] = useState<"12" | "36" | null>(null);
+  const [openLieu, setOpenLieu] = useState<string | null>(null);
+  const [residences, setResidences] = useState<Residence[]>([]);
 
   // --- Formattage des dates (type mercredi 15 octobre 2025) ---
   const formatDateFR = (dateString: string): string => {
@@ -62,16 +64,15 @@ export default function AdminRepasView() {
     }
   }, [startDate, endDate]);
 
-  // --- Fetch repas ---
+  // --- Fetch résidentes, repas, invités et résidences ---
   useEffect(() => {
     if (!startDate || !endDate) return;
 
-    const fetchRepas = async () => {
+    const fetchData = async () => {
       setLoading(true);
-
       const tomorrowStr = getTomorrowString(endDate);
 
-      const [{ data: repas, error: repasError }, { data: residentesData }, { data: invitesData }] =
+      const [{ data: repas, error: repasError }, { data: residentesData }, { data: invitesData }, { data: residencesData, error: resError }] =
         await Promise.all([
           supabase
             .from("presences")
@@ -84,18 +85,21 @@ export default function AdminRepasView() {
             .select("id, nom, prenom, invite_par, lieu_repas, date_repas, type_repas")
             .gte("date_repas", startDate)
             .lte("date_repas", tomorrowStr),
+          supabase.from("residences").select("value, label"),
         ]);
 
       if (repasError) console.error("Erreur repas :", repasError);
+      if (resError) console.error("Erreur résidences :", resError);
 
       setRepasData(repas || []);
       setResidentes(residentesData || []);
       setInvites(invitesData || []);
+      setResidences(residencesData || []);
 
       setLoading(false);
     };
 
-    fetchRepas();
+    fetchData();
   }, [startDate, endDate]);
 
   // --- Type pour TypeScript pour distinguer résidente vs invitée ---
@@ -122,16 +126,16 @@ export default function AdminRepasView() {
     }),
   ];
 
-  const findPerson = (id_user: string) => residentes.find((p) => p.user_id === id_user);
+  const findPerson = (user_id: string) => residentes.find((p) => p.user_id === user_id);
 
-  // --- Agrégation par lieu (startDate seulement) ---
-  const summaryByLieu = (["12", "36"] as const).reduce(
-    (acc, lieu) => ({
-      ...acc,
-      [lieu]: { dejeuner: 0, diner: 0, plateau: 0, piqueNique: 0 },
-    }),
-    {} as Record<"12" | "36", { dejeuner: number; diner: number; plateau: number; piqueNique: number }>
-  );
+  // --- Initialisation dynamiques des objets résumé ---
+  const summaryByLieu: Record<string, { dejeuner: number; diner: number; plateau: number; piqueNique: number }> = {};
+  const comptaByResidence: Record<string, { nom: string; prenom: string; dejeuner: number; diner: number; total: number }[]> = {};
+
+  residences.forEach((r) => {
+    summaryByLieu[r.value] = { dejeuner: 0, diner: 0, plateau: 0, piqueNique: 0 };
+    comptaByResidence[r.value] = [];
+  });
 
   const tomorrowStr = getTomorrowString(startDate);
 
@@ -144,17 +148,17 @@ export default function AdminRepasView() {
     const lieuRepas =
       choix === "12" || choix === "36"
         ? choix
-        : ["pique", "plateau"].some((kw) => choix.includes(kw))
+        : ["pn", "plateau"].some((kw) => choix.includes(kw))
         ? personne.residence?.toString()
         : undefined;
 
-    if (!lieuRepas || (lieuRepas !== "12" && lieuRepas !== "36")) return;
+    if (!lieuRepas || !summaryByLieu[lieuRepas]) return;
 
     if (choix.includes("plateau") && r.date_repas === startDate) {
       summaryByLieu[lieuRepas].plateau++;
       return;
     }
-    if (choix.includes("pique") && r.date_repas === tomorrowStr) {
+    if (choix.includes("pn") && r.date_repas === tomorrowStr) {
       summaryByLieu[lieuRepas].piqueNique++;
       return;
     }
@@ -168,21 +172,13 @@ export default function AdminRepasView() {
   invites
     .filter((i) => i.date_repas === startDate)
     .forEach((inv) => {
-      const lieu = inv.lieu_repas as "12" | "36";
-      if (!["12", "36"].includes(lieu)) return;
+      const lieu = inv.lieu_repas;
+      if (!summaryByLieu[lieu]) return;
       if (inv.type_repas === "dejeuner") summaryByLieu[lieu].dejeuner++;
       if (inv.type_repas === "diner") summaryByLieu[lieu].diner++;
     });
 
   // --- Comptabilité par résidence ---
-  const comptaByResidence = (["12", "36"] as const).reduce(
-    (acc, res) => ({
-      ...acc,
-      [res]: [] as { nom: string; prenom: string; dejeuner: number; diner: number; total: number }[],
-    }),
-    {} as Record<"12" | "36", { nom: string; prenom: string; dejeuner: number; diner: number; total: number }[]>
-  );
-
   residentes.forEach((p) => {
     const repasPerso = repasData.filter((r) => r.user_id === p.user_id);
     const invitesPerso = invites.filter((i) => i.invite_par === p.user_id);
@@ -203,13 +199,17 @@ export default function AdminRepasView() {
       if (i.type_repas === "diner") diner++;
     });
 
-    comptaByResidence[p.residence as "12" | "36"].push({
-      nom: p.nom,
-      prenom: p.prenom,
-      dejeuner,
-      diner,
-      total: dejeuner + diner,
-    });
+    if (p.residence && comptaByResidence[p.residence]) {
+      comptaByResidence[p.residence].push({
+        nom: p.nom,
+        prenom: p.prenom,
+        dejeuner,
+        diner,
+        total: dejeuner + diner,
+      });
+    } else {
+      console.warn("Résidente avec résidence inconnue :", p);
+    }
   });
 
   if (loading || !startDate || !endDate) {
@@ -254,17 +254,17 @@ export default function AdminRepasView() {
           Total des repas du {formatDateFR(startDate)}
         </h2>
         <div className="flex flex-col md:flex-row justify-center gap-8 mb-10">
-          {(["12", "36"] as const).map((lieu) => {
-            const s = summaryByLieu[lieu];
+          {residences.map((r) => {
+            const s = summaryByLieu[r.value];
             return (
               <div
-                key={lieu}
+                key={r.value}
                 className="relative bg-orange-50 border border-orange-200 rounded-2xl p-6 shadow-sm w-full md:w-1/3 text-center"
               >
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-2xl font-bold text-orange-800">Résidence {lieu}</h3>
+                  <h3 className="text-2xl font-bold text-orange-800">{r.label}</h3>
                   <button
-                    onClick={() => setOpenLieu(lieu)}
+                    onClick={() => setOpenLieu(r.value)}
                     className="cursor-pointer text-orange-700 hover:text-orange-900 transition-colors"
                   >
                     <Search size={22} />
@@ -300,10 +300,10 @@ export default function AdminRepasView() {
             <UserRound />
             Total par lieu de résidence des utilisatrices
           </h2>
-          {(["12", "36"] as const).map((res) => (
-            <div key={res} className="bg-white shadow-sm border border-gray-200 rounded-xl p-6">
+          {residences.map((r) => (
+            <div key={r.value} className="bg-white shadow-sm border border-gray-200 rounded-xl p-6">
               <h3 className="text-xl font-semibold text-amber-800 mb-4">
-                Comptabilité - Résidence {res}
+                Comptabilité - {r.label}
               </h3>
               <table className="min-w-full border text-sm bg-white">
                 <thead className="bg-gray-50">
@@ -315,7 +315,7 @@ export default function AdminRepasView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {comptaByResidence[res].map((p, idx) => (
+                  {comptaByResidence[r.value].map((p, idx) => (
                     <tr key={idx} className="border-b">
                       <td className="p-2">{p.prenom} {p.nom}</td>
                       <td className="text-center p-2">{p.dejeuner}</td>

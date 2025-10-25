@@ -71,13 +71,11 @@ export default function HomePage() {
   useEffect(() => {
     const fetchResidences = async () => {
       const { data, error } = await supabase
-        .from('select_options_residence')
-        .select('id, value, label')
-        .eq("category", "residence");
+        .from('residences')
+        .select('value, label');
   
         if (!error && data) {
           const formatted = data.map((item) => ({
-            id: item.id,
             value: item.value,
             label: item.label, // ici on renomme value → label
           }));
@@ -438,7 +436,7 @@ export default function HomePage() {
 
         {residences.map((res) => (
           <button
-            key={res.id}
+            key={res.value}
             onClick={() => {setSelectedResidenceValue(res.value); 
                             setSelectedResidenceLabel(res.label)}}
             className={`cursor-pointer relative flex items-center justify-center w-20 h-12 text-lg font-bold border rounded-t-xl transition-colors z-10
