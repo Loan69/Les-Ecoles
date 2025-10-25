@@ -1,11 +1,7 @@
 "use client";
 
 import React from "react";
-
-interface Option {
-    value: string;
-    label: string;
-}
+import { Option } from "@/types/Option";
 
 interface SelectFieldProps {
     label?: string;
@@ -29,14 +25,14 @@ export default function SelectField({
 
     return (
         <div className="mb-4">
-        {/*{label && (
+        {label && (
             <label
             htmlFor={name}
             className="block mb-2 text-sm font-medium text-blue-800"
             >
             {label} {required && <span className="text-red-500">*</span>}
             </label>
-        )}*/}
+        )}
 
         <div className="relative">
             <select
@@ -50,11 +46,11 @@ export default function SelectField({
             <option value="" disabled>
                 {placeholder}
             </option>
-            {options.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                {opt.label}
-                </option>
-            ))}
+                {options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                    </option>
+                ))}
             </select>
 
             {/* Flèche bleue custom */}

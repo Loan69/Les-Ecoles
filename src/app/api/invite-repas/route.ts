@@ -1,11 +1,28 @@
 import { NextResponse } from "next/server";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   const body = await req.json();
   const { nom, prenom, date, repas, lieuRepas, userId } = body;
-  const supabase = createServerComponentClient({ cookies })
+  
+ // 🧩 Correction ici : cookies() est une Promise en Next 15+
+ const cookieStore = await cookies();
+
+
+ const supabase = createServerClient(
+   process.env.NEXT_PUBLIC_SUPABASE_URL!,
+   process.env.SUPABASE_SERVICE_ROLE_KEY!, // ⚠️ service role key côté serveur uniquement
+   {
+     cookies: {
+       get(name: string) {
+         return cookieStore.get(name)?.value;
+       },
+       set() {},
+       remove() {},
+     },
+   }
+ );
 
   // Vérification des champs
   if (!nom || !prenom || !date || !repas || !lieuRepas || !userId) {

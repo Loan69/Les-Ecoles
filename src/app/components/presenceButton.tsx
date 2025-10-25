@@ -59,7 +59,7 @@ export default function PresenceButton({
               className={`absolute top-1 left-1 w-8 h-8 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
                 isAbsent
                   ? "translate-x-0"
-                  : "translate-x-8.5 md:translate-x-10"
+                  : "translate-x-9 md:translate-x-10"
               }`}
             />
           </button>

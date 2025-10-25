@@ -9,18 +9,18 @@ import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import InviteModal from "../components/inviteModal";
 import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
-import { useUser } from "@supabase/auth-helpers-react";
 import { Residente } from "@/types/Residente";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { Repas } from "@/types/repas";
 import CommentModal from "../components/commentModal";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Residence } from "@/types/Residence";
+import { useSupabase } from "../providers";
+import { User } from "@supabase/supabase-js";
 
 export default function HomePage() {
-  const user = useUser();
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
-  const supabase = createClientComponentClient()
+  const { supabase } = useSupabase();
 
   // --- États principaux ---
   const [profil, setProfil] = useState<Residente | null>(null);
@@ -33,13 +33,13 @@ export default function HomePage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [selectedResidence, setSelectedResidence] = useState<number | null>(null);
   const [isAbsent, setIsAbsent] = useState(false);
   const [isAbsentReady, setIsAbsentReady] = useState(false);
   const [dejeuner, setDejeuner] = useState<Repas | null>(null);
   const [diner, setDiner] = useState<Repas | null>(null);
-  const [residenceId, setResidenceId] = useState<number[]>([]);
   const [residences, setResidences] = useState<Residence[]>([]);
+  const [selectedResidenceValue, setSelectedResidenceValue] = useState<string | null>("r12");
+  const [selectedResidenceLabel, setSelectedResidenceLabel] = useState<string | null>("Résidence 12");
 
   // États pour le swipe
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -50,18 +50,35 @@ export default function HomePage() {
   const [selectedRepasId, setSelectedRepasId] = useState<number | null>(null);
   const [commentValue, setCommentValue] = useState('');
 
+  // Récupération de l'utilisateur
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        setUser(data.user);
+        console.log("Utilisateur connecté :", data.user);
+      } catch (err) {
+        console.error("Erreur récupération user :", err);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
   // Résidences pour les onglets
   useEffect(() => {
     const fetchResidences = async () => {
       const { data, error } = await supabase
-        .from('select_options')
-        .select('id, value')
-        .eq("category", "Résidence");
+        .from('select_options_residence')
+        .select('id, value, label')
+        .eq("category", "residence");
   
         if (!error && data) {
           const formatted = data.map((item) => ({
             id: item.id,
-            label: item.value, // ici on renomme value → label
+            value: item.value,
+            label: item.label, // ici on renomme value → label
           }));
           setResidences(formatted);
         }
@@ -217,16 +234,6 @@ export default function HomePage() {
       if (eventsError) console.error("Erreur événements :", eventsError);
       if (eventsData) setEvents(eventsData);
 
-      // On récupère tous les IDs des résidences
-      const { data } = await supabase
-        .from("select_options")
-        .select("id")
-        .eq("category", "Résidence")
-      
-      if (data) {
-        setResidenceId(data.map(item => item.id));
-      }
-
       setIsReady(true);
     };
 
@@ -336,12 +343,12 @@ export default function HomePage() {
   }
 
   // --- Filtrage des événements par résidence ---
-  const filteredEvents = selectedResidence
+  const filteredEvents = selectedResidenceValue
     ? events.filter((event) =>
         event.lieu
           ?.split(",")
-          .map((r) => Number(r.trim()))
-          .includes(selectedResidence)
+          .map((r) => r.trim())
+          .includes(selectedResidenceValue)
       )
     : [];
 
@@ -402,7 +409,7 @@ export default function HomePage() {
       <button
         onClick={goToPreviousDay}
         className="
-          hidden md:flex items-center justify-center
+          hidden sm:flex items-center justify-center
           absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-[calc(50%+210px)]
           bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700
           transition-transform duration-200 hover:scale-110 cursor-pointer
@@ -415,7 +422,7 @@ export default function HomePage() {
       <button
         onClick={goToNextDay}
         className="
-          hidden md:flex items-center justify-center
+          hidden sm:flex items-center justify-center
           absolute top-1/2 left-1/2 -translate-y-1/2 translate-x-[calc(50%+165px)]
           bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700
           transition-transform duration-200 hover:scale-110 cursor-pointer
@@ -454,22 +461,23 @@ export default function HomePage() {
         <div
           className="absolute top-0 h-12 w-20 bg-yellow-400 rounded-t-xl transition-all duration-300"
           style={{
-            left: selectedResidence === 1 ? "0px" : "81px",
+            left: selectedResidenceValue === "r12" ? "0px" : "80px",
           }}
         />
 
         {residences.map((res) => (
           <button
             key={res.id}
-            onClick={() => setSelectedResidence(res.id)}
+            onClick={() => {setSelectedResidenceValue(res.value); 
+                            setSelectedResidenceLabel(res.label)}}
             className={`cursor-pointer relative flex items-center justify-center w-20 h-12 text-lg font-bold border rounded-t-xl transition-colors z-10
               ${
-                selectedResidence === res.id
+                selectedResidenceValue === res.value
                   ? "text-white border-yellow-400 bg-yellow-400"
                   : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"
               }`}
           >
-            {res.label}
+            {res.value}
           </button>
         ))}
       </div>
@@ -496,16 +504,21 @@ export default function HomePage() {
             <div className="mb-10">
               {filteredEvents.length === 0 ? (
                 <p className="text-gray-500 italic text-sm mb-4">
-                  Aucun évènement prévu pour la résidence {selectedResidence}.
+                  Aucun évènement prévu pour la {selectedResidenceLabel}.
                 </p>
               ) : (
                 filteredEvents.map((event) => (
                   <div key={event.id} className="flex items-center mb-2">
-                    <p
+                    <div
                       className={`text-gray-700 text-sm text-center flex-1 ${event.couleur} rounded px-1 py-2`}
                     >
-                      {event.titre} (à partir de {event.heures}, lieu : {event.lieu})
-                    </p>
+                      {event.titre} (à partir de {event.heures})
+                      {event.description && (
+                      <p className="text-gray-500 text-xs text-center mt-1 px-2">
+                        {event.description}
+                      </p>
+                    )}
+                    </div>
                   </div>
                 ))
               )}

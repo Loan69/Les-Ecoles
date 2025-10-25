@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { EventFormData } from "@/types/EventFormData";
 import DynamicSelectGroup from "./DynamicSelectGroup";
 import DynamicMultiSelectGroup from "./DynamicMultiSelectGroup";
+import { Option } from "@/types/Option";
 
 type ModalProps = {
   open: boolean;
@@ -30,6 +31,15 @@ export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProp
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // Stocke toutes les options sélectionnées des select dynamiques
+  const [selectionEvent, setSelectionEvent] = useState<{ [category: string]: Option }>({});
+  const [selectionLieu, setSelectionLieu] = useState<{ [category: string]: Option }>({});
+  const [selectionRec, setSelectionRec] = useState<{ [category: string]: Option }>({});
+
+  // Stocke le résultat du multiselect
+  const [selectionVisi, setSelectionVisi] = useState<{ [category: string]: Option[] }>({});
+
+
   // Remet à zéro à chaque ouverture
   useEffect(() => {
     if (open) {
@@ -45,8 +55,16 @@ export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProp
         visible_invites: false,
         demander_confirmation: false,
       });
+      setSelectionEvent({});
+      setSelectionLieu({});
+      setSelectionRec({});
+      setSelectionVisi({});
     }
   }, [open]);
+
+  // Synchronise les selects dynamiques avec le form
+  
+
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -54,17 +72,15 @@ export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProp
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
-
-  const handleMultiSelectChange = (values: Record<string, string[]>) => {
-    setForm(prev => ({
+  
+  // Gestion des changements de valeur dans les selects du formulaire
+  const handleSelectChange = (name: keyof EventFormData, 
+    value: string | string[] | { [category: string]: Option[] } | { [category: string]: Option } | { [category: string]: string[] }) => {
+    setForm((prev) => ({
       ...prev,
-      visibilite: {
-        residences: values['Résidence'] || [],
-        etages: values['Étage'] || [],
-        chambres: values['Chambre'] || [],
-      },
+      [name]: value,
     }));
-  };   
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); // On empêche le rechargement dès le début
@@ -77,15 +93,6 @@ export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProp
     await onSave(form);
     console.log("🧩 Formulaire soumis :", form);
   };
-
-  // Gestion des changements de valeur dans le formulaire
-  const handleSelectChange = (name: keyof EventFormData, value: string | string[]) => {
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-  
 
   if (!open) return null;
 
@@ -114,8 +121,13 @@ export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProp
               Type de l&apos;évènement
             </label>
             <DynamicSelectGroup
-              category="Évènement"
-              onChange={(value) => handleSelectChange("category", value)}
+              rootCategory="evenement"
+              onChange={(selected) => {
+                // On prend la valeur de la catégorie correspondante
+                const catValue = Object.values(selected)[0]?.value || "";
+                handleSelectChange("category", catValue);
+                setSelectionEvent(selected); // si on veut garder la sélection localement aussi
+              }}
             />
 
             {/* Titre */}
@@ -176,8 +188,13 @@ export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProp
                 Lieu de l&apos;évènement
               </label>
               <DynamicSelectGroup 
-                category="Résidence"
-                onChange={(value) => setForm((prev) => ({ ...prev, lieu: value }))}
+                rootCategory="residence"
+                onChange={(selected) => {
+                  // On prend la valeur de la catégorie correspondante
+                  const catValue = Object.values(selected)[0]?.value || "";
+                  handleSelectChange("lieu", catValue);
+                  setSelectionEvent(selected); // si on veut garder la sélection localement aussi
+                }}
                 onlyParent={true}
               />
             </div>
@@ -187,8 +204,13 @@ export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProp
               Récurrence de l&apos;évènement
             </label>
             <DynamicSelectGroup
-              category="Récurrence"
-              onChange={(value) => setForm((prev) => ({ ...prev, recurrence: value[0] }))}
+              rootCategory="recurrence"
+              onChange={(selected) => {
+                // On prend la valeur de la catégorie correspondante
+                const catValue = Object.values(selected)[0]?.value || "";
+                handleSelectChange("recurrence", catValue);
+                setSelectionEvent(selected); // si on veut garder la sélection localement aussi
+              }}
             />
 
             {/* Visibilité */}
@@ -196,8 +218,17 @@ export default function ModalAjoutEvenement({ open, onClose, onSave }: ModalProp
               Visibilité de l&apos;évènement
             </h2>
             <DynamicMultiSelectGroup
-              type="Résidence"
-              onChange={handleMultiSelectChange}
+              rootCategory="residence"
+              onChange={(selected) => {
+                // selected: { [category: string]: Option[] }
+                const transformed: { [category: string]: string[] } = {};
+            
+                Object.entries(selected).forEach(([category, options]) => {
+                  transformed[category] = options.map(opt => opt.value);
+                });
+            
+                handleSelectChange("visibilite", transformed);
+              }}
             />
 
 

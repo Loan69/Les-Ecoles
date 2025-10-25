@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-//import DynamicSelectGroup from "./DynamicSelectGroup";
-//import { EventFormData } from "@/types/EventFormData";
+import DynamicSelectGroup from "./DynamicSelectGroup";
+import { Option } from "@/types/Option";
+import DateNaissanceSelect from "./DateNaissanceSelect";
 
 type Role = "residente" | "invitee";
 
@@ -30,8 +31,8 @@ export default function SignupForm({ role, onSubmit }: Props) {
     const [errorMsg, setErrorMsg] = useState("");
     const [successMsg, setSuccessMsg] = useState("");
 
-    const [selection, setSelection] = useState<{ [category: string]: string }>({});
-
+    // Stocke toutes les options sélectionnées
+    const [selection, setSelection] = useState<{ [category: string]: Option }>({});
 
     // Regarder si l'email est déjà associé à un compte
     const checkUserExists = async (email: string) => {
@@ -98,13 +99,12 @@ export default function SignupForm({ role, onSubmit }: Props) {
             nom: formData.nom,
             prenom: formData.prenom,
             datenaissance: role === "residente" ? formData.datenaissance : null,
-            residence: role === "residente" ? selection.residence || null : null,
-            etage: role === "residente" ? selection.étage || null : null,
-            chambre: role === "residente" ? selection.chambre || null : null,
+            residence: role === "residente" ? selection.residence?.value || null : null,
+            etage: role === "residente" ? selection.etage?.value || null : null,
+            chambre: role === "residente" ? selection.chambre?.value || null : null,
           };
-          console.log("Selection", selection)
-          console.log(insertData)
-      
+          
+          console.log("Données à insérer", insertData)
           // Insertion dans la table pending_users
           const { error: insertError } = await supabase.from("pending_users").insert(insertData);
           if (insertError) {
@@ -123,7 +123,7 @@ export default function SignupForm({ role, onSubmit }: Props) {
           setLoading(false);
         }
       };
-      
+
 
     return ( 
         <form 
@@ -159,20 +159,16 @@ export default function SignupForm({ role, onSubmit }: Props) {
             {role === "residente" && ( 
                 <> 
                     {/* Date de naissance */} 
-                    <input
-                        type="text"
-                        name="datenaissance"
-                        placeholder="Date de naissance"
+                    <DateNaissanceSelect
                         value={formData.datenaissance}
-                        onChange={handleChange}
-                        className="w-full mb-3 px-4 py-2 border border-blue-500 text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
+                        onChange={(v) => setFormData({ ...formData, datenaissance: v })}
                     />
-                    {/* Résidence, étage et chambre
+
+                    {/* Résidence, étage et chambre */}
                     <DynamicSelectGroup
-                        category="Résidence"
-                        onChange={(values) => setSelection(values)}
-                    /> */}
+                        rootCategory="residence" // choix de la table - select_options_rootCategory
+                        onChange={(selected) => setSelection(selected)}
+                    />
 
                 </> 
             )}
@@ -212,7 +208,7 @@ export default function SignupForm({ role, onSubmit }: Props) {
                 <h2 className="text-lg font-semibold text-blue-800 mt-2">Informations personnelles</h2>
                 <div className="w-full bg-blue-500 h-[2px]" />
             </div>
-            {/* Prénom */}
+            {/* Email */}
             <input
                 type="text"
                 name="email"

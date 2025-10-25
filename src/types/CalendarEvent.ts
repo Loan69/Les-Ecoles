@@ -8,4 +8,5 @@ export interface CalendarEvent {
     heures?: string;
     lieu?: string;
     visibilite?: string;
+    description?: string;
   }

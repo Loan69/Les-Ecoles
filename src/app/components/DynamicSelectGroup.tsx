@@ -1,86 +1,80 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
 import SelectField from "./SelectField";
-
-interface Option {
-  id: number;
-  label: string;
-  parent_id: number | null;
-  category: string;
-}
+import { Option } from "@/types/Option";
+import { useSupabase } from "../providers";
 
 interface Props {
-  category: string; // "residence", "repas", "evenement", etc.
-  onChange: (value: string) => void; // ✅ renvoie une seule valeur simple
+  rootCategory: string; // catégorie racine : "residence", "repas", "evenement", etc.
+  onChange: (selected: { [category: string]: Option }) => void; // renvoie toutes les options sélectionnées
   onlyParent?: boolean; // si true, on ne charge pas les enfants
 }
 
-export default function DynamicSelectGroup({
-  category,
-  onChange,
-  onlyParent = false,
-}: Props) {
+export default function DynamicSelectGroup({ rootCategory, onChange, onlyParent = false, }: Props) {
+  const { supabase } = useSupabase();
   const [levels, setLevels] = useState<Option[][]>([]);
-  const [selectedIds, setSelectedIds] = useState<{ [key: string]: string }>({});
+  const [selected, setSelected] = useState<{ [category: string]: Option }>({});
 
   // Charger le premier niveau (racine)
   useEffect(() => {
-    const fetchRootOptions = async () => {
-      const res = await fetch(`/api/options?category=${category}`);
-      const data = await res.json();
-      setLevels([data]);
+    const fetchRoot = async () => {
+      const { data, error } = await supabase
+        .from(`select_options_${rootCategory}`)
+        .select("*")
+        .eq("category", rootCategory)
+        .is("parent_value", null)
+        .order("label");
+
+      if (error) console.error(error.message);
+      if (data) setLevels([data]);
     };
-    fetchRootOptions();
-  }, [category]);
+    fetchRoot();
+  }, [rootCategory]);
 
-  const handleSelect = async (optionId: string, cat: string) => {
-    const newSelected = { ...selectedIds, [cat]: optionId };
+  // Gérer la sélection d’une option
+  const handleSelect = async (levelIndex: number, option: Option) => {
+    const newSelected = { ...selected, [option.category]: option };
+    setSelected(newSelected);
+    onChange(newSelected); // renvoie toutes les options sélectionnées
 
-    // Supprimer les enfants
-    const categoryIndex = levels.findIndex((level) => level[0]?.category === cat);
-    const childrenCategories = levels
-      .slice(categoryIndex + 1)
-      .flat()
-      .map((opt) => opt.category);
-    childrenCategories.forEach((childCat) => delete newSelected[childCat]);
-
-    setSelectedIds(newSelected);
-
-    // ✅ Envoie uniquement la dernière valeur choisie
-    onChange(optionId);
-
-    // Si onlyParent → on ne charge pas les enfants
     if (onlyParent) return;
 
     // Charger les enfants
-    const res = await fetch(`/api/options?parentId=${optionId}`);
-    const children = await res.json();
+    const { data: children, error } = await supabase
+      .from(`select_options_${rootCategory}`)
+      .select("*")
+      .eq("parent_value", option.value)
+      .order("label");
 
-    if (Array.isArray(children) && children.length > 0) {
-      const newLevels = [...levels.slice(0, categoryIndex + 1), children];
+    if (error) console.error(error.message);
+
+    if (children && children.length > 0) {
+      const newLevels = [...levels.slice(0, levelIndex + 1), children];
       setLevels(newLevels);
     } else {
-      setLevels((prev) => prev.slice(0, categoryIndex + 1));
+      // supprimer les niveaux suivants si aucun enfant
+      setLevels(levels.slice(0, levelIndex + 1));
     }
   };
 
   return (
     <div className="space-y-4">
       {levels.map((options, i) => {
-        const label = options[0]?.category || `Niveau ${i + 1}`;
+        const key = options[0]?.category || `level${i}`;
+        const label = options[0]?.label_category || key;
         return (
           <SelectField
             key={i}
-            label={label}
             name={`level${i}`}
-            value={selectedIds[label] || ""}
-            onChange={(val) => handleSelect(val, label)}
-            options={options.map((opt) => ({
-              value: opt.id.toString(),
-              label: opt.label,
-            }))}
-            placeholder={`Choisir votre ${label}`}
+            label={label} 
+            value={selected[key]?.value || ""}
+            onChange={(val) => {
+              const option = options.find((o) => o.value === val);
+              if (option) handleSelect(i, option);
+            }}
+            options={options}
+            placeholder={`Choisissez votre ${label}`}
           />
         );
       })}

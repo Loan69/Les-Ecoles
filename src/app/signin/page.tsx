@@ -1,13 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useState, useEffect } from "react";
+import { useSupabase } from "../providers";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 
 export default function SignInPage() {
-    const supabase = createClientComponentClient();
+    const { supabase } = useSupabase(); // ← Remplace createClientComponentClient
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -22,7 +21,6 @@ export default function SignInPage() {
       if (savedEmail) {
         setEmail(savedEmail);
         localStorage.removeItem("pendingEmail");
-        return;
       }
     }, []);
 
@@ -56,9 +54,8 @@ export default function SignInPage() {
         // Appel de la route serveur
         await fetch("/api/sync-user", { method: "POST" });
 
-        router.push("/homePage")
+        router.push("/homePage");
         setLoading(false);
-
     };
       
     // Fonction pour traduire les messages Supabase
@@ -68,7 +65,7 @@ export default function SignInPage() {
         if (message.includes("Invalid login credentials")) {
             setErrorMsg("Adresse e-mail ou mot de passe incorrect.");
         } else if (message.includes("Email not confirmed")) {
-            setErrorMsg("Votre e-mail n’a pas encore été confirmé. Vérifiez votre boîte mail.");
+            setErrorMsg("Votre e-mail n'a pas encore été confirmé. Vérifiez votre boîte mail.");
         } else if (message.includes("Unable to validate email address: invalid format")) {
             setErrorMsg("Format d'email incorrect");
         } else {
@@ -82,7 +79,7 @@ export default function SignInPage() {
             <Image
                 src="/logo.png"
                 alt="Logo des écoles"
-                width={400}   // ajuster selon la taille souhaitée
+                width={400}
                 height={400}
                 className="mb-3"
             />

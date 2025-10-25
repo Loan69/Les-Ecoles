@@ -1,19 +1,33 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClientComponentClient, User } from "@supabase/auth-helpers-nextjs";
 import CalendrierView from "../components/calendrierView";
 import { EventFormData } from "@/types/EventFormData";
 import { CalendarEvent } from "@/types/CalendarEvent";
-import { useUser } from "@supabase/auth-helpers-react";
+import { User } from "@supabase/supabase-js";
+import { useSupabase } from "../providers";
 import LogoutButton from "../components/logoutButton";
 
 
 export default function CalendrierPage() {
-  const supabase = createClientComponentClient();
+  const { supabase } = useSupabase();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [is_admin, setIsAdmin] = useState<boolean | null>(false);
-  const user = useUser();
+  const [user, setUser] = useState<User | null>(null);
+
+  // Récupération de l'utilisateur
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        setUser(data.user);
+      } catch (err) {
+        console.error("Erreur récupération user :", err);
+      }
+    };
+    fetchUser();
+  }, []);
 
   // Charger les données de l'utilisatrice pour voir si elle est admin
   useEffect(() => {
@@ -25,7 +39,9 @@ export default function CalendrierPage() {
         .select("is_admin")
         .eq("user_id", user?.id)
         .maybeSingle();
+
       if (error) console.error(error);
+      
       else setIsAdmin(data?.is_admin);
     }
 

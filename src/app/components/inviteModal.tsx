@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
-import { supabase } from "../lib/supabaseClient"
-import { useUser } from '@supabase/auth-helpers-react'
+import { User } from "@supabase/supabase-js";
+import { useSupabase } from "../providers";
 
 export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     const [nom, setNom] = useState('')
@@ -12,7 +12,23 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onCl
     const [repas, setRepas] = useState('')
     const [date, setDate] = useState('');
     const [lieuRepas, setLieuRepas] = useState('');
-    const user = useUser();
+    const [user, setUser] = useState<User | null>(null);
+    const { supabase } = useSupabase();
+
+    // Récupération de l'utilisateur
+    useEffect(() => {
+        const fetchUser = async () => {
+        try {
+            const { data, error } = await supabase.auth.getUser();
+            if (error) throw error;
+            setUser(data.user);
+        } catch (err) {
+            console.error("Erreur récupération user :", err);
+        }
+        };
+
+        fetchUser();
+    }, []);
 
     const handleConfirm = async () => {
         if (!nom || !prenom || !date || !repas) {

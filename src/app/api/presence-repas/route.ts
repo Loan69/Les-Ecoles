@@ -1,22 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 type RepasType = "dejeuner" | "diner";
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createServerComponentClient({ cookies });
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    // 🧩 Correction ici : cookies() est une Promise en Next 15+
+    const cookieStore = await cookies();
 
-    if (!session) {
-      return NextResponse.json({
-        success: false,
-        message: "Vous devez être connectée pour modifier vos repas.",
-      });
-    }
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!, // ⚠️ service role key côté serveur uniquement
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set() {},
+          remove() {},
+        },
+      }
+    );
+
+    // 🔹 Récupération de l'utilisateur connecté
+     const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+     if (userError || !user) {
+     return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
+     }
 
     const {
       repas,
@@ -24,7 +37,7 @@ export async function POST(req: NextRequest) {
       choix,
     }: { repas: RepasType; date?: string; choix: string } = await req.json();
 
-    const userId = session.user.id;
+    const userId = user.id;
     const dateToday = date || new Date().toISOString().split("T")[0];
 
     // --- Obtenir "maintenant" en heure de Paris ---

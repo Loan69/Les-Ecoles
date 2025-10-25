@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 type AbsenceInsertBody = {
   isAbsent: boolean
@@ -9,14 +9,33 @@ type AbsenceInsertBody = {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createServerComponentClient({ cookies })
+    // 🧩 Correction ici : cookies() est une Promise en Next 15+
+    const cookieStore = await cookies();
 
-    // Récupère la session côté serveur
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!, // ⚠️ service role key côté serveur uniquement
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set() {},
+          remove() {},
+        },
+      }
+    );
+
+     // 🔹 Récupération de l'utilisateur connecté
+     const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+     if (userError || !user) {
+     return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
+     }
 
     const body: AbsenceInsertBody = await req.json()
-    const userId = session.user.id
+    const userId = user.id
     const today = body.date || new Date().toISOString().split('T')[0]
 
     if (body.isAbsent) {

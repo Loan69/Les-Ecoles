@@ -2,114 +2,165 @@
 
 import { useEffect, useState } from "react";
 import Select from "react-select";
+import { useSupabase } from "../providers";
 
 interface Option {
-    id: number;
-    label: string;
-    parent_id: number | null;
-    category: string;
+  id: number;
+  category: string;
+  value: string;
+  label: string;
+  parent_value: string | null;
+  label_category?: string;
 }
 
 interface Props {
-    type: string; // catégorie racine
-    onChange: (values: Record<string, string[]>) => void;
+  rootCategory: string; // ex: "residence", "recurrence", "evenement"
+  onChange: (selected: { [category: string]: Option[] }) => void; // renvoie toutes les options sélectionnées
+  onlyParent?: boolean;
 }
 
-export default function DynamicMultiSelectGroup({ type, onChange }: Props) {
-    const [levels, setLevels] = useState<Option[][]>([]);
-    const [selectedValues, setSelectedValues] = useState<Record<string, string[]>>({});
+export default function DynamicMultiSelectGroup({
+  rootCategory,
+  onChange,
+  onlyParent = false,
+}: Props) {
+  const { supabase } = useSupabase();
+  const [levels, setLevels] = useState<Option[][]>([]);
+  const [selectedValues, setSelectedValues] = useState<{ [category: string]: Option[] }>({});
 
-    // 🪄 Utilitaire pour label “Tous / Toutes” dynamique
-    const getTousLabel = (category: string) => {
-        const feminine = ["chambre", "classe", "salle", "résidence"];
-        return feminine.some((w) => category.toLowerCase().includes(w)) ? "Toutes" : "Tous";
-    };
+  // Utilitaire pour label “Tous / Toutes” dynamique
+  const getTousLabel = (category: string) => {
+    const feminine = ["classe", "residence", "salle", "chambre"];
+    return feminine.some((w) => category.toLowerCase().includes(w)) ? "Toutes" : "Tous";
+  };
 
-    // Charger le premier niveau
-    useEffect(() => {
-        const fetchRoot = async () => {
-            const res = await fetch(`/api/options?category=${type}`);
-            const data: Option[] = await res.json();
+  // Charger le premier niveau
+  useEffect(() => {
+    const fetchRoot = async () => {
+      const { data, error } = await supabase
+        .from(`select_options_${rootCategory}`)
+        .select("*")
+        .eq("category", rootCategory)
+        .is("parent_value", null)
+        .order("label");
 
-            // Ajouter une option "Tous/Toutes" en tête
-            const allOption: Option = { id: -1, label: getTousLabel(type), parent_id: null, category: type };
-
-            setLevels([[allOption, ...data]]);
+      if (error) {
+        console.error(error.message);
+        return;
+      }
+      if (data) {
+        const allOption: Option = {
+          id: -1,
+          value: "ALL",
+          label: getTousLabel(rootCategory),
+          category: rootCategory,
+          parent_value: null,
         };
-        fetchRoot();
-    }, [type]);
-
-    const handleSelect = async (values: string[], levelIndex: number) => {
-        const currentLevel = levels[levelIndex];
-        const category = currentLevel[0].category;
-
-        // Si "Tous/Toutes" sélectionné, prendre tous les IDs sauf -1
-        const allSelectedIds = values.includes("-1")
-            ? currentLevel.filter(opt => opt.id !== -1).map(opt => opt.id.toString())
-            : values;
-
-        const newSelected = { ...selectedValues, [category]: allSelectedIds };
-
-        // Supprimer les enfants des niveaux suivants
-        const nextLevels = levels.slice(levelIndex + 1);
-        nextLevels.forEach(lvl => delete newSelected[lvl[0].category]);
-
-        setSelectedValues(newSelected);
-
-        // Charger les enfants
-        let children: Option[] = [];
-        for (const id of allSelectedIds) {
-            const res = await fetch(`/api/options?parentId=${id}`);
-            const data: Option[] = await res.json();
-            children = [...children, ...data];
-        }
-
-        const newLevels = [...levels.slice(0, levelIndex + 1)];
-        if (children.length > 0) {
-            const allOptionChild: Option = {
-                id: -1,
-                label: getTousLabel(children[0].category),
-                parent_id: null,
-                category: children[0].category,
-            };
-            newLevels.push([allOptionChild, ...children]);
-        }
-
-        setLevels(newLevels);
-        onChange(newSelected);
+        setLevels([[allOption, ...data]]);
+      }
     };
+    fetchRoot();
+  }, [rootCategory]);
 
-    return (
-        <div className="space-y-4">
-            {levels.map((options, i) => {
-                const category = options[0].category;
-                const value = selectedValues[category] || [];
-                const valueForSelect = options
-                    .filter(opt => value.includes(opt.id.toString()))
-                    .map(opt => ({ value: opt.id.toString(), label: opt.label }));
+  // Gestion de la sélection
+  const handleSelect = async (levelIndex: number, selected: Option[]) => {
+    const currentLevel = levels[levelIndex];
+    const category = currentLevel[0]?.category;
+    if (!category) return;
 
-                return (
-                    <div key={i}>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{category}</label>
-                        <Select
-                            isMulti
-                            options={options.map(opt => ({ value: opt.id.toString(), label: opt.label }))}
-                            value={valueForSelect}
-                            onChange={(selected) => handleSelect(selected.map(s => s.value), i)}
-                            placeholder={`Choisir votre ${category}`}
-                            styles={{
-                                control: (base) => ({
-                                    ...base,
-                                    borderRadius: "0.75rem",
-                                    borderColor: "#d1d5db",
-                                    boxShadow: "none",
-                                    "&:hover": { borderColor: "#2563eb" },
-                                }),
-                            }}
-                        />
-                    </div>
-                );
-            })}
-        </div>
-    );
+    // Si "Tous/Toutes" est sélectionné → prendre tous les autres
+    const isAllSelected = selected.some((s) => s.value === "ALL");
+    const finalSelected = isAllSelected
+      ? currentLevel.filter((opt) => opt.value !== "ALL")
+      : selected;
+
+    const newSelected = { ...selectedValues, [category]: finalSelected };
+
+    // Supprimer les enfants des niveaux suivants
+    Object.keys(selectedValues).forEach((cat) => {
+      const catIndex = levels.findIndex((lvl) => lvl[0]?.category === cat);
+      if (catIndex > levelIndex) delete newSelected[cat];
+    });
+
+    setSelectedValues(newSelected);
+    onChange(newSelected);
+
+    if (onlyParent) return;
+
+    // Charger les enfants
+    const allChildren: Option[] = [];
+    for (const opt of finalSelected) {
+      const { data, error } = await supabase
+        .from(`select_options_${rootCategory}`)
+        .select("*")
+        .eq("parent_value", opt.value)
+        .order("label");
+
+      if (error) console.error(error.message);
+      if (data && data.length > 0) allChildren.push(...data);
+    }
+
+    const newLevels = [...levels.slice(0, levelIndex + 1)];
+
+    if (allChildren.length > 0) {
+      const childCategory = allChildren[0]?.category || "Sous-catégorie";
+      const allOptionChild: Option = {
+        id: -1,
+        value: "ALL",
+        label: getTousLabel(childCategory),
+        category: childCategory,
+        parent_value: null,
+      };
+      newLevels.push([allOptionChild, ...allChildren]);
+    }
+
+    setLevels(newLevels);
+  };
+
+  return (
+    <div className="space-y-4">
+      {levels.map((options, i) => {
+        const key = options[0]?.category || `level${i}`;
+        const label = options[0]?.label_category || key;
+        const selected = selectedValues[key] || [];
+
+        const valueForSelect = selected.map((opt) => ({
+          value: opt.value,
+          label: opt.label,
+        }));
+
+        return (
+          <div key={i}>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {label}
+            </label>
+            <Select
+              isMulti
+              options={options.map((opt) => ({
+                value: opt.value,
+                label: opt.label,
+              }))}
+              value={valueForSelect}
+              onChange={(selectedOptions) => {
+                const selectedData = selectedOptions
+                  .map((s) => options.find((o) => o.value === s.value))
+                  .filter(Boolean) as Option[];
+                handleSelect(i, selectedData);
+              }}
+              placeholder={`Choisir ${label}`}
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  borderRadius: "0.75rem",
+                  borderColor: "#d1d5db",
+                  boxShadow: "none",
+                  "&:hover": { borderColor: "#2563eb" },
+                }),
+              }}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
 }

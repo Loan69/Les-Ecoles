@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useSupabase } from "@/app/providers";
 import { CalendarDays, Search, HouseHeart, UserRound } from "lucide-react";
 import { Personne } from "@/types/Personne";
 import { Repas } from "@/types/repas";
@@ -15,7 +15,7 @@ import {
 import { InviteRepas } from "@/types/InviteRepas";
 
 export default function AdminRepasView() {
-  const supabase = createClientComponentClient();
+  const { supabase } = useSupabase(); // ← Remplace createClientComponentClient
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [repasData, setRepasData] = useState<Repas[]>([]);
