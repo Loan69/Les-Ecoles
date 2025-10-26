@@ -66,9 +66,9 @@ export default function AdminSettingsManager() {
             {settings.map((s) => (
             <div key={s.key} className="p-4 border rounded-lg shadow-sm bg-white">
                 <label className="block text-sm font-medium text-gray-600 mb-1">
-                {s.key === 'meal_cutoff_hour'
+                {s.key === 'verrouillage_repas'
                     ? 'Heure limite pour indiquer sa présence au repas'
-                    : s.key === 'presence_cutoff_hour'
+                    : s.key === 'verrouillage_foyer'
                     ? 'Heure limite pour modifier la présence au foyer'
                     : s.key}
                 </label>

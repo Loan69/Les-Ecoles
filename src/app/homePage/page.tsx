@@ -41,6 +41,8 @@ export default function HomePage() {
   const [residences, setResidences] = useState<Residence[]>([]);
   const [selectedResidenceValue, setSelectedResidenceValue] = useState<string | null>("r12");
   const [selectedResidenceLabel, setSelectedResidenceLabel] = useState<string | null>("Résidence 12");
+  const [settings, setSettings] = useState<{ verrouillage_repas?: string; verrouillage_foyer?: string }>({});
+
 
   // États pour le swipe
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -163,28 +165,46 @@ export default function HomePage() {
     }
   };
 
-  // --- Verrouillage après 8h30 pour le jour actuel uniquement ---
+  // --- Récupération des paramètres globaux ---
   useEffect(() => {
+    const fetchSettings = async () => {
+      const { data, error } = await supabase.from("app_settings").select("key, value");
+      if (error) {
+        console.error("Erreur récupération paramètres :", error);
+        return;
+      }
+
+      const settingsMap: Record<string, string> = {};
+      data.forEach((s) => (settingsMap[s.key] = s.value));
+      setSettings(settingsMap);
+    };
+
+    fetchSettings();
+  }, []);
+
+  // --- Verrouillage après XhY (paramétré dans app_settings) ---
+  useEffect(() => {
+    if (!settings.verrouillage_repas) return; // attendre chargement des paramètres
+
     const now = new Date();
-    const parisTime = new Date(
-      now.toLocaleString("en-US", { timeZone: "Europe/Paris" })
-    );
+    const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+    const [lockHour, lockMinute] = settings.verrouillage_repas.split(":").map(Number);
 
-    const isToday =
-      currentDate.toDateString() === parisTime.toDateString();
+    const isToday = currentDate.toDateString() === parisTime.toDateString();
 
-    if (currentDate < parisTime ||
-      isToday &&
-      (parisTime.getHours() > 8 ||
-        (parisTime.getHours() === 8 && parisTime.getMinutes() >= 30))
+    if (
+      currentDate < parisTime ||
+      (isToday &&
+        (parisTime.getHours() > lockHour ||
+          (parisTime.getHours() === lockHour && parisTime.getMinutes() >= lockMinute)))
     ) {
       setLocked(true);
-      setConfirmationMsg("Les présences aux repas ne sont plus modifiables après 8h30.");
+      setConfirmationMsg(`Les présences aux repas ne sont plus modifiables après ${settings.verrouillage_repas}.`);
     } else {
       setLocked(false);
       setConfirmationMsg("");
     }
-  }, [currentDate]);
+  }, [currentDate, settings]);
 
   // --- Chargement : profil + présences repas + événements ---
   useEffect(() => {

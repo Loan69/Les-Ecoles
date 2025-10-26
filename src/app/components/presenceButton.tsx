@@ -1,12 +1,14 @@
 "use client";
 
 import { Eye } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useSupabase } from "../providers";
 import { useRouter } from "next/navigation";
 
 interface PresenceButtonProps {
-  date: string; // date passée depuis HomePage
-  isAbsent: boolean; // état calculé dans HomePage
-  togglePresence: () => void; // fonction gérée par HomePage
+  date: string;
+  isAbsent: boolean;
+  togglePresence: () => void;
   isAdmin?: boolean;
 }
 
@@ -17,21 +19,43 @@ export default function PresenceButton({
   isAdmin = false,
 }: PresenceButtonProps) {
   const router = useRouter();
+  const { supabase } = useSupabase();
+  const [verrouillageFoyer, setVerrouillageFoyer] = useState<string>("23:00");
 
-  // --- Définition du verrouillage à 23h pour le jour actuel ---
+  // --- Récupération du paramètre global ---
+  useEffect(() => {
+    const fetchSetting = async () => {
+      const { data, error } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "verrouillage_foyer")
+        .maybeSingle();
+
+      if (!error && data?.value) setVerrouillageFoyer(data.value);
+    };
+
+    fetchSetting();
+  }, []);
+
+  // --- Définition du verrouillage pour le jour actuel ---
   const now = new Date();
   const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
   const isToday = parisTime.toISOString().split("T")[0] === date;
   const today = parisTime.toISOString().split("T")[0];
 
-  const locked = date < today || isToday && 
-    (parisTime.getHours() > 23 || (parisTime.getHours() === 23 && parisTime.getMinutes() >= 30));
+  const [lockHour, lockMinute] = verrouillageFoyer.split(":").map(Number);
 
-  // --- Libellés ---
+  const locked =
+    date < today ||
+    (isToday &&
+      (parisTime.getHours() > lockHour ||
+        (parisTime.getHours() === lockHour && parisTime.getMinutes() >= lockMinute)));
+
+  // --- Libellés dynamiques ---
   const labelText = isAbsent ? "Je dors à l'extérieur" : "Je dors au foyer";
   const tooltipText = locked
-    ? "Modification impossible après 23h pour le jour en cours."
-    : "Vous pouvez indiquer votre présence jusqu'à 23h.";
+    ? `Modification impossible après ${verrouillageFoyer} pour le jour en cours.`
+    : `Vous pouvez indiquer votre présence jusqu'à ${verrouillageFoyer}.`;
 
   return (
     <div className="flex flex-col items-center">
