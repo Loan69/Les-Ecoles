@@ -55,8 +55,8 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
     } catch (e) {
       if (e instanceof Error) setError(e.message)
       else setError(String(e))
+      setUsers(prev)
     }       
-    setUsers(prev)
   }
 
   return (
