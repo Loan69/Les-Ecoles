@@ -18,14 +18,14 @@ export async function GET(req: Request) {
         },
         }
     );
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Vérification que la personne est admin
     const { data: currentRes } = await supabase
     .from('residentes')
     .select('is_admin')
-    .eq('user_id', session.user.id)
+    .eq('user_id', user.id)
     .single()
 
     if (!currentRes?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
