@@ -5,6 +5,7 @@ import { supabase } from "@/app/lib/supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
 import { Home, Moon, Search, Calendar, Building } from "lucide-react";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
+import { Residence } from "@/types/Residence";
 
 type Personne = {
   user_id: string;
@@ -17,6 +18,7 @@ type Personne = {
 export default function AdminFoyerView() {
   const [presentes, setPresentes] = useState<Personne[]>([]);
   const [sorties, setSorties] = useState<Personne[]>([]);
+  const [residences, setResidences] = useState<Residence[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -40,6 +42,21 @@ export default function AdminFoyerView() {
     const fetchData = async () => {
       setLoading(true);
 
+      // 1️⃣ Charger les résidences
+      const { data: residencesData, error: resError } = await supabase
+        .from("residences")
+        .select("label, value")
+        .order("label", { ascending: true });
+
+      if (resError) {
+        console.error("Erreur chargement résidences :", resError);
+        setLoading(false);
+        return;
+      }
+
+      setResidences(residencesData || []);
+
+      // 2️⃣ Charger les habitantes (résidentes + invitées)
       const { data: residentesData } = await supabase
         .from("residentes")
         .select("user_id, nom, prenom, residence");
@@ -53,6 +70,7 @@ export default function AdminFoyerView() {
         ...(inviteesData?.map((i) => ({ ...i, type: "Invitée" as const })) || []),
       ];
 
+      // 3️⃣ Charger les absentes du jour
       const res = await fetch("/api/get-presence-foyer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,12 +105,18 @@ export default function AdminFoyerView() {
     );
   }
 
-  // --- Groupement par résidence ---
-  const residences = ["12", "36"];
-  const getParResidence = (res: string) => ({
-    presentes: presentes.filter((p) => p.residence?.toString() === res),
-    sorties: sorties.filter((p) => p.residence?.toString() === res),
+  const getParResidence = (resValue: string | number) => ({
+    presentes: presentes.filter((p) => p.residence?.toString() === resValue.toString()),
+    sorties: sorties.filter((p) => p.residence?.toString() === resValue.toString()),
   });
+
+  // --- Palette de couleurs dynamiques ---
+  const colorClasses = [
+    { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-800", icon: "text-purple-600" },
+    { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-800", icon: "text-indigo-600" },
+    { bg: "bg-pink-50", border: "border-pink-200", text: "text-pink-800", icon: "text-pink-600" },
+    { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-800", icon: "text-blue-600" },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white py-10 px-6 transition-all">
@@ -100,7 +124,7 @@ export default function AdminFoyerView() {
         {/* --- Header --- */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-blue-800 mb-2">
-            Vue d’ensemble des présences par résidence
+            Vue d&apos;ensemble des présences par résidence
           </h1>
           <p className="text-gray-600">
             Consultez qui est au foyer ou sortie pour chaque résidence — à la date choisie.
@@ -143,40 +167,25 @@ export default function AdminFoyerView() {
             transition={{ duration: 0.4 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-8"
           >
-            {residences.map((res) => {
-              const { presentes: pRes, sorties: sRes } = getParResidence(res);
+            {residences.map((res, index) => {
+              const { presentes: pRes, sorties: sRes } = getParResidence(res.value);
               const toutes = [...pRes, ...sRes];
               const filtered = filterBySearch(toutes);
+              const color = colorClasses[index % colorClasses.length];
 
               return (
                 <div
-                  key={res}
-                  className={`rounded-2xl p-6 shadow-sm border ${
-                    res === "12"
-                      ? "bg-purple-50 border-purple-200"
-                      : "bg-indigo-50 border-indigo-200"
-                  }`}
+                  key={res.value}
+                  className={`rounded-2xl p-6 shadow-sm border ${color.bg} ${color.border}`}
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <Building
-                        className={`w-5 h-5 ${
-                          res === "12" ? "text-purple-600" : "text-indigo-600"
-                        }`}
-                      />
-                      <h2
-                        className={`text-xl font-semibold ${
-                          res === "12" ? "text-purple-800" : "text-indigo-800"
-                        }`}
-                      >
-                        Résidence {res}
+                      <Building className={`w-5 h-5 ${color.icon}`} />
+                      <h2 className={`text-xl font-semibold ${color.text}`}>
+                        {res.label}
                       </h2>
                     </div>
-                    <span
-                      className={`text-sm font-medium ${
-                        res === "12" ? "text-purple-700" : "text-indigo-700"
-                      }`}
-                    >
+                    <span className={`text-sm font-medium ${color.text}`}>
                       {toutes.length} {toutes.length > 1 ? "personnes" : "personne"}
                     </span>
                   </div>

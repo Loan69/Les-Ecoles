@@ -26,15 +26,13 @@ export default function DateNaissanceField({
     ];
     const days = Array.from({ length: 31 }, (_, i) => i + 1);
 
-    // Si value contient une date ISO (préremplissage)
     useEffect(() => {
-        if (value) {
-        const [y, m, d] = value.split("-");
-        setYear(y);
-        setMonth(String(parseInt(m)));
-        setDay(String(parseInt(d)));
+        if (day && month && year) {
+          const formatted = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+          onChange(formatted);
         }
-    }, [value]);
+      }, [day, month, year]);
+      
 
     const handleChange = (newDay: string, newMonth: string, newYear: string) => {
         if (newDay && newMonth && newYear) {
