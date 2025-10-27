@@ -1,181 +1,158 @@
 'use client'
+
 import { useEffect, useState } from 'react'
-import { Button} from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input' 
 import { Label } from '@/components/ui/label'
-import { Select } from '@/components/ui/select'
-import { SelectContent } from '@/components/ui/select'
-import { SelectItem } from '@/components/ui/select'
-import { SelectTrigger } from '@/components/ui/select'
-import { SelectValue } from '@/components/ui/select'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { useSupabase } from '@/app/providers'
+import { useRouter } from 'next/navigation'
+import { User } from '@supabase/supabase-js'
+import { Trash2, Lock, Eye } from 'lucide-react'
 
-type Rule = {
-    id: number
-    start_date: string;
-    end_date: string;
-    indefinite: boolean;
-    service: string;
-    options: string[];
-    admin_only: string[];
-    created_at: string;
-  }
+type Option = { label: string; value: 12 | 36; admin_only: boolean }
+type Rule = { id: number; start_date: string; end_date: string | null; indefinite: boolean; service: 'dejeuner' | 'diner'; options: Option[]; created_at: string }
 
 export default function MealOptionsManager() {
-    const [service, setService] = useState<'midi' | 'soir'>('midi')
-    const [startDate, setStartDate] = useState('')
-    const [endDate, setEndDate] = useState('')
-    const [indefinite, setIndefinite] = useState(false)
-    const [options, setOptions] = useState<string[]>([])
-    const [adminOnly, setAdminOnly] = useState<string[]>([])
-    const [existingRules, setExistingRules] = useState<Rule[]>([])
+  const { supabase } = useSupabase()
+  const router = useRouter()
+  const [user, setUser] = useState<User | null>(null)
+  const [service, setService] = useState<'dejeuner' | 'diner'>('dejeuner')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [indefinite, setIndefinite] = useState(false)
+  const [options, setOptions] = useState<Option[]>([])
+  const [existingRules, setExistingRules] = useState<Rule[]>([])
 
-    // Chargement des règles définies
-    const loadRules = async () => {
-        const res = await fetch('/api/admin/meals')
-        const data = await res.json()
-        setExistingRules(data.data || [])
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data, error } = await supabase.auth.getUser()
+      if (error || !data?.user) router.replace("/signin")
+      else setUser(data.user)
+    }
+    fetchUser()
+  }, [router, supabase])
+
+  const loadRules = async () => {
+    const { data, error } = await supabase.from('special_meal_options').select('*')
+    if (!error) setExistingRules(data || [])
+  }
+
+  useEffect(() => { loadRules() }, [])
+
+  const save = async () => {
+    if (!startDate || !service || options.length === 0 || (!indefinite && !endDate)) {
+      alert("Veuillez remplir tous les champs correctement")
+      return
     }
 
-    useEffect(() => { loadRules() }, [])
+    const optionsWithNon = [{ label: 'Non', value: 'non', admin_only: false }, ...options]
 
-    // Ajouter une règle définie
-    const save = async () => {
-        // Vérification des champs requis
-        if (!startDate) {
-            alert("Veuillez sélectionner une date de début");
-            return;
-        }
-        if (!service) {
-            alert("Veuillez sélectionner un service (déjeuner ou dîner)");
-            return;
-        }
-        if (!options || options.length === 0) {
-            alert("Veuillez sélectionner au moins une option de repas");
-            return;
-        }
-        // Vérifie qu'on a soit une date de fin, soit indéfini coché
-        if (!indefinite && !endDate) {
-            alert("Veuillez sélectionner une date de fin ou cocher 'indéfini'");
-            return;
-        }
+    const payload = { start_date: startDate, end_date: indefinite ? null : endDate, indefinite, service, options: optionsWithNon, created_by: user?.id }
+    const { error } = await supabase.from('special_meal_options').insert(payload)
+    if (error) alert("Erreur lors de la sauvegarde")
+    else { setStartDate(''); setEndDate(''); setIndefinite(false); setOptions([]); loadRules() }
+  }
 
-        const payload = {
-        start_date: startDate,
-        end_date: indefinite ? null : endDate,
-        indefinite,
-        service,
-        options,
-        admin_only: adminOnly,
-        }
-        const res = await fetch('/api/admin/meals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        })
-        const result = await res.json()
-        if (res.ok) {
-        loadRules()
-        } else {
-        console.error(result.error || 'Erreur lors de la sauvegarde')
-        }
-    }
+  const handleDeleteRule = async (id: number) => {
+    if (!confirm("Voulez-vous vraiment supprimer cette règle ?")) return
+    const { error } = await supabase.from('special_meal_options').delete().eq('id', id)
+    if (error) alert("Erreur lors de la suppression")
+    else loadRules()
+  }
 
-    // Supprimer une règle définie
-    const handleDeleteRule = async (id: number) => {
-        if (!confirm("Voulez-vous vraiment supprimer cette règle ?")) return;
-      
-        const res = await fetch(`/api/admin/meals/${id}`, {
-          method: "DELETE",
-        });
-      
-        const result = await res.json();
-        if (res.ok) {
-          loadRules(); // recharge la liste
-        } else {
-          alert(result.error || "Erreur lors de la suppression");
-        }
-      }
-      
+  return (
+    <div className="min-h-screen bg-gray-50 py-10 px-4">
+      <div className="max-w-5xl mx-auto space-y-10">
+        {/* Header */}
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-blue-700 mb-2">🍽️ Gestion des repas spéciaux</h1>
+          <p className="text-gray-600">Créez et gérez les règles de repas spéciaux pour vos résidentes</p>
+        </div>
 
-    return (
-        <Card className="max-w-3xl mx-auto p-6 space-y-6">
-            <h2 className="text-xl font-semibold">🍽️ Gestion des repas</h2>
-            
-            <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                    <Label>Date de début</Label>
-                    <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                </div>
-                <div>
-                    <Label>Date de fin</Label>
-                    <Input type="date" value={endDate} disabled={indefinite} onChange={e => setEndDate(e.target.value)} />
-                    <div className="flex items-center gap-2 mt-1">
-                        <input type="checkbox" checked={indefinite} onChange={e => setIndefinite(e.target.checked)} />
-                        <span>Valable indéfiniment</span>
-                    </div>
-                </div>
-                <div>
-                    <Label>Service</Label>
-                    <Select value={service} onValueChange={v => setService(v as 'midi' | 'soir')}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                    <SelectItem value="midi">Midi</SelectItem>
-                    <SelectItem value="soir">Soir</SelectItem>
-                    </SelectContent>
-                    </Select>
-                </div>
+        {/* Formulaire création règle */}
+        <Card className="p-6 shadow-lg border border-gray-200 rounded-xl space-y-6 bg-white">
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">Créer une nouvelle règle</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <Label>Date de début</Label>
+              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1" />
             </div>
-                
-            <div className="space-y-3">
-                <Label>Options disponibles</Label>
-                {options.map((opt, i) => (
-                    <div key={i} className="flex justify-between items-center bg-gray-50 p-2 rounded">
-                        <Input value={opt} onChange={e => {
-                        const newOpts = [...options]; newOpts[i] = e.target.value; setOptions(newOpts);
-                        }} />
-                        <div className="flex gap-2">
-                            <Button 
-                                variant={adminOnly.includes(opt) ? 'secondary' : 'outline'}
-                                onClick={() => setAdminOnly(adminOnly.includes(opt)
-                                ? adminOnly.filter(o => o !== opt)
-                                : [...adminOnly, opt])}>
-                                {adminOnly.includes(opt) ? '🔒 Admin only' : '👁️ Public'}
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={() => setOptions(options.filter((_, j) => j !== i))}>🗑
-                            </Button>
-                        </div>
-                    </div>
-                ))}
-                <Button variant="outline" onClick={() => setOptions([...options, 'Nouvelle option'])}>➕ Ajouter</Button>
+
+            <div>
+              <Label>Date de fin</Label>
+              <Input type="date" value={endDate} disabled={indefinite} onChange={e => setEndDate(e.target.value)} className="mt-1" />
+              <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
+                <input type="checkbox" checked={indefinite} onChange={e => setIndefinite(e.target.checked)} />
+                <span>Valable indéfiniment</span>
+              </div>
             </div>
-            
-            <Button className="w-full bg-blue-100 cursor-pointer px-2 py-2" onClick={save}>💾 Enregistrer la règle</Button>
-            
-            <div className="mt-8">
-                <h3 className="font-semibold mb-2">📋 Règles existantes</h3>
-                <div className="space-y-2">
-                    {existingRules.length === 0 && <p className="text-gray-500">Aucune règle enregistrée.</p>}
-                    {existingRules.map(r => (
-                        <div key={r.id} className="flex justify-between items-center p-2 border rounded-lg bg-white shadow-sm">
-                            <div>
-                                <p><b>{r.service.toUpperCase()}</b> — {r.indefinite ? 'Indéfini' : `${r.start_date} → ${r.end_date || '-'}`}</p>
-                                <p className="text-sm">Options : {r.options.join(', ')}</p>
-                                {r.admin_only.length > 0 && <p className="text-sm text-amber-700">Admin only : {r.admin_only.join(', ')}</p>}
-                            </div>
-                            <button
-                                onClick={() => handleDeleteRule(r.id)}
-                                className="text-red-600 hover:text-red-800 font-bold text-xl cursor-pointer bg-red-100 px-2 py-2"
-                                title="Supprimer cette règle"
-                            >
-                                ❌
-                            </button>
-                        </div>
-                    ))}
-                </div>
+
+            <div>
+              <Label className='mb-1'>Service</Label>
+              <Select value={service} onValueChange={v => setService(v as 'dejeuner' | 'diner')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dejeuner">Déjeuner</SelectItem>
+                  <SelectItem value="diner">Dîner</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label>Options du repas</Label>
+            {options.map((opt, i) => (
+              <div key={i} className="flex flex-col md:flex-row items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200 shadow-sm">
+                <Input value={opt.label} placeholder="Label" onChange={e => { const newOpts = [...options]; newOpts[i].label = e.target.value; setOptions(newOpts) }} />
+                <Select value={String(opt.value)} onValueChange={v => { const newOpts = [...options]; newOpts[i].value = Number(v) as 12 | 36; setOptions(newOpts) }}>
+                  <SelectTrigger><SelectValue placeholder="Résidence" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="12">Résidence 12</SelectItem>
+                    <SelectItem value="36">Résidence 36</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant={opt.admin_only ? 'secondary' : 'outline'} onClick={() => { const newOpts = [...options]; newOpts[i].admin_only = !opt.admin_only; setOptions(newOpts) }} className="flex items-center gap-2">
+                  {opt.admin_only ? <Lock className="w-4 h-4" /> : <Eye className="w-4 h-4" />} {opt.admin_only ? 'Admin only' : 'Public'}
+                </Button>
+                <Button variant="destructive" onClick={() => setOptions(options.filter((_, j) => j !== i))} className="ml-auto md:ml-0">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+            <Button variant="outline" onClick={() => setOptions([...options, { label: '', value: 12, admin_only: false }])} className="w-full mt-2">➕ Ajouter une option</Button>
+          </div>
+
+          <Button className="w-full bg-blue-600 text-white hover:bg-blue-700 transition font-semibold py-3 rounded-lg" onClick={save}>💾 Enregistrer la règle</Button>
         </Card>
-    )
+
+        {/* Règles existantes */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold text-gray-700">📋 Règles existantes</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {existingRules.length === 0 && <p className="text-gray-500 italic col-span-2">Aucune règle enregistrée.</p>}
+            {existingRules.map(r => (
+              <Card key={r.id} className="p-4 flex flex-col justify-between shadow-md border border-gray-200 rounded-xl bg-white">
+                <div className="space-y-2">
+                  <p className="font-semibold text-blue-700">{r.service.toUpperCase()} — {r.indefinite ? 'Indéfini' : `${r.start_date} → ${r.end_date || '-'}`}</p>
+                  <ul className="space-y-1">
+                    {r.options.map((o, j) => (
+                      <li key={j} className="flex items-center gap-2">
+                        <span className="font-medium">{o.label}</span>
+                        <span className="text-gray-500 text-sm">(Résidence {o.value})</span>
+                        {o.admin_only && <Lock className="w-4 h-4 text-yellow-600" />}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <Button variant="destructive" onClick={() => handleDeleteRule(r.id)} className="mt-4 self-end">❌ Supprimer</Button>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }

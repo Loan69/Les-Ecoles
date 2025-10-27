@@ -36,36 +36,6 @@ export async function POST(req: NextRequest) {
     const userId = user.id;
     const dateToday = date || new Date().toISOString().split("T")[0];
 
-    // --- Obtenir "maintenant" en heure de Paris ---
-    const nowParis = new Date(
-      new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" })
-    );
-
-    // --- Construire targetDate à minuit Paris ---
-    const [year, month, day] = dateToday.split("-").map(Number);
-    const targetDateParis = new Date(
-      nowParis.getFullYear(),  // Remplace si tu veux utiliser l'année de dateToday
-      month - 1,
-      day,
-      0,
-      0,
-      0
-    );
-
-    // --- Comparer les jours ---
-    const isPast = targetDateParis < new Date(
-      nowParis.getFullYear(),
-      nowParis.getMonth(),
-      nowParis.getDate(),
-      0, 0, 0
-    );
-
-    if (isPast) {
-      return NextResponse.json({
-        success: false,
-        message: "Vous ne pouvez plus modifier les repas d'une date passée.",
-      });
-    }
 
     // --- 🔍 Vérifie si un repas existe déjà ---
     const { data: existing, error: selectError } = await supabase

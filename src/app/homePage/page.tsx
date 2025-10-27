@@ -368,8 +368,6 @@ export default function HomePage() {
 
         return isVisible;
       }) : [];
-    
-  console.log('Evenements filtrés : ', filteredEvents)
 
 
   // --- Animation (slide + fade) ---
