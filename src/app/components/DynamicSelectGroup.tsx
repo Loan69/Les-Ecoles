@@ -8,22 +8,25 @@ import { useSupabase } from "../providers";
 interface Props {
   rootCategory: string; // catégorie racine : "residence", "repas", "evenement", etc.
   subRootCategory?: string;
-  onChange: (selected: { [category: string]: Option }) => void; // renvoie toutes les options sélectionnées
-  onlyParent?: boolean; // si true, on ne charge pas les enfants
-  islabel?: boolean; // si false, on n'affiche pas le label au dessus du select
+  onChange: (selected: { [category: string]: Option }) => void;
+  onlyParent?: boolean;
+  islabel?: boolean;
   initialValue?: string | null;
-  disabled?: boolean; // pour désactiver le composant
-  selectClassName?: string; 
+  disabled?: boolean;
+  selectClassName?: string;
+  isAdmin?: boolean;
 }
 
 export default function DynamicSelectGroup({
-  rootCategory, 
+  rootCategory,
   subRootCategory = rootCategory,
-  onChange, onlyParent = false,
+  onChange,
+  onlyParent = false,
   islabel = true,
   initialValue,
   disabled = false,
-  selectClassName = ""
+  selectClassName = "",
+  isAdmin = false,
 }: Props) {
   const { supabase } = useSupabase();
   const [levels, setLevels] = useState<Option[][]>([]);
@@ -39,42 +42,53 @@ export default function DynamicSelectGroup({
         .is("parent_value", null)
         .order("label");
 
-      if (error) console.error(error.message);
-      if (data) setLevels([data]);
+      if (error) {
+        console.error(error.message);
+        return;
+      }
+
+      if (data) {
+        // ✅ Filtrage selon admin_only
+        const filtered = isAdmin ? data : data.filter((o) => !o.admin_only);
+        setLevels([filtered]);
+      }
     };
     fetchRoot();
-  }, [rootCategory, subRootCategory]);
+  }, [rootCategory, subRootCategory, isAdmin, supabase]);
 
-  // Charger une valeur initiale s'il y en a une
+  // Charger une valeur initiale si fournie
   useEffect(() => {
     if (initialValue && levels.length > 0) {
-      const option = levels[0].find(o => o.value === initialValue);
+      const option = levels[0].find((o) => o.value === initialValue);
       if (option) setSelected({ [subRootCategory]: option });
     }
-  }, [initialValue, levels]);
+  }, [initialValue, levels, subRootCategory]);
 
   // Gérer la sélection d’une option
   const handleSelect = async (levelIndex: number, option: Option) => {
     const newSelected = { ...selected, [option.category]: option };
     setSelected(newSelected);
-    onChange(newSelected); // renvoie toutes les options sélectionnées
+    onChange(newSelected);
 
     if (onlyParent) return;
 
-    // Charger les enfants
     const { data: children, error } = await supabase
       .from(`select_options_${rootCategory}`)
       .select("*")
       .eq("parent_value", option.value)
       .order("label");
 
-    if (error) console.error(error.message);
+    if (error) {
+      console.error(error.message);
+      return;
+    }
 
     if (children && children.length > 0) {
-      const newLevels = [...levels.slice(0, levelIndex + 1), children];
+      // ✅ même filtrage pour les enfants
+      const filtered = isAdmin ? children : children.filter((o) => !o.admin_only);
+      const newLevels = [...levels.slice(0, levelIndex + 1), filtered];
       setLevels(newLevels);
     } else {
-      // supprimer les niveaux suivants si aucun enfant
       setLevels(levels.slice(0, levelIndex + 1));
     }
   };
@@ -84,6 +98,9 @@ export default function DynamicSelectGroup({
       {levels.map((options, i) => {
         const key = options[0]?.category || `level${i}`;
         const label = options[0]?.label_category || key;
+
+        if (!options.length) return null;
+
         return (
           <SelectField
             key={i}

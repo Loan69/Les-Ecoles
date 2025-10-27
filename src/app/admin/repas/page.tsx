@@ -390,7 +390,7 @@ export default function AdminRepasView() {
                                   lieuRepas = choix;
                                   label = "Oui";
                                   couleur = "bg-green-100 text-green-800";
-                                } else if (choix.includes("pique")) {
+                                } else if (choix.includes("pn")) {
                                   lieuRepas = p.residence;
                                   label = choix.includes("chaud") ? "Pique-nique chaud" : "Pique-nique froid";
                                   couleur = "bg-yellow-100 text-yellow-800";

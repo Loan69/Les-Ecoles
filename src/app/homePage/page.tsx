@@ -39,7 +39,7 @@ export default function HomePage() {
   const [dejeuner, setDejeuner] = useState<Repas | null>(null);
   const [diner, setDiner] = useState<Repas | null>(null);
   const [residences, setResidences] = useState<Residence[]>([]);
-  const [selectedResidenceValue, setSelectedResidenceValue] = useState<string | null>("r12");
+  const [selectedResidenceValue, setSelectedResidenceValue] = useState<string | null>("12");
   const [selectedResidenceLabel, setSelectedResidenceLabel] = useState<string | null>("Résidence 12");
   const [settings, setSettings] = useState<{ verrouillage_repas?: string; verrouillage_foyer?: string }>({});
 
@@ -458,7 +458,7 @@ export default function HomePage() {
         <div
           className="absolute top-0 h-12 w-20 bg-yellow-400 rounded-t-xl transition-all duration-300"
           style={{
-            left: selectedResidenceValue === "r12" ? "0px" : "80px",
+            left: selectedResidenceValue === "12" ? "0px" : "80px",
           }}
         />
 
@@ -529,7 +529,7 @@ export default function HomePage() {
             {/* Déjeuner */}
             <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
               <div className="flex items-center space-x-2">
-                <p className="font-semibold text-blue-900">Déjeuner</p>
+                <p className="font-semibold text-blue-900 pr-2">Déjeuner</p>
               </div>
               
               <div className="flex items-center gap-2">
@@ -545,6 +545,7 @@ export default function HomePage() {
                   islabel={false}
                   initialValue={repasDejeuner}
                   disabled={locked}
+                  isAdmin={profil?.is_admin}
                 />
                 {/* Ajout d'un commentaire */}
                 <button
@@ -571,7 +572,7 @@ export default function HomePage() {
             {/* Dîner */}
             <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
               <div className="flex items-center space-x-2">
-                <p className="font-semibold text-blue-900">Diner</p>
+                <p className="font-semibold text-blue-900 pr-2">Diner</p>
               </div>
               
               {/* Select du dîner */}
@@ -587,6 +588,7 @@ export default function HomePage() {
                   islabel={false}
                   initialValue={repasDiner}
                   disabled={locked}
+                  isAdmin={profil?.is_admin}
                 />
 
                 {/* Ajout d'un commentaire */}
