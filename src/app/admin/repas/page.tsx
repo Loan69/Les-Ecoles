@@ -186,19 +186,28 @@ export default function AdminRepasView() {
     let dejeuner = 0;
     let diner = 0;
 
+    // Comptage repas personnelles uniquement dans la période sélectionnée
     repasPerso.forEach((r) => {
       const choix = r.choix_repas?.toLowerCase() || "";
+
+      // ⚙️ Filtrer sur la plage de dates sélectionnée
+      if (r.date_repas < startDate || r.date_repas > endDate) return;
+
       if (!choix.includes("non")) {
         if (r.type_repas === "dejeuner") dejeuner++;
         if (r.type_repas === "diner") diner++;
       }
     });
 
+    // Comptage repas des invitées dans la même plage
     invitesPerso.forEach((i) => {
+      if (i.date_repas < startDate || i.date_repas > endDate) return;
+
       if (i.type_repas === "dejeuner") dejeuner++;
       if (i.type_repas === "diner") diner++;
     });
 
+    // Enregistrement dans la compta par résidence
     if (p.residence && comptaByResidence[p.residence]) {
       comptaByResidence[p.residence].push({
         nom: p.nom,
@@ -211,6 +220,7 @@ export default function AdminRepasView() {
       console.warn("Résidente avec résidence inconnue :", p);
     }
   });
+
 
   if (loading || !startDate || !endDate) {
     return (
