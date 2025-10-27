@@ -58,16 +58,24 @@ export default function HomePage() {
     const fetchUser = async () => {
       try {
         const { data, error } = await supabase.auth.getUser();
-        if (error) throw error;
+
+        if (error || !data?.user) {
+          console.warn("Aucun utilisateur valide, redirection vers /signin");
+          router.replace("/signin");
+          return;
+        }
+
         setUser(data.user);
         console.log("Utilisateur connecté :", data.user);
       } catch (err) {
         console.error("Erreur récupération user :", err);
+        router.replace("/signin");
       }
     };
 
     fetchUser();
-  }, []);
+  }, [router, supabase]);
+
 
   // Résidences pour les onglets
   useEffect(() => {
