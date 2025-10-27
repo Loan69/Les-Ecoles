@@ -75,6 +75,7 @@ export default function CalendrierPage() {
       visibilite,
       visible_invites,
       demander_confirmation,
+      reserve_admin,
     } = data;
 
     // Détermination automatique de la couleur selon le type
@@ -101,9 +102,8 @@ export default function CalendrierPage() {
       visible_invites,
       demander_confirmation,
       user_id: user?.id,
+      reserve_admin,
     };
-
-    console.log("🧩 Données envoyées à Supabase :", newEvent);
 
     // Insertion dans la table Supabase
     const { data: inserted, error } = await supabase

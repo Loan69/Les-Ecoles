@@ -12,5 +12,6 @@ export interface EventFormData {
     chambres: string[];
   };
   visible_invites?: boolean;
-  demander_confirmation?: boolean; 
+  demander_confirmation?: boolean;
+  reserve_admin?: boolean;
 }

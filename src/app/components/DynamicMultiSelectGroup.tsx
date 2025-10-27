@@ -14,27 +14,27 @@ interface Option {
 }
 
 interface Props {
-  rootCategory: string; // ex: "residence", "recurrence", "evenement"
-  onChange: (selected: { [category: string]: Option[] }) => void; // renvoie toutes les options sélectionnées
+  rootCategory: string;
+  onChange: (selected: { [category: string]: Option[] }) => void;
   onlyParent?: boolean;
+  disabled?: boolean; // ✅ nouvelle prop
 }
 
 export default function DynamicMultiSelectGroup({
   rootCategory,
   onChange,
   onlyParent = false,
+  disabled = false,
 }: Props) {
   const { supabase } = useSupabase();
   const [levels, setLevels] = useState<Option[][]>([]);
   const [selectedValues, setSelectedValues] = useState<{ [category: string]: Option[] }>({});
 
-  // Utilitaire pour label “Tous / Toutes” dynamique
   const getTousLabel = (category: string) => {
     const feminine = ["classe", "residence", "salle", "chambre"];
     return feminine.some((w) => category.toLowerCase().includes(w)) ? "Toutes" : "Tous";
   };
 
-  // Charger le premier niveau
   useEffect(() => {
     const fetchRoot = async () => {
       const { data, error } = await supabase
@@ -48,29 +48,28 @@ export default function DynamicMultiSelectGroup({
         console.error(error.message);
         return;
       }
+
       if (data && data.length > 0) {
         const labelCategory = data[0]?.label_category || rootCategory;
         const allOption: Option = {
           id: -1,
           value: "ALL",
-          label: `${getTousLabel(labelCategory)}`, // ex : "Toutes les résidences"
+          label: `${getTousLabel(labelCategory)}`,
           category: rootCategory,
           parent_value: null,
           label_category: labelCategory,
         };
         setLevels([[allOption, ...data]]);
-      }      
+      }
     };
     fetchRoot();
-  }, [rootCategory]);
+  }, [rootCategory, supabase]);
 
-  // Gestion de la sélection
   const handleSelect = async (levelIndex: number, selected: Option[]) => {
     const currentLevel = levels[levelIndex];
     const category = currentLevel[0]?.category;
     if (!category) return;
 
-    // Si "Tous/Toutes" est sélectionné → prendre tous les autres
     const isAllSelected = selected.some((s) => s.value === "ALL");
     const finalSelected = isAllSelected
       ? currentLevel.filter((opt) => opt.value !== "ALL")
@@ -78,7 +77,6 @@ export default function DynamicMultiSelectGroup({
 
     const newSelected = { ...selectedValues, [category]: finalSelected };
 
-    // Supprimer les enfants des niveaux suivants
     Object.keys(selectedValues).forEach((cat) => {
       const catIndex = levels.findIndex((lvl) => lvl[0]?.category === cat);
       if (catIndex > levelIndex) delete newSelected[cat];
@@ -89,7 +87,6 @@ export default function DynamicMultiSelectGroup({
 
     if (onlyParent) return;
 
-    // Charger les enfants
     const allChildren: Option[] = [];
     for (const opt of finalSelected) {
       const { data, error } = await supabase
@@ -110,20 +107,23 @@ export default function DynamicMultiSelectGroup({
       const allOptionChild: Option = {
         id: -1,
         value: "ALL",
-        label: `${getTousLabel(labelCategory)}`, // ex : "Tous les évènements"
+        label: `${getTousLabel(labelCategory)}`,
         category: childCategory,
         parent_value: null,
         label_category: labelCategory,
       };
       newLevels.push([allOptionChild, ...allChildren]);
-    }    
+    }
 
     setLevels(newLevels);
   };
 
-
   return (
-    <div className="space-y-4">
+    <div
+      className={`space-y-4 transition-opacity duration-200 ${
+        disabled ? "opacity-60 pointer-events-none cursor-not-allowed select-none" : ""
+      }`} // ✅ effet visuel
+    >
       {levels.map((options, i) => {
         const key = options[0]?.category || `level${i}`;
         const label = options[0]?.label_category || key;
@@ -141,6 +141,7 @@ export default function DynamicMultiSelectGroup({
             </label>
             <Select
               isMulti
+              isDisabled={disabled} // ✅ désactivation logique
               options={options.map((opt) => ({
                 value: opt.value,
                 label: opt.label,
@@ -154,12 +155,20 @@ export default function DynamicMultiSelectGroup({
               }}
               placeholder={`Choisir ${label}`}
               styles={{
-                control: (base) => ({
+                control: (base, state) => ({
                   ...base,
                   borderRadius: "0.75rem",
                   borderColor: "#d1d5db",
                   boxShadow: "none",
-                  "&:hover": { borderColor: "#2563eb" },
+                  backgroundColor: disabled ? "#f3f4f6" : "white",
+                  cursor: disabled ? "not-allowed" : "default",
+                  "&:hover": {
+                    borderColor: disabled ? "#d1d5db" : "#2563eb",
+                  },
+                }),
+                multiValue: (base) => ({
+                  ...base,
+                  opacity: disabled ? 0.7 : 1,
                 }),
               }}
             />

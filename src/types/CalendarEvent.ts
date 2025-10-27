@@ -7,6 +7,12 @@ export interface CalendarEvent {
     recurrence?: string;
     heures?: string;
     lieu?: string;
-    visibilite?: string;
+     visibilite?: {
+    residences: string[];
+    etages: string[];
+    chambres: string[];
+  };
     description?: string;
+    reserve_admin?: boolean;
+    visible_invites?: boolean;
   }

@@ -59,15 +59,15 @@ export default function SignupForm({ role, onSubmit }: Props) {
         if (!formData.prenom.trim()) missingFields.push("prénom");
         if (!formData.email.trim()) missingFields.push("email");
         if (!formData.password.trim() || !formData.confirmPassword.trim()) {
-        missingFields.push("mot de passe");
+            missingFields.push("mot de passe");
         }
 
         if (role === "residente") {
             if (!formData.datenaissance) missingFields.push("date de naissance");
             if (!selection.residence?.value) missingFields.push("résidence");
             if (selection.residence?.value !== "corail") {
-                if (!selection.etage?.value) missingFields.push("étage");
-                if (!selection.chambre?.value) missingFields.push("chambre");
+            if (!selection.etage?.value) missingFields.push("étage");
+            if (!selection.chambre?.value) missingFields.push("chambre");
             }
         }
 
@@ -89,33 +89,17 @@ export default function SignupForm({ role, onSubmit }: Props) {
         }
 
         try {
-        // Vérifie si l'email existe déjà
-        const exists = await checkUserExists(formData.email);
-        if (exists) {
+            // Vérifie si l'email existe déjà
+            const exists = await checkUserExists(formData.email);
+            if (exists) {
             setErrorMsg("Un compte existe déjà avec cette adresse email. Veuillez vous connecter.");
             setLoading(false);
             return;
-        }
+            }
 
-        // Création du compte Supabase
-        const email = formData.email;
-        const password = formData.password;
-        localStorage.setItem("pendingEmail", email);
-
-        const { error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: { emailRedirectTo: `${window.location.origin}/signin` },
-        });
-
-        if (signUpError) {
-            setErrorMsg(`Erreur lors de la création du compte : ${signUpError.message}`);
-            setLoading(false);
-            return;
-        }
-
-        // Données à insérer dans pending_users
-        const insertData = {
+            // Données à insérer dans pending_users
+            const email = formData.email;
+            const insertData = {
             email,
             role,
             nom: formData.nom,
@@ -125,24 +109,48 @@ export default function SignupForm({ role, onSubmit }: Props) {
             etage: role === "residente" ? selection.etage?.value || null : null,
             chambre: role === "residente" ? selection.chambre?.value || null : null,
             typeInvitee: role === "invitee" ? formData.typeInvitee : null,
-        };
+            };
 
-        const { error: insertError } = await supabase.from("pending_users").insert(insertData);
-        if (insertError) {
-            setErrorMsg("Erreur lors de la création du compte");
+            const { error: insertError } = await supabase.from("pending_users").insert(insertData);
+            if (insertError) {
+            setErrorMsg("Erreur lors de la création du compte (insertion)");
             console.error(insertError);
             setLoading(false);
             return;
-        }
+            }
 
-        setSuccessMsg("Compte créé avec succès ! Vérifiez votre email pour confirmer votre inscription.");
-        setLoading(false);
+            // Création du compte Supabase
+            const password = formData.password;
+            localStorage.setItem("pendingEmail", email);
+
+            const { error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: `${window.location.origin}/signin` },
+            });
+
+            if (signUpError) {
+            // 🧩 En cas d’échec → rollback : supprimer la ligne insérée dans pending_users
+            await supabase.from("pending_users").delete().eq("email", email);
+
+            setErrorMsg(`Erreur lors de la création du compte : ${signUpError.message}`);
+            setLoading(false);
+            return;
+            }
+
+            setSuccessMsg("Compte créé avec succès ! Vérifiez votre email pour confirmer votre inscription.");
+            setLoading(false);
         } catch (err) {
-        console.error(err);
-        setErrorMsg(err instanceof Error ? err.message : "Une erreur inconnue est survenue.");
-        setLoading(false);
+            console.error(err);
+            // 🧩 Rollback en cas d’erreur inattendue aussi
+            if (formData.email) {
+            await supabase.from("pending_users").delete().eq("email", formData.email);
+            }
+            setErrorMsg(err instanceof Error ? err.message : "Une erreur inconnue est survenue.");
+            setLoading(false);
         }
     };
+
 
     return (
         <form onSubmit={handleSubmit} className="w-full max-w-md bg-white shadow-md rounded-2xl p-6">

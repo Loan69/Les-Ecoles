@@ -203,8 +203,7 @@ export default function AdminRepasView() {
     invitesPerso.forEach((i) => {
       if (i.date_repas < startDate || i.date_repas > endDate) return;
 
-      if (i.type_repas === "dejeuner") dejeuner++;
-      if (i.type_repas === "diner") diner++;
+      if (i.type_repas === "dejeuner" || i.type_repas === "diner") dejeuner++;
     });
 
     // Enregistrement dans la compta par résidence

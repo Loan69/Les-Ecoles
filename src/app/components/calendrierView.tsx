@@ -239,6 +239,7 @@ type CalendrierViewProps = {
                 open={openModal}
                 onClose={() => setOpenModal(false)}
                 onSave={handleSaveEvent}
+                isAdmin={is_admin}
             />
         </div>
     );

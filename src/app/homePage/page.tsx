@@ -339,15 +339,37 @@ export default function HomePage() {
     );
   }
 
-  // --- Filtrage des événements par résidence ---
+  // --- Filtrage des événements par résidence et visibilité ---
   const filteredEvents = selectedResidenceValue
-    ? events.filter((event) =>
-        event.lieu
-          ?.split(",")
-          .map((r) => r.trim())
-          .includes(selectedResidenceValue)
-      )
-    : [];
+    ? events.filter((event) => {
+        // Vérifie que l'évènement appartient bien à la résidence sélectionnée
+        const lieux = (event.lieu || "").split(",").map((r) => r.trim());
+        if (!lieux.includes(selectedResidenceValue)) return false;
+
+        // Si admin → toujours visible
+        if (profil?.is_admin) return true;
+
+        // Si réservé au staff admin → visible uniquement si admin
+        if (event.reserve_admin && !profil?.is_admin) return false;
+
+        // Si invitée sans résidence → visible uniquement si visible_invites
+        if (!profil?.residence) return event.visible_invites === true;
+
+        // Récupère proprement les tableaux de visibilité (avec fallback [])
+        const residences: string[] = event.visibilite?.residences ?? [];
+        const etages: string[] = event.visibilite?.etages ?? [];
+        const chambres: string[] = event.visibilite?.chambres ?? [];
+
+        // Une résidente voit l'évènement si elle correspond à au moins un niveau
+        const isVisible =
+          residences.includes(profil.residence) ||
+          etages.includes(profil.etage) ||
+          chambres.includes(profil.chambre);
+
+        return isVisible;
+      }) : [];
+    
+  console.log('Evenements filtrés : ', filteredEvents)
 
 
   // --- Animation (slide + fade) ---
@@ -509,7 +531,7 @@ export default function HomePage() {
                     <div
                       className={`text-gray-700 text-sm text-center flex-1 ${event.couleur} rounded px-1 py-2`}
                     >
-                      {event.titre} (à partir de {event.heures})
+                      {event.titre} {event.heures ? `à partir de ${event.heures})` : ""}
                       {event.description && (
                       <p className="text-gray-500 text-xs text-center mt-1 px-2">
                         {event.description}
