@@ -17,6 +17,8 @@ import { Residence } from "@/types/Residence";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
 import DynamicSelectGroup from "../components/DynamicSelectGroup";
+import SelectField from "../components/SelectField";
+import { Option } from "@/types/Option";
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -45,9 +47,13 @@ export default function HomePage() {
 
   // Repas spéciaux
   const [specialOptions, setSpecialOptions] = useState<{
-    dejeuner: { label: string; value: number; admin_only: boolean }[];
-    diner: { label: string; value: number; admin_only: boolean }[];
-  }>({ dejeuner: [], diner: [] });
+    dejeuner: Option[];
+    diner: Option[];
+  }>({
+    dejeuner: [],
+    diner: [],
+  });
+
 
   // États pour le swipe
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -338,6 +344,83 @@ export default function HomePage() {
     setCommentValue(updatedRow?.commentaire || "");
   };
 
+  // Chargement des repas spéciaux
+  useEffect(() => {
+    const fetchSpecialOptions = async () => {
+      if (!user) return;
+
+      const dateIso = currentDate.toISOString().split("T")[0];
+
+      const { data, error } = await supabase
+        .from("special_meal_options")
+        .select("*")
+        .or(`start_date.lte.${dateIso},indefinite.eq.true`)
+        .filter("end_date", "gte", dateIso);
+
+      if (error) {
+        console.error("Erreur récupération repas spéciaux :", error);
+        return;
+      }
+
+      // Initialisation des tableaux Option[]
+      const dejeunerOpts: Option[] = [];
+      const dinerOpts: Option[] = [];
+
+      // Générateur d'Option conforme au type global
+      const makeOption = (
+        opt: { label: string; value: string | number; admin_only?: boolean },
+        category: string,
+        idBase: number
+      ): Option => ({
+        id: idBase,
+        category,
+        label: opt.label,
+        value: String(opt.value),
+        admin_only: opt.admin_only ?? false,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        label_category: category,
+        parent_value: null,
+        created_by: user?.id ?? "system",
+      });
+
+      let idCounter = 1; // compteur local pour des IDs uniques
+
+      data.forEach((row: any) => {
+        const opts = row.options as {
+          label: string;
+          value: string | number;
+          admin_only?: boolean;
+        }[];
+
+        // Filtrage selon droits admin
+        const filteredOpts = opts.filter(
+          (o) => !o.admin_only || profil?.is_admin
+        );
+
+        // Ajout des options à la bonne catégorie
+        if (row.service === "dejeuner") {
+          dejeunerOpts.push(
+            ...filteredOpts.map((opt) =>
+              makeOption(opt, "dejeuner", idCounter++)
+            )
+          );
+        }
+        if (row.service === "diner") {
+          dinerOpts.push(
+            ...filteredOpts.map((opt) => makeOption(opt, "diner", idCounter++))
+          );
+        }
+      });
+
+      setSpecialOptions({
+        dejeuner: dejeunerOpts,
+        diner: dinerOpts,
+      });
+    };
+
+    fetchSpecialOptions();
+  }, [currentDate, user, supabase, profil]);
 
   // --- Loader global --- 
   if (!isReady || !isAbsentReady) {
@@ -557,12 +640,22 @@ export default function HomePage() {
 
             {/* Déjeuner */}
             <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
-              <div className="flex items-center space-x-2">
-                <p className="font-semibold text-blue-900 pr-2">Déjeuner</p>
-              </div>
-              
+              {/* Label à gauche */}
+              <p className="font-semibold text-blue-900">Déjeuner</p>
+
+              {/* Select + pencil à droite */}
               <div className="flex items-center gap-2">
-                {/* Select du déjeuner */}
+                {specialOptions.dejeuner.length > 0 ? (
+                  <SelectField
+                    name="repasDejeuner"
+                    value={repasDejeuner || ""}
+                    options={specialOptions.dejeuner}
+                    onChange={(val) => handleSelectRepas("dejeuner", val)}
+                    placeholder="Choisissez votre déjeuner"
+                    disabled={locked}
+                    selectClassName="min-w-[220px] h-10"
+                  />
+                ) : (
                   <DynamicSelectGroup
                     rootCategory="repas"
                     subRootCategory="dejeuner"
@@ -576,8 +669,8 @@ export default function HomePage() {
                     disabled={locked}
                     isAdmin={profil?.is_admin}
                   />
+                )}
 
-                {/* Ajout d'un commentaire */}
                 <button
                   onClick={() => {
                     if (repasDejeuner !== 'non') {
@@ -601,27 +694,35 @@ export default function HomePage() {
 
             {/* Dîner */}
             <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
-              <div className="flex items-center space-x-2">
-                <p className="font-semibold text-blue-900 pr-2">Diner</p>
-              </div>
-              
-              {/* Select du dîner */}
-              <div className="flex items-center gap-2">
-                <DynamicSelectGroup
-                  rootCategory="repas"
-                  subRootCategory="diner"
-                  onlyParent={true}
-                  onChange={(selected) => {
-                    const choix = selected["diner"]?.value;
-                    if (choix) handleSelectRepas("diner", choix);
-                  }}
-                  islabel={false}
-                  initialValue={repasDiner}
-                  disabled={locked}
-                  isAdmin={profil?.is_admin}
-                />
+              <p className="font-semibold text-blue-900">Dîner</p>
 
-                {/* Ajout d'un commentaire */}
+              <div className="flex items-center gap-2">
+                {specialOptions.diner.length > 0 ? (
+                  <SelectField
+                    name="repasDiner"
+                    value={repasDiner || ""}
+                    options={specialOptions.diner}
+                    onChange={(val) => handleSelectRepas("diner", val)}
+                    placeholder="Choisissez votre dîner"
+                    disabled={locked}
+                    selectClassName="min-w-[220px] h-10"
+                  />
+                ) : (
+                  <DynamicSelectGroup
+                    rootCategory="repas"
+                    subRootCategory="diner"
+                    onlyParent={true}
+                    onChange={(selected) => {
+                      const choix = selected["diner"]?.value;
+                      if (choix) handleSelectRepas("diner", choix);
+                    }}
+                    islabel={false}
+                    initialValue={repasDiner}
+                    disabled={locked}
+                    isAdmin={profil?.is_admin}
+                  />
+                )}
+
                 <button
                   onClick={() => {
                     if (repasDiner !== 'non') {
@@ -631,16 +732,15 @@ export default function HomePage() {
                     }
                   }}
                   disabled={repasDiner === 'non' || locked}
-                  className={`p-2 rounded-full transition ${
-                    repasDiner === 'non' || locked
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : 'bg-blue-500 text-white hover:bg-blue-900 cursor-pointer'
-                  }`}
+                  className={`p-2 rounded-full transition ${repasDiner === 'non' || locked
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-500 text-white hover:bg-blue-900 cursor-pointer'}`}
                 >
                   <Pencil className="w-4 h-4" />
                 </button>
               </div>
             </div>
+
 
             {confirmationMsg && (
               <p className="mt-3 text-green-600 font-semibold text-sm">

@@ -26,7 +26,7 @@ export default function SelectField({
   placeholder = "Choisissez une option",
   required = false,
   islabel = true,
-  wrapperClassName = "mb-4",
+  wrapperClassName = "",
   selectClassName = "",
   disabled = false,
 }: SelectFieldProps) {

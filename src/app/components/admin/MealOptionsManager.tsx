@@ -11,11 +11,11 @@ import { Badge } from '@/components/ui/badge'
 import { useSupabase } from '@/app/providers'
 import { useRouter } from 'next/navigation'
 import { User } from '@supabase/supabase-js'
-import { Plus, Trash2, Lock, Eye, Save } from 'lucide-react'
+import { Plus, Trash2, Lock, Eye, Save, Pencil, Soup, Sandwich, PencilRuler } from 'lucide-react'
 
 type Option = {
   label: string
-  value: 12 | 36
+  value: 12 | 36 | 'non'
   admin_only: boolean
 }
 
@@ -40,6 +40,9 @@ export default function MealOptionsManager() {
   const [options, setOptions] = useState<Option[]>([])
   const [existingRules, setExistingRules] = useState<Rule[]>([])
 
+  // 👇 Nouveau : mode édition
+  const [editingRule, setEditingRule] = useState<Rule | null>(null)
+
   useEffect(() => {
     const fetchUser = async () => {
       const { data, error } = await supabase.auth.getUser()
@@ -56,6 +59,7 @@ export default function MealOptionsManager() {
 
   useEffect(() => { loadRules() }, [])
 
+  // 🟢 Fonction commune : insert ou update
   const save = async () => {
     if (!startDate) return alert('Veuillez sélectionner une date de début')
     if (!options.length) return alert('Ajoutez au moins une option')
@@ -70,12 +74,28 @@ export default function MealOptionsManager() {
       created_by: user?.id,
     }
 
-    const { error } = await supabase.from('special_meal_options').insert(payload)
+    let error
+    if (editingRule) {
+      // ✏️ Mode édition
+      const { error: updateError } = await supabase
+        .from('special_meal_options')
+        .update(payload)
+        .eq('id', editingRule.id)
+      error = updateError
+    } else {
+      // ➕ Nouveau
+      const { error: insertError } = await supabase.from('special_meal_options').insert(payload)
+      error = insertError
+    }
+
     if (error) alert('Erreur lors de la sauvegarde')
     else {
+      // reset du formulaire
       setStartDate('')
       setEndDate('')
+      setIndefinite(false)
       setOptions([])
+      setEditingRule(null)
       loadRules()
     }
   }
@@ -86,6 +106,17 @@ export default function MealOptionsManager() {
     if (!error) loadRules()
   }
 
+  // 🟡 Charger une règle pour modification
+  const handleEditRule = (rule: Rule) => {
+    setEditingRule(rule)
+    setStartDate(rule.start_date)
+    setEndDate(rule.end_date || '')
+    setIndefinite(rule.indefinite)
+    setService(rule.service)
+    // On enlève l’option "Non" du tableau pour éviter les doublons à la sauvegarde
+    setOptions(rule.options.filter((o) => o.value !== 'non'))
+  }
+
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-10">
       <motion.div
@@ -93,14 +124,16 @@ export default function MealOptionsManager() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center space-y-2"
       >
-        <h1 className="text-3xl font-bold text-gray-900">🍽️ Gestion des repas spéciaux</h1>
+        <h1 className="text-3xl font-bold text-gray-600">Gestion des repas spéciaux</h1>
         <p className="text-gray-500 text-sm">Créez, modifiez et gérez les options de repas disponibles pour chaque service.</p>
       </motion.div>
 
-      {/* --- FORMULAIRE DE CRÉATION --- */}
+      {/* --- FORMULAIRE DE CRÉATION / MODIFICATION --- */}
       <Card className="shadow-lg border border-gray-200">
         <CardHeader>
-          <h2 className="text-lg font-semibold text-gray-800">➕ Nouvelle règle</h2>
+          <h2 className="text-lg font-semibold text-gray-800">
+            {editingRule ? '✏️ Modifier une règle' : '➕ Nouvelle règle'}
+          </h2>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid md:grid-cols-3 gap-4">
@@ -121,8 +154,8 @@ export default function MealOptionsManager() {
               <Select value={service} onValueChange={v => setService(v as 'dejeuner' | 'diner')}>
                 <SelectTrigger><SelectValue placeholder="Choisir un service" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="dejeuner">🍞 Déjeuner</SelectItem>
-                  <SelectItem value="diner">🍝 Dîner</SelectItem>
+                  <SelectItem value="dejeuner"><Sandwich /> Déjeuner</SelectItem>
+                  <SelectItem value="diner"><Soup /> Dîner</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -165,7 +198,7 @@ export default function MealOptionsManager() {
                 </Select>
                 <Button
                   variant="outline"
-                  className={`flex items-center gap-1 ${opt.admin_only ? 'border-orange-400 text-orange-600' : ''}`}
+                  className={`cursor-pointer flex items-center gap-1 ${opt.admin_only ? 'border-orange-400 text-orange-600' : ''}`}
                   onClick={() => {
                     const newOpts = [...options]
                     newOpts[i].admin_only = !opt.admin_only
@@ -175,29 +208,34 @@ export default function MealOptionsManager() {
                   {opt.admin_only ? <Lock size={16} /> : <Eye size={16} />}
                   {opt.admin_only ? 'Admin' : 'Public'}
                 </Button>
-                <Button variant="destructive" onClick={() => setOptions(options.filter((_, j) => j !== i))}>
+                <Button variant="destructive" className="cursor-pointer" onClick={() => setOptions(options.filter((_, j) => j !== i))}>
                   <Trash2 size={16} />
                 </Button>
               </motion.div>
             ))}
 
-            <Button variant="secondary" className="mt-3" onClick={() => setOptions([...options, { label: '', value: 12, admin_only: false }])}>
+            <Button variant="secondary" className="mt-3 cursor-pointer" onClick={() => setOptions([...options, { label: '', value: 12, admin_only: false }])}>
               <Plus size={16} className="mr-1" /> Ajouter une option
             </Button>
           </div>
 
           <Button
             onClick={save}
-            className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:opacity-90 text-white font-semibold py-2"
+            className={`cursor-pointer w-full text-white font-semibold py-2 ${
+              editingRule
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90'
+                : 'bg-gradient-to-r from-blue-500 to-indigo-500 hover:opacity-90'
+            }`}
           >
-            <Save size={18} className="mr-2" /> Enregistrer la règle
+            <Save size={18} className="mr-2" />
+            {editingRule ? 'Mettre à jour la règle' : 'Enregistrer la règle'}
           </Button>
         </CardContent>
       </Card>
 
       {/* --- LISTE DES RÈGLES EXISTANTES --- */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-800">📋 Règles existantes</h2>
+        <h2 className="text-lg font-semibold text-gray-800">Règles existantes</h2>
         {existingRules.length === 0 ? (
           <p className="text-gray-500 text-sm">Aucune règle enregistrée.</p>
         ) : (
@@ -209,7 +247,7 @@ export default function MealOptionsManager() {
             >
               <div className="space-y-1">
                 <h3 className={`font-semibold ${r.service === 'dejeuner' ? 'text-blue-600' : 'text-violet-600'}`}>
-                  {r.service === 'dejeuner' ? '🍞 Déjeuner' : '🍝 Dîner'}
+                  {r.service === 'dejeuner' ? 'Déjeuner' : 'Dîner'}
                 </h3>
                 <p className="text-sm text-gray-600">
                   {r.indefinite ? 'Durée : indéfinie' : `Du ${r.start_date} au ${r.end_date || '-'}`}
@@ -221,18 +259,29 @@ export default function MealOptionsManager() {
                       variant={o.admin_only ? 'destructive' : 'secondary'}
                       className="text-sm py-1 px-3"
                     >
-                      {o.label} • Rés. {o.value}
+                      {o.label} - Res. {o.value}
                     </Badge>
                   ))}
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                className="text-red-500 hover:bg-red-50 mt-3 md:mt-0"
-                onClick={() => handleDeleteRule(r.id)}
-              >
-                <Trash2 size={18} />
-              </Button>
+              <div className="flex gap-2 mt-3 md:mt-0">
+                {/* ✏️ Bouton d’édition */}
+                <Button
+                  variant="outline"
+                  className="text-blue-500 hover:bg-blue-50 cursor-pointer"
+                  onClick={() => handleEditRule(r)}
+                >
+                  <Pencil size={18} />
+                </Button>
+                {/* 🗑️ Suppression */}
+                <Button
+                  variant="outline"
+                  className="text-red-500 hover:bg-red-100 cursor-pointer"
+                  onClick={() => handleDeleteRule(r.id)}
+                >
+                  <Trash2 size={18} />
+                </Button>
+              </div>
             </motion.div>
           ))
         )}

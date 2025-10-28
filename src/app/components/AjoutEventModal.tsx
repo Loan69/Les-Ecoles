@@ -90,8 +90,6 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
     await onSave(form);
   };
 
-  console.log(form)
-
   if (!open) return null;
 
   return (
