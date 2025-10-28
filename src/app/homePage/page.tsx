@@ -43,6 +43,11 @@ export default function HomePage() {
   const [selectedResidenceLabel, setSelectedResidenceLabel] = useState<string | null>("Résidence 12");
   const [settings, setSettings] = useState<{ verrouillage_repas?: string; verrouillage_foyer?: string }>({});
 
+  // Repas spéciaux
+  const [specialOptions, setSpecialOptions] = useState<{
+    dejeuner: { label: string; value: number; admin_only: boolean }[];
+    diner: { label: string; value: number; admin_only: boolean }[];
+  }>({ dejeuner: [], diner: [] });
 
   // États pour le swipe
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -192,20 +197,23 @@ export default function HomePage() {
 
   // --- Verrouillage après XhY (paramétré dans app_settings) ---
   useEffect(() => {
-    if (!settings.verrouillage_repas) return; // attendre chargement des paramètres
+    if (!settings.verrouillage_repas) return;
 
     const now = new Date();
     const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
     const [lockHour, lockMinute] = settings.verrouillage_repas.split(":").map(Number);
 
-    const isToday = currentDate.toDateString() === parisTime.toDateString();
+    const currentDay = currentDate.toISOString().split("T")[0];
+    const parisDay = parisTime.toISOString().split("T")[0];
 
-    if (
-      currentDate < parisTime ||
-      (isToday &&
-        (parisTime.getHours() > lockHour ||
-          (parisTime.getHours() === lockHour && parisTime.getMinutes() >= lockMinute)))
-    ) {
+    const isPastDay = currentDay < parisDay;
+    const isToday = currentDay === parisDay;
+
+    const isAfterLock =
+      parisTime.getHours() > lockHour ||
+      (parisTime.getHours() === lockHour && parisTime.getMinutes() >= lockMinute);
+
+    if (isPastDay || (isToday && isAfterLock)) {
       setLocked(true);
       setConfirmationMsg(`Les présences aux repas ne sont plus modifiables après ${settings.verrouillage_repas}.`);
     } else {
@@ -213,6 +221,7 @@ export default function HomePage() {
       setConfirmationMsg("");
     }
   }, [currentDate, settings]);
+
 
   // --- Chargement : profil + présences repas + événements ---
   useEffect(() => {
@@ -328,7 +337,46 @@ export default function HomePage() {
     // 4️⃣ Mets à jour la valeur du commentaire utilisée par la modale
     setCommentValue(updatedRow?.commentaire || "");
   };
-  
+
+  // Chargements des repas spéciaux
+  useEffect(() => {
+    const fetchSpecialOptions = async () => {
+      if (!user) return;
+
+      const dateIso = currentDate.toISOString().split("T")[0];
+
+      const { data, error } = await supabase
+        .from("special_meal_options")
+        .select("*")
+        .or(`start_date.lte.${dateIso},indefinite.eq.true`)
+        .filter("end_date", "gte", dateIso);
+      
+        console.log(data)
+
+      if (error) {
+        console.error("Erreur récupération repas spéciaux :", error);
+        return;
+      }
+
+      // On va concaténer toutes les options pour chaque service
+      const dejeunerOpts: typeof specialOptions.dejeuner = [];
+      const dinerOpts: typeof specialOptions.diner = [];
+
+      data.forEach((row: any) => {
+        const opts = row.options as { label: string; value: number; admin_only: boolean }[];
+        const filteredOpts = opts.filter(o => !o.admin_only || profil?.is_admin);
+
+        if (row.service === "midi") dejeunerOpts.push(...filteredOpts);
+        if (row.service === "soir") dinerOpts.push(...filteredOpts);
+      });
+
+      setSpecialOptions({ dejeuner: dejeunerOpts, diner: dinerOpts });
+    };
+
+    fetchSpecialOptions();
+  }, [currentDate, user, supabase, profil]);
+
+  console.log(specialOptions)
 
   // --- Loader global --- 
   if (!isReady || !isAbsentReady) {
@@ -554,19 +602,20 @@ export default function HomePage() {
               
               <div className="flex items-center gap-2">
                 {/* Select du déjeuner */}
-                <DynamicSelectGroup
-                  rootCategory="repas"
-                  subRootCategory="dejeuner"
-                  onlyParent={true}
-                  onChange={(selected) => {
-                    const choix = selected["dejeuner"]?.value;
-                    if (choix) handleSelectRepas("dejeuner", choix);
-                  }}
-                  islabel={false}
-                  initialValue={repasDejeuner}
-                  disabled={locked}
-                  isAdmin={profil?.is_admin}
-                />
+                  <DynamicSelectGroup
+                    rootCategory="repas"
+                    subRootCategory="dejeuner"
+                    onlyParent={true}
+                    onChange={(selected) => {
+                      const choix = selected["dejeuner"]?.value;
+                      if (choix) handleSelectRepas("dejeuner", choix);
+                    }}
+                    islabel={false}
+                    initialValue={repasDejeuner}
+                    disabled={locked}
+                    isAdmin={profil?.is_admin}
+                  />
+
                 {/* Ajout d'un commentaire */}
                 <button
                   onClick={() => {

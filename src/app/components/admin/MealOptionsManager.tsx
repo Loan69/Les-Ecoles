@@ -1,18 +1,33 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input' 
+import { Card, CardHeader, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
 import { useSupabase } from '@/app/providers'
 import { useRouter } from 'next/navigation'
 import { User } from '@supabase/supabase-js'
-import { Trash2, Lock, Eye } from 'lucide-react'
+import { Plus, Trash2, Lock, Eye, Save } from 'lucide-react'
 
-type Option = { label: string; value: 12 | 36; admin_only: boolean }
-type Rule = { id: number; start_date: string; end_date: string | null; indefinite: boolean; service: 'dejeuner' | 'diner'; options: Option[]; created_at: string }
+type Option = {
+  label: string
+  value: 12 | 36
+  admin_only: boolean
+}
+
+type Rule = {
+  id: number
+  start_date: string
+  end_date: string | null
+  indefinite: boolean
+  service: 'dejeuner' | 'diner'
+  options: Option[]
+  created_at: string
+}
 
 export default function MealOptionsManager() {
   const { supabase } = useSupabase()
@@ -28,130 +43,199 @@ export default function MealOptionsManager() {
   useEffect(() => {
     const fetchUser = async () => {
       const { data, error } = await supabase.auth.getUser()
-      if (error || !data?.user) router.replace("/signin")
+      if (error || !data?.user) router.replace('/signin')
       else setUser(data.user)
     }
     fetchUser()
   }, [router, supabase])
 
   const loadRules = async () => {
-    const { data, error } = await supabase.from('special_meal_options').select('*')
-    if (!error) setExistingRules(data || [])
+    const { data, error } = await supabase.from('special_meal_options').select('*').order('created_at', { ascending: false })
+    if (!error && data) setExistingRules(data)
   }
 
   useEffect(() => { loadRules() }, [])
 
   const save = async () => {
-    if (!startDate || !service || options.length === 0 || (!indefinite && !endDate)) {
-      alert("Veuillez remplir tous les champs correctement")
-      return
-    }
+    if (!startDate) return alert('Veuillez sélectionner une date de début')
+    if (!options.length) return alert('Ajoutez au moins une option')
 
     const optionsWithNon = [{ label: 'Non', value: 'non', admin_only: false }, ...options]
+    const payload = {
+      start_date: startDate,
+      end_date: indefinite ? null : endDate,
+      indefinite,
+      service,
+      options: optionsWithNon,
+      created_by: user?.id,
+    }
 
-    const payload = { start_date: startDate, end_date: indefinite ? null : endDate, indefinite, service, options: optionsWithNon, created_by: user?.id }
     const { error } = await supabase.from('special_meal_options').insert(payload)
-    if (error) alert("Erreur lors de la sauvegarde")
-    else { setStartDate(''); setEndDate(''); setIndefinite(false); setOptions([]); loadRules() }
+    if (error) alert('Erreur lors de la sauvegarde')
+    else {
+      setStartDate('')
+      setEndDate('')
+      setOptions([])
+      loadRules()
+    }
   }
 
   const handleDeleteRule = async (id: number) => {
-    if (!confirm("Voulez-vous vraiment supprimer cette règle ?")) return
+    if (!confirm('Supprimer cette règle ?')) return
     const { error } = await supabase.from('special_meal_options').delete().eq('id', id)
-    if (error) alert("Erreur lors de la suppression")
-    else loadRules()
+    if (!error) loadRules()
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-5xl mx-auto space-y-10">
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-blue-700 mb-2">🍽️ Gestion des repas spéciaux</h1>
-          <p className="text-gray-600">Créez et gérez les règles de repas spéciaux pour vos résidentes</p>
-        </div>
+    <div className="max-w-5xl mx-auto p-6 space-y-10">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center space-y-2"
+      >
+        <h1 className="text-3xl font-bold text-gray-900">🍽️ Gestion des repas spéciaux</h1>
+        <p className="text-gray-500 text-sm">Créez, modifiez et gérez les options de repas disponibles pour chaque service.</p>
+      </motion.div>
 
-        {/* Formulaire création règle */}
-        <Card className="p-6 shadow-lg border border-gray-200 rounded-xl space-y-6 bg-white">
-          <h2 className="text-xl font-semibold text-gray-700 mb-4">Créer une nouvelle règle</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* --- FORMULAIRE DE CRÉATION --- */}
+      <Card className="shadow-lg border border-gray-200">
+        <CardHeader>
+          <h2 className="text-lg font-semibold text-gray-800">➕ Nouvelle règle</h2>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid md:grid-cols-3 gap-4">
             <div>
               <Label>Date de début</Label>
-              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1" />
+              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
             </div>
-
             <div>
               <Label>Date de fin</Label>
-              <Input type="date" value={endDate} disabled={indefinite} onChange={e => setEndDate(e.target.value)} className="mt-1" />
-              <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
+              <Input type="date" disabled={indefinite} value={endDate} onChange={e => setEndDate(e.target.value)} />
+              <div className="flex items-center gap-2 mt-1">
                 <input type="checkbox" checked={indefinite} onChange={e => setIndefinite(e.target.checked)} />
-                <span>Valable indéfiniment</span>
+                <span className="text-sm text-gray-600">Indéfini</span>
               </div>
             </div>
-
             <div>
-              <Label className='mb-1'>Service</Label>
+              <Label>Service</Label>
               <Select value={service} onValueChange={v => setService(v as 'dejeuner' | 'diner')}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Choisir un service" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="dejeuner">Déjeuner</SelectItem>
-                  <SelectItem value="diner">Dîner</SelectItem>
+                  <SelectItem value="dejeuner">🍞 Déjeuner</SelectItem>
+                  <SelectItem value="diner">🍝 Dîner</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
+          {/* Options */}
           <div className="space-y-3">
-            <Label>Options du repas</Label>
+            <Label>Options disponibles</Label>
             {options.map((opt, i) => (
-              <div key={i} className="flex flex-col md:flex-row items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200 shadow-sm">
-                <Input value={opt.label} placeholder="Label" onChange={e => { const newOpts = [...options]; newOpts[i].label = e.target.value; setOptions(newOpts) }} />
-                <Select value={String(opt.value)} onValueChange={v => { const newOpts = [...options]; newOpts[i].value = Number(v) as 12 | 36; setOptions(newOpts) }}>
-                  <SelectTrigger><SelectValue placeholder="Résidence" /></SelectTrigger>
+              <motion.div
+                key={i}
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col md:flex-row items-center gap-3 p-3 border rounded-lg bg-gray-50"
+              >
+                <Input
+                  className="flex-1"
+                  value={opt.label}
+                  placeholder="Label de l’option"
+                  onChange={e => {
+                    const newOpts = [...options]
+                    newOpts[i].label = e.target.value
+                    setOptions(newOpts)
+                  }}
+                />
+                <Select
+                  value={String(opt.value)}
+                  onValueChange={v => {
+                    const newOpts = [...options]
+                    newOpts[i].value = Number(v) as 12 | 36
+                    setOptions(newOpts)
+                  }}
+                >
+                  <SelectTrigger className="w-36"><SelectValue placeholder="Résidence" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="12">Résidence 12</SelectItem>
                     <SelectItem value="36">Résidence 36</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant={opt.admin_only ? 'secondary' : 'outline'} onClick={() => { const newOpts = [...options]; newOpts[i].admin_only = !opt.admin_only; setOptions(newOpts) }} className="flex items-center gap-2">
-                  {opt.admin_only ? <Lock className="w-4 h-4" /> : <Eye className="w-4 h-4" />} {opt.admin_only ? 'Admin only' : 'Public'}
+                <Button
+                  variant="outline"
+                  className={`flex items-center gap-1 ${opt.admin_only ? 'border-orange-400 text-orange-600' : ''}`}
+                  onClick={() => {
+                    const newOpts = [...options]
+                    newOpts[i].admin_only = !opt.admin_only
+                    setOptions(newOpts)
+                  }}
+                >
+                  {opt.admin_only ? <Lock size={16} /> : <Eye size={16} />}
+                  {opt.admin_only ? 'Admin' : 'Public'}
                 </Button>
-                <Button variant="destructive" onClick={() => setOptions(options.filter((_, j) => j !== i))} className="ml-auto md:ml-0">
-                  <Trash2 className="w-4 h-4" />
+                <Button variant="destructive" onClick={() => setOptions(options.filter((_, j) => j !== i))}>
+                  <Trash2 size={16} />
                 </Button>
-              </div>
+              </motion.div>
             ))}
-            <Button variant="outline" onClick={() => setOptions([...options, { label: '', value: 12, admin_only: false }])} className="w-full mt-2">➕ Ajouter une option</Button>
+
+            <Button variant="secondary" className="mt-3" onClick={() => setOptions([...options, { label: '', value: 12, admin_only: false }])}>
+              <Plus size={16} className="mr-1" /> Ajouter une option
+            </Button>
           </div>
 
-          <Button className="w-full bg-blue-600 text-white hover:bg-blue-700 transition font-semibold py-3 rounded-lg" onClick={save}>💾 Enregistrer la règle</Button>
-        </Card>
+          <Button
+            onClick={save}
+            className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:opacity-90 text-white font-semibold py-2"
+          >
+            <Save size={18} className="mr-2" /> Enregistrer la règle
+          </Button>
+        </CardContent>
+      </Card>
 
-        {/* Règles existantes */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold text-gray-700">📋 Règles existantes</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {existingRules.length === 0 && <p className="text-gray-500 italic col-span-2">Aucune règle enregistrée.</p>}
-            {existingRules.map(r => (
-              <Card key={r.id} className="p-4 flex flex-col justify-between shadow-md border border-gray-200 rounded-xl bg-white">
-                <div className="space-y-2">
-                  <p className="font-semibold text-blue-700">{r.service.toUpperCase()} — {r.indefinite ? 'Indéfini' : `${r.start_date} → ${r.end_date || '-'}`}</p>
-                  <ul className="space-y-1">
-                    {r.options.map((o, j) => (
-                      <li key={j} className="flex items-center gap-2">
-                        <span className="font-medium">{o.label}</span>
-                        <span className="text-gray-500 text-sm">(Résidence {o.value})</span>
-                        {o.admin_only && <Lock className="w-4 h-4 text-yellow-600" />}
-                      </li>
-                    ))}
-                  </ul>
+      {/* --- LISTE DES RÈGLES EXISTANTES --- */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-800">📋 Règles existantes</h2>
+        {existingRules.length === 0 ? (
+          <p className="text-gray-500 text-sm">Aucune règle enregistrée.</p>
+        ) : (
+          existingRules.map(r => (
+            <motion.div
+              key={r.id}
+              layout
+              className="p-5 rounded-xl border bg-white shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center hover:shadow-md transition-all"
+            >
+              <div className="space-y-1">
+                <h3 className={`font-semibold ${r.service === 'dejeuner' ? 'text-blue-600' : 'text-violet-600'}`}>
+                  {r.service === 'dejeuner' ? '🍞 Déjeuner' : '🍝 Dîner'}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {r.indefinite ? 'Durée : indéfinie' : `Du ${r.start_date} au ${r.end_date || '-'}`}
+                </p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {r.options.map((o, j) => (
+                    <Badge
+                      key={j}
+                      variant={o.admin_only ? 'destructive' : 'secondary'}
+                      className="text-sm py-1 px-3"
+                    >
+                      {o.label} • Rés. {o.value}
+                    </Badge>
+                  ))}
                 </div>
-                <Button variant="destructive" onClick={() => handleDeleteRule(r.id)} className="mt-4 self-end">❌ Supprimer</Button>
-              </Card>
-            ))}
-          </div>
-        </div>
+              </div>
+              <Button
+                variant="ghost"
+                className="text-red-500 hover:bg-red-50 mt-3 md:mt-0"
+                onClick={() => handleDeleteRule(r.id)}
+              >
+                <Trash2 size={18} />
+              </Button>
+            </motion.div>
+          ))
+        )}
       </div>
     </div>
   )
