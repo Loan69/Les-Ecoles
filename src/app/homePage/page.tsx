@@ -386,7 +386,7 @@ export default function HomePage() {
 
       let idCounter = 1; // compteur local pour des IDs uniques
 
-      data.forEach((row: any) => {
+      data.forEach((row) => {
         const opts = row.options as {
           label: string;
           value: string | number;
