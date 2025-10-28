@@ -338,45 +338,6 @@ export default function HomePage() {
     setCommentValue(updatedRow?.commentaire || "");
   };
 
-  // Chargements des repas spéciaux
-  useEffect(() => {
-    const fetchSpecialOptions = async () => {
-      if (!user) return;
-
-      const dateIso = currentDate.toISOString().split("T")[0];
-
-      const { data, error } = await supabase
-        .from("special_meal_options")
-        .select("*")
-        .or(`start_date.lte.${dateIso},indefinite.eq.true`)
-        .filter("end_date", "gte", dateIso);
-      
-        console.log(data)
-
-      if (error) {
-        console.error("Erreur récupération repas spéciaux :", error);
-        return;
-      }
-
-      // On va concaténer toutes les options pour chaque service
-      const dejeunerOpts: typeof specialOptions.dejeuner = [];
-      const dinerOpts: typeof specialOptions.diner = [];
-
-      data.forEach((row: any) => {
-        const opts = row.options as { label: string; value: number; admin_only: boolean }[];
-        const filteredOpts = opts.filter(o => !o.admin_only || profil?.is_admin);
-
-        if (row.service === "midi") dejeunerOpts.push(...filteredOpts);
-        if (row.service === "soir") dinerOpts.push(...filteredOpts);
-      });
-
-      setSpecialOptions({ dejeuner: dejeunerOpts, diner: dinerOpts });
-    };
-
-    fetchSpecialOptions();
-  }, [currentDate, user, supabase, profil]);
-
-  console.log(specialOptions)
 
   // --- Loader global --- 
   if (!isReady || !isAbsentReady) {
