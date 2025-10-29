@@ -6,7 +6,7 @@ import { Option } from "@/types/Option";
 import { useSupabase } from "../providers";
 
 interface Props {
-  rootCategory: string; // catégorie racine : "residence", "repas", "evenement", etc.
+  rootCategory: string;
   subRootCategory?: string;
   onChange: (selected: { [category: string]: Option }) => void;
   onlyParent?: boolean;
@@ -15,6 +15,7 @@ interface Props {
   disabled?: boolean;
   selectClassName?: string;
   isAdmin?: boolean;
+  lockedValues?: string[]; // ✅ valeurs interdites (grisées)
 }
 
 export default function DynamicSelectGroup({
@@ -27,12 +28,13 @@ export default function DynamicSelectGroup({
   disabled = false,
   selectClassName = "",
   isAdmin = false,
+  lockedValues = [], // ✅ par défaut vide
 }: Props) {
   const { supabase } = useSupabase();
   const [levels, setLevels] = useState<Option[][]>([]);
   const [selected, setSelected] = useState<{ [category: string]: Option }>({});
 
-  // Charger le premier niveau (racine)
+  // --- Charger le premier niveau ---
   useEffect(() => {
     const fetchRoot = async () => {
       const { data, error } = await supabase
@@ -48,7 +50,6 @@ export default function DynamicSelectGroup({
       }
 
       if (data) {
-        // ✅ Filtrage selon admin_only
         const filtered = isAdmin ? data : data.filter((o) => !o.admin_only);
         setLevels([filtered]);
       }
@@ -56,7 +57,7 @@ export default function DynamicSelectGroup({
     fetchRoot();
   }, [rootCategory, subRootCategory, isAdmin, supabase]);
 
-  // Charger une valeur initiale si fournie
+  // --- Charger une valeur initiale ---
   useEffect(() => {
     if (initialValue && levels.length > 0) {
       const option = levels[0].find((o) => o.value === initialValue);
@@ -64,7 +65,7 @@ export default function DynamicSelectGroup({
     }
   }, [initialValue, levels, subRootCategory]);
 
-  // Gérer la sélection d’une option
+  // --- Sélection d’une option ---
   const handleSelect = async (levelIndex: number, option: Option) => {
     const newSelected = { ...selected, [option.category]: option };
     setSelected(newSelected);
@@ -84,7 +85,6 @@ export default function DynamicSelectGroup({
     }
 
     if (children && children.length > 0) {
-      // ✅ même filtrage pour les enfants
       const filtered = isAdmin ? children : children.filter((o) => !o.admin_only);
       const newLevels = [...levels.slice(0, levelIndex + 1), filtered];
       setLevels(newLevels);
@@ -101,6 +101,12 @@ export default function DynamicSelectGroup({
 
         if (!options.length) return null;
 
+        // ✅ on applique le verrouillage ici
+        const processedOptions = options.map((opt) => ({
+          ...opt,
+          disabled: lockedValues.includes(opt.value),
+        }));
+
         return (
           <SelectField
             key={i}
@@ -111,7 +117,7 @@ export default function DynamicSelectGroup({
               const option = options.find((o) => o.value === val);
               if (option) handleSelect(i, option);
             }}
-            options={options}
+            options={processedOptions}
             placeholder={`Choisissez votre ${label}`}
             wrapperClassName="m-0"
             disabled={disabled}

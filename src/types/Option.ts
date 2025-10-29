@@ -9,4 +9,5 @@ export interface Option {
     created_at?: string;
     parent_value?: string | null;
     created_by?: string;
+    disabled?: boolean;
 }

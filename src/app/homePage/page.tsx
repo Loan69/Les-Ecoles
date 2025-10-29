@@ -54,6 +54,9 @@ export default function HomePage() {
     diner: [],
   });
 
+  // --- Etat pour verrouillage des pique niques ---
+  const [lockedValues, setLockedValues] = useState<string[]>([]);
+
 
   // États pour le swipe
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -201,32 +204,49 @@ export default function HomePage() {
     fetchSettings();
   }, []);
 
-  // --- Verrouillage après XhY (paramétré dans app_settings) ---
+  // --- Verrouillage après XhY (paramétré dans app_settings)
   useEffect(() => {
     if (!settings.verrouillage_repas) return;
 
+    // Heure actuelle en timezone Paris
     const now = new Date();
-    const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+    const parisNow = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
     const [lockHour, lockMinute] = settings.verrouillage_repas.split(":").map(Number);
 
-    const currentDay = currentDate.toISOString().split("T")[0];
-    const parisDay = parisTime.toISOString().split("T")[0];
+    // Date sélectionnée et dates de référence (toutes en format YYYY-MM-DD)
+    const selectedDay = currentDate.toISOString().split("T")[0];
+    const parisToday = parisNow.toISOString().split("T")[0];
 
-    const isPastDay = currentDay < parisDay;
-    const isToday = currentDay === parisDay;
+    // Construire la date "demain" selon l'heure de Paris
+    const parisTomorrowDate = new Date(parisNow);
+    parisTomorrowDate.setDate(parisNow.getDate() + 1);
+    const parisTomorrow = parisTomorrowDate.toISOString().split("T")[0];
 
-    const isAfterLock =
-      parisTime.getHours() > lockHour ||
-      (parisTime.getHours() === lockHour && parisTime.getMinutes() >= lockMinute);
+    // Est-ce que l'heure actuelle est passée la limite ?
+    const afterLock =
+      parisNow.getHours() > lockHour ||
+      (parisNow.getHours() === lockHour && parisNow.getMinutes() >= lockMinute);
 
-    if (isPastDay || (isToday && isAfterLock)) {
+    // --- 1) Verrouillage global des présences (ta logique existante) ---
+    const isPastDay = selectedDay < parisToday; // date sélectionnée est dans le passé
+    const isToday = selectedDay === parisToday;
+
+    if (isPastDay || (isToday && afterLock)) {
       setLocked(true);
       setConfirmationMsg(`Les présences aux repas ne sont plus modifiables après ${settings.verrouillage_repas}.`);
     } else {
       setLocked(false);
       setConfirmationMsg("");
     }
-  }, [currentDate, settings]);
+
+    // --- 2) Verrouillage fin (valeurs spécifiques) pour le LENDMAIN si on est après l'heure ---
+    if (selectedDay === parisTomorrow && afterLock) {
+      setLockedValues(["pn_chaud", "pn_froid"]);
+    } else {
+      setLockedValues([]);
+    }
+
+  }, [currentDate, settings, profil]);
 
 
   // --- Chargement : profil + présences repas + événements ---
@@ -659,7 +679,7 @@ export default function HomePage() {
                   <DynamicSelectGroup
                     rootCategory="repas"
                     subRootCategory="dejeuner"
-                    onlyParent={true}
+                    onlyParent
                     onChange={(selected) => {
                       const choix = selected["dejeuner"]?.value;
                       if (choix) handleSelectRepas("dejeuner", choix);
@@ -667,6 +687,7 @@ export default function HomePage() {
                     islabel={false}
                     initialValue={repasDejeuner}
                     disabled={locked}
+                    lockedValues={lockedValues} // verrouiller les pn du lendemain
                     isAdmin={profil?.is_admin}
                   />
                 )}
@@ -719,6 +740,7 @@ export default function HomePage() {
                     islabel={false}
                     initialValue={repasDiner}
                     disabled={locked}
+                    lockedValues={lockedValues} // verrouiller les pn du lendemain
                     isAdmin={profil?.is_admin}
                   />
                 )}
