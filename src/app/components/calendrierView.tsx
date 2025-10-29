@@ -9,6 +9,8 @@ import ModalAjoutEvenement from "./AjoutEventModal";
 import { EventFormData } from "@/types/EventFormData";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import Image from "next/image";
+import ConfirmationToggle from "./ConfirmationToggle";
+import VisionConfirmation from "./VisionConfirmation";
 
 type CalendrierViewProps = {
     events: {
@@ -197,26 +199,31 @@ type CalendrierViewProps = {
                         Évènements du jour : {selectedDay} {currentMonth} {currentYear}
                         </h2>
 
-                        {eventsDuJour.length > 0 ? (
-                        <div className="flex flex-col space-y-2">
-                            {eventsDuJour.map((e) => (
+                        {eventsDuJour.map((e) => (
                             <div
                                 key={e.id}
-                                className={`flex items-center justify-between ${e.couleur} border rounded-lg px-4 py-2`}
+                                className={`flex items-center justify-between ${e.couleur} border rounded-lg px-4 py-2 mb-1`}
                             >
+                                {/* Partie gauche : titre */}
                                 <span className="text-sm font-medium">{e.titre}</span>
-                                <div className="w-5 h-5 bg-white border-2 border-green-500 rounded-md flex items-center justify-center">
-                                <span className="text-green-500 text-sm">✓</span>
+
+                                {/* Partie droite : vision + switch si demandé */}
+                                {e.demander_confirmation ? (
+                                <div className="flex items-center space-x-3">
+                                    <VisionConfirmation eventId={e.id} />
+                                    <ConfirmationToggle eventId={e.id} />
                                 </div>
+                                ) : (
+                                <div className="w-5 h-5 bg-white border-2 border-green-500 rounded-md flex items-center justify-center">
+                                    <span className="text-green-500 text-sm">✓</span>
+                                </div>
+                                )}
                             </div>
-                            ))}
-                        </div>
-                        ) : (
-                        <p className="text-sm text-gray-500 italic">Aucun évènement ce jour.</p>
-                        )}
+                        ))}
                     </div>
                 )}
             </div>
+
             {/* Bouton d’ajout d’évènement */}
             {is_admin && (
                 <button
@@ -232,8 +239,6 @@ type CalendrierViewProps = {
                     +
                 </button>
             )}
-            
-
 
             <ModalAjoutEvenement
                 open={openModal}
