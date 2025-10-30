@@ -211,6 +211,7 @@ export default function HomePage() {
     // Heure actuelle en timezone Paris
     const now = new Date();
     const parisNow = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+    console.log(parisNow)
     const [lockHour, lockMinute] = settings.verrouillage_repas.split(":").map(Number);
 
     // Date sélectionnée et dates de référence (toutes en format YYYY-MM-DD)
@@ -222,7 +223,7 @@ export default function HomePage() {
     parisTomorrowDate.setDate(parisNow.getDate() + 1);
     const parisTomorrow = parisTomorrowDate.toISOString().split("T")[0];
 
-    // Est-ce que l'heure actuelle est passée la limite ?
+    // Est-ce que l'heure actuelle a dépassée la limite ?
     const afterLock =
       parisNow.getHours() > lockHour ||
       (parisNow.getHours() === lockHour && parisNow.getMinutes() >= lockMinute);
@@ -240,11 +241,16 @@ export default function HomePage() {
     }
 
     // --- 2) Verrouillage fin (valeurs spécifiques) pour le LENDMAIN si on est après l'heure ---
-    if (selectedDay === parisTomorrow && afterLock) {
-      setLockedValues(["pn_chaud", "pn_froid"]);
-    } else {
-      setLockedValues([]);
-    }
+    if (
+        // après l’heure pour le lendemain
+        (selectedDay === parisTomorrow && afterLock) ||
+        // OU le jour même (les pique-niques restent bloqués)
+        selectedDay === parisToday
+      ) {
+        setLockedValues(["pn_chaud", "pn_froid"]);
+      } else {
+        setLockedValues([]);
+      }
 
   }, [currentDate, settings, profil]);
 
