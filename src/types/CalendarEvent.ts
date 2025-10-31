@@ -16,4 +16,5 @@ export interface CalendarEvent {
     reserve_admin?: boolean;
     visible_invites?: boolean;
     demander_confirmation?: boolean;
+    rappel_event?: number;
   }

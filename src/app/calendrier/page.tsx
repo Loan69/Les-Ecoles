@@ -62,6 +62,23 @@ export default function CalendrierPage() {
     fetchEvents();
   }, []);
 
+  // Détermination de la couleur suivant l'évènement
+  function getCategoryColor(category: string | null) {
+    switch (category) {
+      case "anniversaire":
+        return "bg-pink-100 text-pink-800 border-pink-300";
+      case "formation":
+        return "bg-emerald-100 text-emerald-800 border-emerald-300";
+      case "intendance":
+        return "bg-sky-100 text-sky-800 border-sky-300";
+      case "autre":
+        return "bg-amber-100 text-amber-800 border-amber-300";
+      default:
+        return "bg-gray-100 text-gray-700 border-gray-300";
+    }
+  }
+
+
   // 🟢 Ajout d’un évènement
   const handleAddEvent = async (data: EventFormData) => {
     const {
@@ -79,14 +96,7 @@ export default function CalendrierPage() {
     } = data;
 
     // Détermination automatique de la couleur selon le type
-    const couleur =
-      category === "anniversaire"
-        ? "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-300"
-        : category === "linge"
-        ? "bg-blue-100 text-blue-700 border-blue-300"
-        : category === "autre"
-        ? "bg-yellow-100 text-yellow-700 border-yellow-300"
-        : "bg-gray-100 text-gray-700 border-gray-300";
+    const couleur = getCategoryColor(category);
 
     // Préparation des données à insérer
     const newEvent = {

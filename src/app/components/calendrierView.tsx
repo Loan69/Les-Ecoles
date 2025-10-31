@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react";
 import ModalAjoutEvenement from "./AjoutEventModal";
 import { EventFormData } from "@/types/EventFormData";
@@ -11,6 +12,7 @@ import { CalendarEvent } from "@/types/CalendarEvent";
 import Image from "next/image";
 import ConfirmationToggle from "./ConfirmationToggle";
 import VisionConfirmation from "./VisionConfirmation";
+import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 
 type CalendrierViewProps = {
     events: {
@@ -37,6 +39,18 @@ type CalendrierViewProps = {
     const [currentDate, setCurrentDate] = useState(new Date());
     const today = new Date();
     const [selectedDay, setSelectedDay] = useState<number | null>(today.getDate());
+
+    // Ouvrir le calendrier sur la bonne date
+    useEffect(() => {
+        const stored = localStorage.getItem("dateSelectionnee");
+        if (stored) {
+            const parsed = parseDateKeyLocal(stored);
+            // affiche le mois correct
+            setCurrentDate(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
+            setSelectedDay(parsed.getDate());
+        }
+        }, []);
+
 
     useEffect(() => {
         if (openModal) {
@@ -160,7 +174,14 @@ type CalendrierViewProps = {
                     return (
                             <div
                                 key={day}
-                                onClick={() => setSelectedDay(day)}
+                                onClick={() => {
+                                            setSelectedDay(day);
+                                            // construit la date sélectionnée en local
+                                            const selectedFullDate = new Date(currentYear, currentDate.getMonth(), day);
+                                            localStorage.setItem("dateSelectionnee", formatDateKeyLocal(selectedFullDate));
+                                        }}
+
+
                                 className={`relative flex flex-col items-center justify-center w-10 h-10 rounded-full cursor-pointer text-sm font-medium transition-all
                                         ${
                                             isSelected
@@ -198,30 +219,60 @@ type CalendrierViewProps = {
                         <h2 className="text-lg font-semibold text-slate-800 mb-3">
                         Évènements du jour : {selectedDay} {currentMonth} {currentYear}
                         </h2>
-
                         {eventsDuJour.map((e) => (
                             <div
                                 key={e.id}
-                                className={`flex items-center justify-between ${e.couleur} border rounded-lg px-4 py-2 mb-1`}
+                                className={`border rounded-lg px-4 py-3 mb-3 ${e.couleur}`}
                             >
-                                {/* Partie gauche : titre */}
-                                <span className="text-sm font-medium">{e.titre}</span>
+                                {/* Ligne titre + boutons */}
+                                <div className="flex items-center justify-between">
+                                    {/* --- Titre --- */}
+                                    <span className="text-sm font-medium text-gray-800">{e.titre}</span>
 
-                                {/* Partie droite : vision + switch si demandé */}
-                                {e.demander_confirmation ? (
-                                <div className="flex items-center space-x-3">
-                                    <VisionConfirmation eventId={e.id} />
-                                    <ConfirmationToggle eventId={e.id} />
+                                    {/* --- Boutons à droite --- */}
+                                    <div className="flex items-center space-x-2">
+                                        {/* 👁 Vision (admin seulement) */}
+                                        {e.demander_confirmation && is_admin && <VisionConfirmation eventId={e.id} />}
+
+                                        {/* ✅ Toggle participation (pour tout le monde si demander_confirmation) */}
+                                        {e.demander_confirmation && <ConfirmationToggle eventId={e.id} />}
+
+                                        {/* ❌ Supprimer (admin seulement) */}
+                                        {is_admin && (
+                                        <button
+                                            onClick={() => {
+                                            if (
+                                                confirm(
+                                                `⚠️ Voulez vous vraiment supprimer l'évènement "${e.titre}" ?`
+                                                )
+                                            ) {
+                                                onDeleteEvent(e.id);
+                                            }
+                                            }}
+                                            className="text-red-600 hover:bg-red-100 rounded-full p-1 transition cursor-pointer"
+                                            title="Supprimer l'évènement"
+                                        >
+                                            ✕
+                                        </button>
+                                        )}
+                                    </div>
                                 </div>
-                                ) : (
-                                <div className="w-5 h-5 bg-white border-2 border-green-500 rounded-md flex items-center justify-center">
-                                    <span className="text-green-500 text-sm">✓</span>
-                                </div>
+
+                                {/* Heure et description dessous */}
+                                {e.heures && (
+                                <p className="text-xs text-gray-600 mt-1 italic">
+                                    À partir de {e.heures}
+                                </p>
+                                )}
+
+                                {e.description && (
+                                <p className="text-xs text-gray-500 mt-1">{e.description}</p>
                                 )}
                             </div>
-                        ))}
+                            ))}
+
                     </div>
-                )}
+                    )}
             </div>
 
             {/* Bouton d’ajout d’évènement */}

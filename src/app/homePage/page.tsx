@@ -19,6 +19,9 @@ import { User } from "@supabase/supabase-js";
 import DynamicSelectGroup from "../components/DynamicSelectGroup";
 import SelectField from "../components/SelectField";
 import { Option } from "@/types/Option";
+import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
+import VisionConfirmation from "../components/VisionConfirmation";
+import ConfirmationToggle from "../components/ConfirmationToggle";
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -28,6 +31,7 @@ export default function HomePage() {
   // --- États principaux ---
   const [profil, setProfil] = useState<Residente | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isInitialized, setIsInitialized] = useState(false); // pour attente lecture de la bonne date
   const [direction, setDirection] = useState<-1 | 0 | 1>(0); // pour l’animation
   const [repasDejeuner, setRepasDejeuner] = useState<string | null>(null);
   const [repasDiner, setRepasDiner] = useState<string | null>(null);
@@ -44,6 +48,9 @@ export default function HomePage() {
   const [selectedResidenceValue, setSelectedResidenceValue] = useState<string | null>("12");
   const [selectedResidenceLabel, setSelectedResidenceLabel] = useState<string | null>("Résidence 12");
   const [settings, setSettings] = useState<{ verrouillage_repas?: string; verrouillage_foyer?: string }>({});
+
+  // --- Rappels d’événements ---
+  const [reminders, setReminders] = useState<CalendarEvent[]>([]);
 
   // Repas spéciaux
   const [specialOptions, setSpecialOptions] = useState<{
@@ -101,7 +108,7 @@ export default function HomePage() {
         if (!error && data) {
           const formatted = data.map((item) => ({
             value: item.value,
-            label: item.label, // ici on renomme value → label
+            label: item.label,
           }));
           setResidences(formatted);
         }
@@ -110,13 +117,30 @@ export default function HomePage() {
     fetchResidences();
   }, []);
 
+  // Réglage de la date
+  useEffect(() => {
+    const storedDate = localStorage.getItem("dateSelectionnee");
+    console.log("storedDate:", storedDate);
+
+    if (storedDate) {
+      setCurrentDate(parseDateKeyLocal(storedDate)); // date du calendrier
+    } else {
+      setCurrentDate(new Date());
+    }
+
+    setIsInitialized(true); // ✅ on marque qu'on a lu la valeur
+  }, []);
 
   useEffect(() => {
-    // Réglage des dates pour synchro
-    localStorage.setItem("dateSelectionnee", currentDate.toISOString().slice(0, 10));
-    localStorage.setItem("startDate", currentDate.toISOString().slice(0, 10));
-    localStorage.setItem("endDate", currentDate.toISOString().slice(0, 10));
-  }, [currentDate]);
+    // ✅ Ne rien faire tant que la première lecture n'est pas terminée
+    if (!isInitialized) return;
+
+    // Maintenant on peut écrire sans risque
+    localStorage.setItem("dateSelectionnee", formatDateKeyLocal(currentDate));
+    localStorage.setItem("startDate", formatDateKeyLocal(currentDate));
+    localStorage.setItem("endDate", formatDateKeyLocal(currentDate));
+  }, [currentDate, isInitialized]);
+
 
   // --- Format date FR ---
   const formatDate = (date: Date) => {
@@ -135,7 +159,7 @@ export default function HomePage() {
     setCurrentDate((prev) => {
       const newDate = new Date(prev);
       newDate.setDate(prev.getDate() - 1);
-      localStorage.setItem("dateSelectionnee", newDate.toISOString().slice(0, 10));
+      localStorage.setItem("dateSelectionnee", formatDateKeyLocal(newDate));
       return newDate;
     });
   };
@@ -145,7 +169,7 @@ export default function HomePage() {
     setCurrentDate((prev) => {
       const newDate = new Date(prev);
       newDate.setDate(prev.getDate() + 1);
-      localStorage.setItem("dateSelectionnee", newDate.toISOString().slice(0, 10));
+      localStorage.setItem("dateSelectionnee", formatDateKeyLocal(newDate));
       return newDate;
     });
   };
@@ -153,6 +177,7 @@ export default function HomePage() {
   // --- Gestion de la présence de l'utilisatrice au foyer ---
   // --- Récupération de la présence pour la date sélectionnée ---
   useEffect(() => {
+    console.log("currentDate locale =>", formatDateKeyLocal(currentDate))
     const fetchStatus = async () => {
       if (!user) return;
 
@@ -211,7 +236,6 @@ export default function HomePage() {
     // Heure actuelle en timezone Paris
     const now = new Date();
     const parisNow = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-    console.log(parisNow)
     const [lockHour, lockMinute] = settings.verrouillage_repas.split(":").map(Number);
 
     // Date sélectionnée et dates de référence (toutes en format YYYY-MM-DD)
@@ -261,7 +285,7 @@ export default function HomePage() {
       if (!user) return;
       setIsReady(false);
 
-      const dateIso = currentDate.toISOString().split("T")[0];
+      const dateIso = formatDateKeyLocal(currentDate);
 
       // Profil
       const { data: profilData, error: profilError } = await supabase
@@ -370,12 +394,55 @@ export default function HomePage() {
     setCommentValue(updatedRow?.commentaire || "");
   };
 
+  // Chargement des rappels d'évènements
+  useEffect(() => {
+    const fetchReminders = async () => {
+      // on se base sur la date affichée dans le calendrier (currentDate)
+      const targetDate = new Date(currentDate);
+      targetDate.setHours(0, 0, 0, 0);
+
+      // On ne prend que les événements futurs ou du jour (pour éviter de rater des rappels en avance)
+      const { data: allEvents, error } = await supabase
+        .from("evenements")
+        .select("*")
+        .gte("date_event", formatDateKeyLocal(new Date())) // événements à venir
+        .not("rappel_event", "is", null); // avec un rappel défini
+
+      if (error) {
+        console.error("Erreur récupération rappels :", error);
+        return;
+      }
+
+      const activeReminders = allEvents.filter((evt) => {
+        const dateEvt = new Date(evt.date_event);
+        dateEvt.setHours(0, 0, 0, 0);
+
+        const daysBefore = Number(evt.rappel_event || 0);
+        if (daysBefore <= 0) return false;
+
+        const reminderStart = new Date(dateEvt.getTime());
+        reminderStart.setDate(reminderStart.getDate() - daysBefore);
+        reminderStart.setHours(0, 0, 0, 0);
+
+        // le jour affiché doit être dans [reminderStart, dateEvt)
+        return targetDate >= reminderStart && targetDate < dateEvt;
+      });
+
+      setReminders(activeReminders);
+    };
+
+    fetchReminders();
+  }, [supabase, currentDate]); // 🔥 on ajoute currentDate ici
+
+
+
+
   // Chargement des repas spéciaux
   useEffect(() => {
     const fetchSpecialOptions = async () => {
       if (!user) return;
 
-      const dateIso = currentDate.toISOString().split("T")[0];
+      const dateIso = formatDateKeyLocal(currentDate);
 
       const { data, error } = await supabase
         .from("special_meal_options")
@@ -617,8 +684,40 @@ export default function HomePage() {
         ))}
       </div>
 
+
       {/* Bloc principal animé */}
       <section className="w-full max-w-md bg-white rounded-xl shadow-lg p-5 overflow-hidden relative">
+        {/* 🔔 Bloc Rappels du jour */}
+        {reminders.length > 0 && (
+          <div className="w-full mb-5 bg-yellow-50 border border-yellow-300 rounded-lg p-4 shadow-sm">
+            <h3 className="text-lg font-semibold text-yellow-800 mb-2">
+              🔔 Rappels du jour
+            </h3>
+            <ul className="space-y-2">
+              {reminders.map((evt) => (
+                <li 
+                  key={evt.id}
+                  className={`${evt.couleur} bg-white p-3 rounded-lg shadow-sm border border-yellow-200`}
+                >
+                  <strong className="text-yellow-800">{evt.titre}</strong>
+                  {evt.date_event && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      Évènement prévu le{" "}
+                      {new Date(evt.date_event).toLocaleDateString("fr-FR", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                      })} au {evt.lieu}
+                    </p>
+                  )}
+                  {evt.description && (
+                    <p className="text-gray-700 text-sm mt-1">{evt.description}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="flex justify-center items-center mb-5 space-x-4">
           <h2 className="text-xl font-semibold text-center text-blue-800">
             {formatDate(currentDate)}
@@ -642,18 +741,36 @@ export default function HomePage() {
                   Aucun évènement prévu pour la {selectedResidenceLabel}.
                 </p>
               ) : (
-                filteredEvents.map((event) => (
-                  <div key={event.id} className="flex items-center mb-2">
-                    <div
-                      className={`text-gray-700 text-sm text-center flex-1 ${event.couleur} rounded px-1 py-2`}
-                    >
-                      {event.titre} {event.heures ? `à partir de ${event.heures})` : ""}
-                      {event.description && (
-                      <p className="text-gray-500 text-xs text-center mt-1 px-2">
-                        {event.description}
+                filteredEvents.map((e) => (
+                  <div
+                      key={e.id}
+                      className={`border rounded-lg px-4 py-3 mb-3 ${e.couleur}`}
+                  >
+                      {/* Ligne titre + boutons */}
+                      <div className="flex items-center justify-between">
+                          {/* --- Titre --- */}
+                          <span className="text-sm font-medium text-gray-800">{e.titre}</span>
+
+                          {/* --- Boutons à droite --- */}
+                          <div className="flex items-center space-x-2">
+                              {/* 👁 Vision (admin seulement) */}
+                              {e.demander_confirmation && profil?.is_admin && <VisionConfirmation eventId={e.id} />}
+
+                              {/* ✅ Toggle participation (pour tout le monde si demander_confirmation) */}
+                              {e.demander_confirmation && <ConfirmationToggle eventId={e.id} />}
+                          </div>
+                      </div>
+
+                      {/* Heure et description dessous */}
+                      {e.heures && (
+                      <p className="text-xs text-gray-600 mt-1 italic">
+                          À partir de {e.heures}
                       </p>
-                    )}
-                    </div>
+                      )}
+
+                      {e.description && (
+                      <p className="text-xs text-gray-500 mt-1">{e.description}</p>
+                      )}
                   </div>
                 ))
               )}

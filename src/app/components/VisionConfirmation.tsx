@@ -68,7 +68,7 @@ export default function VisionConfirmation({ eventId }: VisionConfirmationsProps
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button className="text-slate-700 hover:text-slate-900 cursor-pointer">
+        <button className="p-2 border border-black rounded-lg cursor-pointer">
           <Eye className="w-5 h-5" />
         </button>
       </DialogTrigger>

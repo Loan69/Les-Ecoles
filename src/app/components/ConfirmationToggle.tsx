@@ -19,20 +19,15 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
   const [loading, setLoading] = useState(false)
   const [isIntendance, setIsIntendance] = useState(false)
 
-  // 🔹 Récupération de l'utilisateur courant
   useEffect(() => {
     const fetchUser = async () => {
       const { data, error } = await supabase.auth.getUser()
-      if (error || !data?.user) {
-        console.warn("Aucun utilisateur valide")
-        return
-      }
+      if (error || !data?.user) return
       setUser(data.user)
     }
     fetchUser()
   }, [supabase])
 
-  // 🔹 Récupération des infos de l'évènement (category + confirmations)
   useEffect(() => {
     const fetchEventData = async () => {
       if (!user) return
@@ -56,71 +51,73 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
     fetchEventData()
   }, [user, eventId, supabase])
 
-  // 🔹 Gestion du toggle
+  
+
   const handleToggle = async () => {
-    if (!user) return
-    setLoading(true)
+    if (!user) return;
+    setLoading(true);
 
-    const { data, error } = await supabase
-      .from("evenements")
-      .select("confirmations")
-      .eq("id", eventId)
-      .single()
+    try {
 
-    if (error) {
-      console.error(error)
-      setLoading(false)
-      return
+        // Récupérer les confirmations actuelles
+        const { data, error } = await supabase
+        .from("evenements")
+        .select("confirmations")
+        .eq("id", eventId)
+        .single();
+
+        if (error) {
+        console.error("❌ Erreur fetch confirmations :", error);
+        setLoading(false);
+        return;
+        }
+
+        // Toujours récupérer un tableau
+        const confirmations: string[] = data?.confirmations || [];
+        const userId = user.id;
+
+        // Ajouter ou retirer l'utilisateur
+        const updatedConfirmations = checked
+        ? confirmations.filter(id => id !== userId)
+        : [...confirmations, userId];
+
+        // Update dans Supabase
+        const { data: updateData, error: updateError } = await supabase
+        .from("evenements")
+        .update({ confirmations: updatedConfirmations })
+        .eq("id", eventId)
+        .select(); // 🔹 select() permet de récupérer le résultat après update
+
+        if (updateError) {
+        console.error("❌ Erreur update confirmations :", updateError);
+        } else {
+        setChecked(!checked); // Mise à jour visuelle
+        }
+    } catch (err) {
+        console.error("❌ Exception handleToggle :", err);
+    } finally {
+        setLoading(false);
     }
+    };
 
-    const confirmations = (data?.confirmations as EventFormData["confirmations"]) || []
-    const userId = user.id
-
-    const updatedConfirmations = checked
-      ? confirmations.filter((id) => id !== userId)
-      : [...new Set([...confirmations, userId])]
-
-    const { error: updateError } = await supabase
-      .from("evenements")
-      .update({ confirmations: updatedConfirmations })
-      .eq("id", eventId)
-
-    if (updateError) {
-      console.error(updateError)
-    } else {
-      setChecked(!checked) // ✅ mise à jour visuelle immédiate
-    }
-
-    setLoading(false)
-  }
-
-  // 🔹 Définition des labels selon la catégorie
   const activeLabel = isIntendance ? "Fait" : "Je participe"
   const inactiveLabel = isIntendance ? "Non réalisé" : "Je ne participe pas"
 
   return (
     <Button
-      variant={checked ? "default" : "outline"}
+      variant="outline"
       disabled={loading}
       onClick={handleToggle}
+      title={checked ? activeLabel : inactiveLabel} // infobulle
       className={cn(
-        "flex items-center gap-2 transition-all cursor-pointer",
+        "cursor-pointer p-2 rounded-lg transition-all flex items-center justify-center",
+        "border hover:bg-gray-200",
         checked
-          ? "bg-green-500 hover:bg-green-600 text-white"
-          : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+          ? "border-green-500 bg-green-500 text-white hover:bg-green-600"
+          : "border-gray-400 bg-white text-gray-700"
       )}
     >
-      {checked ? (
-        <>
-          <Check className="h-4 w-4" />
-          <span>{activeLabel}</span>
-        </>
-      ) : (
-        <>
-          <X className="h-4 w-4" />
-          <span>{inactiveLabel}</span>
-        </>
-      )}
+      {checked ? <Check className="h-5 w-5" /> : <X className="h-5 w-5" />}
     </Button>
   )
 }
