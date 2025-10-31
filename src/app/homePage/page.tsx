@@ -120,7 +120,6 @@ export default function HomePage() {
   // Réglage de la date
   useEffect(() => {
     const storedDate = localStorage.getItem("dateSelectionnee");
-    console.log("storedDate:", storedDate);
 
     if (storedDate) {
       setCurrentDate(parseDateKeyLocal(storedDate)); // date du calendrier
@@ -177,7 +176,6 @@ export default function HomePage() {
   // --- Gestion de la présence de l'utilisatrice au foyer ---
   // --- Récupération de la présence pour la date sélectionnée ---
   useEffect(() => {
-    console.log("currentDate locale =>", formatDateKeyLocal(currentDate))
     const fetchStatus = async () => {
       if (!user) return;
 
@@ -651,7 +649,7 @@ export default function HomePage() {
       {/* Présence au foyer */}
       <div className="flex flex-col items-center mt-4 space-y-2 mb-5">
         <PresenceButton 
-          date={currentDate.toISOString().slice(0, 10)}
+          date={formatDateKeyLocal(currentDate)}
           isAbsent={isAbsent}
           togglePresence={togglePresence}
           isAdmin={profil?.is_admin}
