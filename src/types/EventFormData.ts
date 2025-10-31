@@ -15,4 +15,5 @@ export interface EventFormData {
   demander_confirmation?: boolean;
   reserve_admin?: boolean;
   confirmations?: string[];
+  rappel_event?: number;
 }

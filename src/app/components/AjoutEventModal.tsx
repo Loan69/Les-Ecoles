@@ -27,11 +27,12 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
     visible_invites: false,
     demander_confirmation: false,
     reserve_admin: false,
+    rappel_event: 0,
   });
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectionEvent, setSelectionEvent] = useState<{ [category: string]: Option }>({});
   const [selectionVisi, setSelectionVisi] = useState<{ [category: string]: Option[] }>({});
+  const [selectionRappel, setSelectionRappel] = useState<{ [category: string]: Option }>({});
 
   // ✅ Réinitialisation à chaque ouverture
   useEffect(() => {
@@ -51,6 +52,7 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
       });
       setSelectionEvent({});
       setSelectionVisi({});
+      setSelectionRappel({})
     }
   }, [open]);
 
@@ -131,21 +133,17 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
           />
 
           {/* Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date et horaire
-            </label>
-            <input
-              type={showDatePicker ? "date" : "text"}
-              name="date_event"
-              value={form.date_event}
-              onFocus={() => setShowDatePicker(true)}
-              onBlur={(e) => !e.target.value && setShowDatePicker(false)}
-              onChange={handleChange}
-              placeholder="Sélectionner une date"
-              className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md"
-            />
-          </div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Date et horaire
+          </label>
+          <input
+            type="date"
+            name="date_event"
+            value={form.date_event}
+            onChange={handleChange}
+            placeholder="Sélectionner une date"
+            className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md"
+          />
 
           {/* Heure */}
           <input
@@ -154,6 +152,16 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
             onChange={handleChange}
             placeholder="Horaire de l'évènement"
             className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md"
+          />
+
+          {/* Rappel de l'évènement */}
+          <DynamicSelectGroup
+            rootCategory="rappel"
+            onChange={(selected) => {
+              const rappelValue = Object.values(selected)[0]?.value || "";
+              handleSelectChange("rappel_event", rappelValue);
+              setSelectionRappel(selected);
+            }}
           />
 
           {/* Description */}
@@ -270,13 +278,13 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border rounded-lg text-blue-700 text-sm hover:bg-blue-50"
+              className="cursor-pointer px-4 py-2 border rounded-lg text-blue-700 text-sm hover:bg-blue-50"
             >
               Annuler
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-700 text-white rounded-lg text-sm hover:bg-blue-800"
+              className="cursor-pointer px-4 py-2 bg-blue-700 text-white rounded-lg text-sm hover:bg-blue-800"
             >
               Enregistrer
             </button>

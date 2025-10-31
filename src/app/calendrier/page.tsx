@@ -93,6 +93,7 @@ export default function CalendrierPage() {
       visible_invites,
       demander_confirmation,
       reserve_admin,
+      rappel_event,
     } = data;
 
     // Détermination automatique de la couleur selon le type
@@ -113,6 +114,7 @@ export default function CalendrierPage() {
       demander_confirmation,
       user_id: user?.id,
       reserve_admin,
+      rappel_event,
     };
 
     // Insertion dans la table Supabase
