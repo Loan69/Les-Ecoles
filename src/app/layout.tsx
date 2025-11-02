@@ -6,6 +6,14 @@ import BottomNav from "./components/bottomNav"
 import { Providers } from "./providers"
 import Head from "next/head"
 
+export const metadata = {
+  title: 'Les Écoles',
+  description: 'Espace des résidentes et invitées du Foyer des Écoles',
+  icons: {
+    icon: '/favicon.ico',
+  },
+}
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const hideBottomNav = ["/signin", "/signup", "/completionProfile"]
