@@ -4,6 +4,7 @@ import { Eye } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSupabase } from "../providers";
 import { useRouter } from "next/navigation";
+import { formatDateKeyLocal } from "@/lib/utilDate";
 
 interface PresenceButtonProps {
   date: string;
@@ -40,8 +41,9 @@ export default function PresenceButton({
   // --- Définition du verrouillage pour le jour actuel ---
   const now = new Date();
   const parisTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-  const isToday = parisTime.toISOString().split("T")[0] === date;
-  const today = parisTime.toISOString().split("T")[0];
+  const isToday = formatDateKeyLocal(parisTime) === date;
+  const today = formatDateKeyLocal(parisTime);
+
 
   const [lockHour, lockMinute] = verrouillageFoyer.split(":").map(Number);
 

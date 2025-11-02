@@ -237,13 +237,14 @@ export default function HomePage() {
     const [lockHour, lockMinute] = settings.verrouillage_repas.split(":").map(Number);
 
     // Date sélectionnée et dates de référence (toutes en format YYYY-MM-DD)
-    const selectedDay = currentDate.toISOString().split("T")[0];
-    const parisToday = parisNow.toISOString().split("T")[0];
+    const selectedDay = formatDateKeyLocal(currentDate);
+    const parisToday = formatDateKeyLocal(parisNow);
+
 
     // Construire la date "demain" selon l'heure de Paris
     const parisTomorrowDate = new Date(parisNow);
     parisTomorrowDate.setDate(parisNow.getDate() + 1);
-    const parisTomorrow = parisTomorrowDate.toISOString().split("T")[0];
+    const parisTomorrow = formatDateKeyLocal(parisTomorrowDate);
 
     // Est-ce que l'heure actuelle a dépassée la limite ?
     const afterLock =
@@ -338,7 +339,7 @@ export default function HomePage() {
       body: JSON.stringify({
         repas,
         choix,
-        date: currentDate.toISOString().split("T")[0],
+        date: formatDateKeyLocal(currentDate),
       }),
     });
 
