@@ -1,8 +1,7 @@
 import "./globals.css"
-import { usePathname } from "next/navigation"
-import BottomNav from "./components/bottomNav"
-import { Providers } from "./providers"
 import Head from "next/head"
+import { Providers } from "./providers"
+import ClientLayout from "./ClientLayout"
 
 export const metadata = {
   title: 'Les Écoles',
@@ -13,10 +12,6 @@ export const metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const hideBottomNav = ["/signin", "/signup", "/completionProfile"]
-  const shouldHideNavbar = hideBottomNav.includes(pathname)
-
   return (
     <html lang="fr">
       <Head>
@@ -34,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-title" content="Les Écoles" />
 
         {/* Couleur du thème pour Android */}
-        <meta name="theme-color" content="#1E3A8A" /> {/* Bleu profond du logo */}
+        <meta name="theme-color" content="#1E3A8A" />
 
         {/* Manifest PWA */}
         <link rel="manifest" href="/manifest.json" />
@@ -45,8 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
       <body className="min-h-screen bg-gray-50 text-gray-900">
         <Providers>
-          <main className="flex-1 pb-16">{children}</main>
-          {!shouldHideNavbar && <BottomNav />}
+          <ClientLayout>{children}</ClientLayout>
         </Providers>
       </body>
     </html>
