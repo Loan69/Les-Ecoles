@@ -2,59 +2,82 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import { EventFormData } from "@/types/EventFormData";
 import DynamicSelectGroup from "./DynamicSelectGroup";
 import DynamicMultiSelectGroup from "./DynamicMultiSelectGroup";
-import { Option } from "@/types/Option";
+import DateSelector from "./DatesSelector";
+import { CalendarEvent } from "@/types/CalendarEvent";
 
 type ModalProps = {
   open: boolean;
   onClose: () => void;
-  onSave: (data: EventFormData) => void | Promise<void>;
+  onSave: (data: CalendarEvent) => void | Promise<void>;
   isAdmin?: boolean;
+  eventToEdit?: Partial <CalendarEvent | null>; // ✅ Événement à modifier
+  isEditing?: boolean;
 };
 
-export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = false }: ModalProps) {
-  const [form, setForm] = useState<EventFormData>({
+export default function ModalAjoutEvenement({ 
+  open, 
+  onClose, 
+  onSave, 
+  isAdmin = false,
+  eventToEdit = null, // ✅ null = mode ajout, objet = mode édition
+  isEditing = false
+}: ModalProps) {
+  
+  const [form, setForm] = useState<CalendarEvent>({
     titre: "",
     category: "",
     description: "",
-    date_event: "",
+    dates_event: [],
     recurrence: "",
     heures: "",
     lieu: "",
-    visibilite: { residences: [], etages: [], chambres: [] },
+    visibilite: { residence: [], etage: [], chambre: [] },
     visible_invites: false,
     demander_confirmation: false,
     reserve_admin: false,
     rappel_event: 0,
   });
 
-  const [selectionEvent, setSelectionEvent] = useState<{ [category: string]: Option }>({});
-  const [selectionVisi, setSelectionVisi] = useState<{ [category: string]: Option[] }>({});
-  const [selectionRappel, setSelectionRappel] = useState<{ [category: string]: Option }>({});
-
   // ✅ Réinitialisation à chaque ouverture
   useEffect(() => {
     if (open) {
-      setForm({
-        titre: "",
-        category: "",
-        description: "",
-        date_event: "",
-        recurrence: "",
-        heures: "",
-        lieu: "",
-        visibilite: { residences: [], etages: [], chambres: [] },
-        visible_invites: false,
-        demander_confirmation: false,
-        reserve_admin: false,
-      });
-      setSelectionEvent({});
-      setSelectionVisi({});
-      setSelectionRappel({})
+      if (eventToEdit) {
+        // Mode édition : pré-remplir avec les données existantes
+        setForm({
+          titre: eventToEdit.titre || "",
+          category: eventToEdit.category || "",
+          description: eventToEdit.description || "",
+          dates_event: eventToEdit.dates_event || [],
+          recurrence: eventToEdit.recurrence || "",
+          heures: eventToEdit.heures || "",
+          lieu: eventToEdit.lieu || "",
+          visibilite: eventToEdit.visibilite || { residence: [], etage: [], chambre: [] },
+          visible_invites: eventToEdit.visible_invites || false,
+          demander_confirmation: eventToEdit.demander_confirmation || false,
+          reserve_admin: eventToEdit.reserve_admin || false,
+          rappel_event: eventToEdit.rappel_event || 0,
+        });
+      } else {
+        // Mode ajout : formulaire vide
+        setForm({
+          titre: "",
+          category: "",
+          description: "",
+          dates_event: [],
+          recurrence: "",
+          heures: "",
+          lieu: "",
+          visibilite: { residence: [], etage: [], chambre: [] },
+          visible_invites: false,
+          demander_confirmation: false,
+          reserve_admin: false,
+          rappel_event: 0,
+        });
+      }
     }
-  }, [open]);
+  }, [open, eventToEdit]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const target = e.target as HTMLInputElement;
@@ -67,16 +90,7 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
     }));
   };
 
-
-  const handleSelectChange = (
-    name: keyof EventFormData,
-    value:
-      | string
-      | string[]
-      | { [category: string]: Option[] }
-      | { [category: string]: Option }
-      | { [category: string]: string[] }
-  ) => {
+  const handleSelectChange = (name: keyof CalendarEvent, value: any) => {
     setForm((prev) => ({
       ...prev,
       [name]: value,
@@ -85,10 +99,12 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.category || !form.titre || !form.date_event || !form.lieu) {
+    
+    if (!form.category || !form.titre || !form.dates_event?.length || !form.lieu) {
       alert("Merci de remplir tous les champs requis.");
       return;
     }
+    
     await onSave(form);
   };
 
@@ -105,7 +121,9 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
           <X size={20} />
         </button>
 
-        <h2 className="text-lg font-semibold text-blue-800">Ajouter un évènement</h2>
+        <h2 className="text-lg font-semibold text-blue-800">
+          {isEditing ? "Modifier l'évènement" : "Ajouter un évènement"}
+        </h2>
         <div className="w-full bg-blue-500 h-[1px] mb-4" />
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -114,12 +132,13 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
             Type de l&apos;évènement
           </label>
           <DynamicSelectGroup
+            key={`event-${open}`}
             rootCategory="evenement"
             onChange={(selected) => {
               const catValue = Object.values(selected)[0]?.value || "";
               handleSelectChange("category", catValue);
-              setSelectionEvent(selected);
             }}
+            initialValue={form.category}
             islabel={false}
           />
 
@@ -132,18 +151,11 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
             className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md focus:ring-2 focus:ring-blue-500"
           />
 
-          {/* Date */}
+          {/* Dates */}
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Date et horaire
+            Date(s) de l'événement
           </label>
-          <input
-            type="date"
-            name="date_event"
-            value={form.date_event}
-            onChange={handleChange}
-            placeholder="Sélectionner une date"
-            className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md"
-          />
+          <DateSelector form={form} setForm={setForm} />
 
           {/* Heure */}
           <input
@@ -154,14 +166,15 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
             className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md"
           />
 
-          {/* Rappel de l'évènement */}
+          {/* Rappel */}
           <DynamicSelectGroup
+            key={`rappel-${open}`}
             rootCategory="rappel"
             onChange={(selected) => {
               const rappelValue = Object.values(selected)[0]?.value || "";
-              handleSelectChange("rappel_event", rappelValue);
-              setSelectionRappel(selected);
+              handleSelectChange("rappel_event", Number(rappelValue) || 0);
             }}
+            initialValue={String(form.rappel_event)}
           />
 
           {/* Description */}
@@ -172,7 +185,7 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
             name="description"
             value={form.description}
             onChange={handleChange}
-            placeholder="Ajoutez des détails sur l’évènement..."
+            placeholder="Ajoutez des détails sur l'évènement..."
             rows={4}
             className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md resize-none"
           />
@@ -183,20 +196,22 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
               Lieu de l&apos;évènement
             </label>
             <DynamicSelectGroup
+              key={`lieu-${open}`}
               rootCategory="residence"
               onChange={(selected) => {
                 const catValue = Object.values(selected)[0]?.value || "";
                 handleSelectChange("lieu", catValue);
               }}
+              initialValue={form.lieu}
               onlyParent={true}
               islabel={false}
             />
           </div>
 
-          {/* --- ✅ Section visibilité --- */}
+          {/* Section visibilité */}
           <h2 className="text-blue-800 font-semibold mt-4">Visibilité</h2>
 
-          {/* Checkbox staff (visible uniquement pour les admins) */}
+          {/* Checkbox staff */}
           {isAdmin && (
             <label className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-gray-100 transition">
               <div className="flex flex-col">
@@ -211,21 +226,17 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
                 type="checkbox"
                 name="reserve_admin"
                 checked={form.reserve_admin || false}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    reserve_admin: e.target.checked,
-                  }))
-                }
+                onChange={handleChange}
                 className="w-5 h-5 accent-blue-600 rounded-md cursor-pointer"
               />
             </label>
           )}
 
-          {/* Multiselect de visibilité (désactivé si réservé au staff) */}
+          {/* Multiselect visibilité */}
           <DynamicMultiSelectGroup
+            key={`visi-${open}`}
             rootCategory="residence"
-            disabled={form.reserve_admin} // ✅ désactivé si réservé au staff
+            disabled={form.reserve_admin}
             onChange={(selected) => {
               const transformed: { [category: string]: string[] } = {};
               Object.entries(selected).forEach(([category, options]) => {
@@ -233,9 +244,10 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
               });
               handleSelectChange("visibilite", transformed);
             }}
+            initialValues={form.visibilite}
           />
 
-          {/* Visible par les invitées */}
+          {/* Visible invitées */}
           <label className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-gray-100 transition">
             <div className="flex flex-col">
               <span className="text-sm font-medium text-gray-800">
@@ -254,7 +266,7 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
             />
           </label>
 
-          {/* Confirmation participation */}
+          {/* Demander confirmation */}
           <label className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-gray-100 transition">
             <div className="flex flex-col">
               <span className="text-sm font-medium text-gray-800">
@@ -286,7 +298,7 @@ export default function ModalAjoutEvenement({ open, onClose, onSave, isAdmin = f
               type="submit"
               className="cursor-pointer px-4 py-2 bg-blue-700 text-white rounded-lg text-sm hover:bg-blue-800"
             >
-              Enregistrer
+              {isEditing ? "Enregistrer les modifications" : "Enregistrer"}
             </button>
           </div>
         </form>

@@ -2,12 +2,10 @@
 
 import { useState, useEffect } from "react";
 import CalendrierView from "../components/calendrierView";
-import { EventFormData } from "@/types/EventFormData";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { User } from "@supabase/supabase-js";
 import { useSupabase } from "../providers";
 import LogoutButton from "../components/logoutButton";
-
 
 export default function CalendrierPage() {
   const { supabase } = useSupabase();
@@ -29,32 +27,27 @@ export default function CalendrierPage() {
     fetchUser();
   }, []);
 
-  // Charger les données de l'utilisatrice pour voir si elle est admin
+  // Vérifier si l'utilisateur est admin
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!user?.id) return; // ⚠️ stop si user non défini
+      if (!user?.id) return;
 
       const { data, error } = await supabase
         .from("residentes")
         .select("is_admin")
-        .eq("user_id", user?.id)
+        .eq("user_id", user.id)
         .maybeSingle();
 
       if (error) console.error(error);
-      
       else setIsAdmin(data?.is_admin);
-    }
-
+    };
     fetchProfile();
   }, [user]);
 
-  // 🟢 Charger les évènements depuis Supabase
+  // Charger les événements depuis Supabase
   const fetchEvents = async () => {
-    const { data, error } = await supabase
-      .from("evenements")
-      .select("*")
-      .order("date_event", { ascending: true });
-    if (error) console.error(error);
+    const { data, error } = await supabase.from("evenements").select("*");
+    if (error) console.error("Erreur chargement des événements :", error);
     else setEvents(data || []);
   };
 
@@ -62,8 +55,8 @@ export default function CalendrierPage() {
     fetchEvents();
   }, []);
 
-  // Détermination de la couleur suivant l'évènement
-  function getCategoryColor(category: string | null) {
+  // Déterminer la couleur selon la catégorie
+  const getCategoryColor = (category: string | undefined) => {
     switch (category) {
       case "anniversaire":
         return "bg-pink-100 text-pink-800 border-pink-300";
@@ -76,48 +69,18 @@ export default function CalendrierPage() {
       default:
         return "bg-gray-100 text-gray-700 border-gray-300";
     }
-  }
+  };
 
+  // Ajouter un événement
+  const handleAddEvent = async (data: Partial<CalendarEvent>) => {
+    const couleur = getCategoryColor(data.category);
 
-  // 🟢 Ajout d’un évènement
-  const handleAddEvent = async (data: EventFormData) => {
-    const {
-      titre,
-      category,
-      date_event,
-      description,
-      recurrence,
-      heures,
-      lieu,
-      visibilite,
-      visible_invites,
-      demander_confirmation,
-      reserve_admin,
-      rappel_event,
-    } = data;
-
-    // Détermination automatique de la couleur selon le type
-    const couleur = getCategoryColor(category);
-
-    // Préparation des données à insérer
     const newEvent = {
-      titre,
-      category,
+      ...data,
       couleur,
-      date_event,
-      description,
-      recurrence,
-      heures,
-      lieu,
-      visibilite, // objet { residences: [], etages: [], chambres: [] }
-      visible_invites,
-      demander_confirmation,
       user_id: user?.id,
-      reserve_admin,
-      rappel_event,
     };
 
-    // Insertion dans la table Supabase
     const { data: inserted, error } = await supabase
       .from("evenements")
       .insert([newEvent])
@@ -129,20 +92,46 @@ export default function CalendrierPage() {
     }
 
     if (inserted && inserted.length > 0) {
-      console.log("✅ Évènement ajouté :", inserted[0]);
       setEvents((prev) => [...prev, ...inserted]);
     }
   };
 
+  // Supprimer un événement
+  const handleDeleteEvent = async (
+    eventId: number,
+    deleteType: "occurrence" | "all" = "all",
+    selectedDate?: string
+  ) => {
+    const { data: event, error: fetchError } = await supabase
+      .from("evenements")
+      .select("*")
+      .eq("id", eventId)
+      .single();
 
-  // 🟢 Suppression d’un évènement
-  const handleDeleteEvent = async (id: number) => {
-    const { error } = await supabase.from("evenements").delete().eq("id", id);
-    if (error) console.error("Erreur suppression :", error);
-    else setEvents((prev) => prev.filter((e) => e.id !== id));
+    if (fetchError) {
+      console.error("Erreur récupération de l'événement :", fetchError);
+      return;
+    }
+
+    if (deleteType === "occurrence" && selectedDate) {
+      const newDates = (event.dates_event || []).filter((d: string) => d !== selectedDate);
+      const { error: updateError } = await supabase
+        .from("evenements")
+        .update({ dates_event: newDates })
+        .eq("id", eventId);
+
+      if (updateError) console.error("Erreur mise à jour dates :", updateError);
+      else setEvents((prev) =>
+        prev.map((e) => (e.id === eventId ? { ...e, dates_event: newDates } : e))
+      );
+    } else {
+      const { error: deleteError } = await supabase.from("evenements").delete().eq("id", eventId);
+      if (deleteError) console.error("Erreur suppression :", deleteError);
+      else setEvents((prev) => prev.filter((e) => e.id !== eventId));
+    }
   };
 
-  // 🟢 Edition d’un évènement (optionnel pour plus tard)
+  // Modifier un événement
   const handleEditEvent = async (id: number, updates: Partial<CalendarEvent>) => {
     const { data, error } = await supabase
       .from("evenements")
@@ -151,28 +140,24 @@ export default function CalendrierPage() {
       .select();
 
     if (error) console.error("Erreur de modification :", error);
-    else if (data) {
-      setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...data[0] } : e)));
-    }
+    else if (data) setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...data[0] } : e)));
   };
 
   return (
     <main className="min-h-screen flex flex-col items-center bg-white px-4 pt-6">
-    {/* --- Bouton de déconnexion --- */}
-    <div className="w-full max-w-md flex justify-end mb-4">
-      <LogoutButton />
-    </div>
+      <div className="w-full max-w-md flex justify-end mb-4">
+        <LogoutButton />
+      </div>
 
-    {/* --- Contenu principal du calendrier --- */}
-    <div className="w-full max-w-md">
-      <CalendrierView
-        events={events}
-        onAddEvent={handleAddEvent}
-        onDeleteEvent={handleDeleteEvent}
-        onEditEvent={handleEditEvent}
-        is_admin={is_admin ?? false}
-      />
-    </div>
-  </main>
+      <div className="w-full max-w-md">
+        <CalendrierView
+          events={events}
+          onAddEvent={handleAddEvent}
+          onEditEvent={handleEditEvent}
+          onDeleteEvent={handleDeleteEvent}
+          is_admin={is_admin ?? false}
+        />
+      </div>
+    </main>
   );
 }

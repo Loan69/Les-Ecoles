@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import LogoutButton from "../components/logoutButton";
 import PresenceButton from "../components/presenceButton";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import InviteModal from "../components/inviteModal";
 import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
@@ -320,7 +320,7 @@ export default function HomePage() {
       const { data: eventsData, error: eventsError } = await supabase
         .from("evenements")
         .select("*")
-        .eq("date_event", dateIso);
+        .contains("dates_event", [dateIso]);
 
       if (eventsError) console.error("Erreur événements :", eventsError);
       if (eventsData) setEvents(eventsData);
@@ -395,43 +395,95 @@ export default function HomePage() {
 
   // Chargement des rappels d'évènements
   useEffect(() => {
-    const fetchReminders = async () => {
-      // on se base sur la date affichée dans le calendrier (currentDate)
-      const targetDate = new Date(currentDate);
-      targetDate.setHours(0, 0, 0, 0);
+    // ✅ Ne pas exécuter tant que la date n'est pas initialisée
+    if (!isInitialized) return;
 
-      // On ne prend que les événements futurs ou du jour (pour éviter de rater des rappels en avance)
+    const fetchReminders = async () => {
+      // ✅ Date du jour à 00h00 en heure locale
+      const today = new Date(currentDate);
+      today.setHours(0, 0, 0, 0);
+
+
       const { data: allEvents, error } = await supabase
         .from("evenements")
         .select("*")
-        .gte("date_event", formatDateKeyLocal(new Date())) // événements à venir
-        .not("rappel_event", "is", null); // avec un rappel défini
+        .not("rappel_event", "is", null)
+        .gt("rappel_event", 0);
 
       if (error) {
         console.error("Erreur récupération rappels :", error);
         return;
       }
 
-      const activeReminders = allEvents.filter((evt) => {
-        const dateEvt = new Date(evt.date_event);
-        dateEvt.setHours(0, 0, 0, 0);
+      if (!allEvents) {
+        setReminders([]);
+        return;
+      }
 
-        const daysBefore = Number(evt.rappel_event || 0);
-        if (daysBefore <= 0) return false;
+      const activeReminders = allEvents
+        .map((evt) => {
+          if (!evt.dates_event || evt.dates_event.length === 0) return null;
 
-        const reminderStart = new Date(dateEvt.getTime());
-        reminderStart.setDate(reminderStart.getDate() - daysBefore);
-        reminderStart.setHours(0, 0, 0, 0);
+          const rappelJours = evt.rappel_event || 0;
+          
+          // ✅ Convertir toutes les dates en Date objects à 00h00
+          const eventDates: Date[] = (evt.dates_event as string[])
+            .map((dateStr) => {
+              // Parser la date YYYY-MM-DD correctement
+              const [year, month, day] = dateStr.split('-').map(Number);
+              const d = new Date(year, month - 1, day);
+              d.setHours(0, 0, 0, 0);
+              return d;
+            })
+            .filter((d) => !isNaN(d.getTime()));
 
-        // le jour affiché doit être dans [reminderStart, dateEvt)
-        return targetDate >= reminderStart && targetDate < dateEvt;
-      });
+          if (eventDates.length === 0) return null;
+
+          // ✅ Trouver les dates futures qui nécessitent un rappel AUJOURD'HUI
+          const datesToRemind = eventDates.filter((eventDate) => {
+            // Nombre de jours entre aujourd'hui et l'événement
+            const diffTime = eventDate.getTime() - today.getTime();
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            
+            // ✅ On affiche le rappel si :
+            // 1. L'événement est dans le futur (diffDays > 0)
+            // 2. Le nombre de jours restants est <= au rappel configuré (diffDays <= rappelJours)
+            return diffDays > 0 && diffDays <= rappelJours;
+          });
+
+          if (datesToRemind.length === 0) return null;
+
+          // Garder la date la plus proche parmi celles à rappeler
+          const nextReminderDate = datesToRemind.reduce((a, b) =>
+            a.getTime() < b.getTime() ? a : b
+          );
+
+          // ✅ Calculer les jours restants réels
+          const diffTime = nextReminderDate.getTime() - today.getTime();
+          const joursRestants = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+          return { 
+            ...evt, 
+            nextReminderDate,
+            joursRestants 
+          };
+        })
+        .filter(Boolean) as (typeof allEvents[0] & { 
+          nextReminderDate: Date; 
+          joursRestants: number 
+        })[];
+
+      // Trier par date d'événement la plus proche
+      activeReminders.sort((a, b) => 
+        a.nextReminderDate.getTime() - b.nextReminderDate.getTime()
+      );
 
       setReminders(activeReminders);
     };
 
     fetchReminders();
-  }, [supabase, currentDate]); // 🔥 on ajoute currentDate ici
+  }, [supabase, currentDate, isInitialized]);
+
 
 
 
@@ -540,9 +592,9 @@ export default function HomePage() {
         if (!profil?.residence) return event.visible_invites === true;
 
         // Récupère proprement les tableaux de visibilité (avec fallback [])
-        const residences: string[] = event.visibilite?.residences ?? [];
-        const etages: string[] = event.visibilite?.etages ?? [];
-        const chambres: string[] = event.visibilite?.chambres ?? [];
+        const residences: string[] = event.visibilite?.residence ?? [];
+        const etages: string[] = event.visibilite?.etage ?? [];
+        const chambres: string[] = event.visibilite?.chambre ?? [];
 
         // Une résidente voit l'évènement si elle correspond à au moins un niveau
         const isVisible =
@@ -686,37 +738,79 @@ export default function HomePage() {
 
       {/* Bloc principal animé */}
       <section className="w-full max-w-md bg-white rounded-xl shadow-lg p-5 overflow-hidden relative">
+
         {/* 🔔 Bloc Rappels du jour */}
-        {reminders.length > 0 && (
-          <div className="w-full mb-5 bg-yellow-50 border border-yellow-300 rounded-lg p-4 shadow-sm">
-            <h3 className="text-lg font-semibold text-yellow-800 mb-2">
-              🔔 Rappels du jour
-            </h3>
-            <ul className="space-y-2">
-              {reminders.map((evt) => (
-                <li 
-                  key={evt.id}
-                  className={`${evt.couleur} bg-white p-3 rounded-lg shadow-sm border border-yellow-200`}
-                >
-                  <strong className="text-yellow-800">{evt.titre}</strong>
-                  {evt.date_event && (
-                    <p className="text-xs text-gray-600 mt-1">
-                      Évènement prévu le{" "}
-                      {new Date(evt.date_event).toLocaleDateString("fr-FR", {
-                        weekday: "long",
-                        day: "numeric",
-                        month: "long",
-                      })} au {evt.lieu}
-                    </p>
-                  )}
-                  {evt.description && (
-                    <p className="text-gray-700 text-sm mt-1">{evt.description}</p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <ul className="space-y-2">
+          {reminders.length > 0 && (
+            <div className="w-full mb-5 bg-yellow-50 border border-yellow-300 rounded-lg p-4 shadow-sm">
+              <h3 className="text-lg font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                <Bell className="w-5 h-5" /> {/* ✅ Icône Bell de Lucide */}
+                Rappels du jour
+                <span className="text-xs font-normal text-yellow-600">
+                  ({reminders.length} événement{reminders.length > 1 ? "s" : ""} à venir)
+                </span>
+              </h3>
+              <ul className="space-y-2">
+                {reminders.map((evt) => {
+                  // ✅ Vérification de sécurité
+                  if (!evt.nextReminderDate || typeof evt.joursRestants !== 'number') {
+                    return null;
+                  }
+
+                  const eventDateFormatted = evt.nextReminderDate.toLocaleDateString("fr-FR", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  });
+
+                  return (
+                    <li 
+                      key={`${evt.id}-${evt.nextReminderDate.getTime()}`}
+                      className="bg-white p-3 rounded-lg shadow-sm border border-yellow-200 hover:border-yellow-400 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <strong className="text-yellow-800 text-base">{evt.titre}</strong>
+                          
+                          {/* ✅ Affichage sécurisé avec vérification */}
+                          <p className="text-sm text-yellow-700 mt-1 font-medium">
+                            📅 Dans {evt.joursRestants} jour{evt.joursRestants > 1 ? "s" : ""}
+                          </p>
+
+                          <p className="text-xs text-gray-600 mt-1">
+                            Évènement prévu le {eventDateFormatted}
+                            {evt.heures && ` à ${evt.heures}`}
+                            {evt.lieu && ` • Résidence ${evt.lieu}`}
+                          </p>
+
+                          {evt.description && (
+                            <p className="text-gray-700 text-sm mt-2 line-clamp-2">
+                              {evt.description}
+                            </p>
+                          )}
+
+                          {/* Afficher toutes les dates si événement multi-dates */}
+                          {evt.dates_event && evt.dates_event.length > 1 && (
+                            <p className="text-xs text-gray-500 mt-2 italic">
+                              Événement sur {evt.dates_event.length} dates
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Badge avec le nombre de jours */}
+                        <div className="flex-shrink-0 bg-yellow-100 text-yellow-800 rounded-full px-3 py-1 text-xs font-semibold">
+                          J-{evt.joursRestants}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </ul>
+
         <div className="flex justify-center items-center mb-5 space-x-4">
           <h2 className="text-xl font-semibold text-center text-blue-800">
             {formatDate(currentDate)}

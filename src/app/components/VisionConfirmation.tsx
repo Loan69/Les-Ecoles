@@ -10,11 +10,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useSupabase } from "@/app/providers"
-import { EventFormData } from "@/types/EventFormData"
 import { Residente } from "@/types/Residente"
+import { CalendarEvent } from "@/types/CalendarEvent"
 
 interface VisionConfirmationsProps {
-  eventId: number
+  eventId: number | undefined;
 }
 
 export default function VisionConfirmation({ eventId }: VisionConfirmationsProps) {
@@ -37,7 +37,7 @@ export default function VisionConfirmation({ eventId }: VisionConfirmationsProps
       return
     }
 
-    const confirmations = (data?.confirmations as EventFormData["confirmations"]) || []
+    const confirmations = (data?.confirmations as CalendarEvent["confirmations"]) || []
     if (confirmations.length === 0) {
       setParticipants([])
       setLoading(false)

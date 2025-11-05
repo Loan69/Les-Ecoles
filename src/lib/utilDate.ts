@@ -11,3 +11,9 @@ export function parseDateKeyLocal(s: string) {
   const [y, m, day] = s.split("-").map(Number);
   return new Date(y, m - 1, day);
 }
+
+// retourne un string en format français
+export function formatDateFR(dateString: string): string {
+  const [year, month, day] = dateString.split("-");
+  return `${day}-${month}-${year}`;
+}

@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react"
 import { useSupabase } from "@/app/providers"
 import { User } from "@supabase/supabase-js"
-import { EventFormData } from "@/types/EventFormData"
 import { Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { CalendarEvent } from "@/types/CalendarEvent"
 
 interface ConfirmationToggleProps {
-  eventId: number
+  eventId: number | undefined;
 }
 
 export default function ResidentParticipationButton({ eventId }: ConfirmationToggleProps) {
@@ -43,7 +43,7 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
         return
       }
 
-      const confirmations = (data?.confirmations as EventFormData["confirmations"]) || []
+      const confirmations = (data?.confirmations as CalendarEvent["confirmations"]) || []
       setChecked(confirmations.includes(user.id))
       setIsIntendance(data?.category === "intendance")
     }

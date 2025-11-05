@@ -1,20 +1,23 @@
 export interface CalendarEvent {
-    id: number;
-    titre: string;
-    couleur: string;
-    type?: string;
-    date_event: string;
-    recurrence?: string;
-    heures?: string;
-    lieu?: string;
-     visibilite?: {
-    residences: string[];
-    etages: string[];
-    chambres: string[];
+  id?: number; // facultatif pour la création
+  couleur?: string;
+  titre: string;
+  category?: string; // correspond à category
+  description?: string;
+  dates_event?: string[];
+  recurrence?: string;
+  heures?: string;
+  lieu?: string;
+  visibilite?: {
+    residence: string[];
+    etage: string[];
+    chambre: string[];
   };
-    description?: string;
-    reserve_admin?: boolean;
-    visible_invites?: boolean;
-    demander_confirmation?: boolean;
-    rappel_event?: number;
-  }
+  visible_invites?: boolean;
+  demander_confirmation?: boolean;
+  confirmations?: string[];
+  reserve_admin?: boolean;
+  rappel_event?: number;
+  nextReminderDate?: Date;
+  joursRestants?: number;
+}

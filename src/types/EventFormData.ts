@@ -2,7 +2,7 @@ export interface EventFormData {
   titre: string;
   category: string;
   description?: string,
-  date_event?: string;
+  dates_event?: string[];
   recurrence?: string;
   heures?: string;
   lieu?: string;
