@@ -47,7 +47,7 @@ interface DateSelectorProps {
 
 export default function DateSelector({ form, setForm }: DateSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const pickerRef = useRef<any>(null);
+  const pickerRef = useRef<unknown>(null);
   const dates: string[] = form.dates_event ?? [];
 
   const formatFr = (iso: string) => {
@@ -77,8 +77,10 @@ export default function DateSelector({ form, setForm }: DateSelectorProps) {
         onClick={() => {
           setIsOpen(true);
           // Ouvre le picker programmatiquement
-          setTimeout(() => pickerRef.current?.openCalendar(), 0);
-        }}
+          setTimeout(() => {
+            (pickerRef.current as { openCalendar: () => void } | null)?.openCalendar();
+          }, 0);
+                  }}
         className="cursor-pointer flex items-center gap-2 px-4 py-2 border border-blue-500 rounded-lg text-blue-800 hover:bg-blue-50 transition"
       >
         <CalendarDays size={18} />

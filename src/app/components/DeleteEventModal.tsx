@@ -25,7 +25,7 @@ export const DeleteEventModal: React.FC<DeleteEventModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-[360px] max-w-[90%] text-center transform transition-all duration-200 scale-100">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">Supprimer l'événement</h2>
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">Supprimer l&apos;événement</h2>
         <p className="mb-6 text-gray-700 text-base leading-relaxed pl-3 pr-3">
           {isMultiDate && selectedDate
             ? `Voulez-vous supprimer uniquement la date du ${formatDateFR(selectedDate)} ou tout l'événement ${eventTitle} ?`

@@ -90,7 +90,7 @@ export default function ModalAjoutEvenement({
     }));
   };
 
-  const handleSelectChange = (name: keyof CalendarEvent, value: any) => {
+  const handleSelectChange = (name: keyof CalendarEvent, value: unknown) => {
     setForm((prev) => ({
       ...prev,
       [name]: value,
@@ -153,7 +153,7 @@ export default function ModalAjoutEvenement({
 
           {/* Dates */}
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Date(s) de l'événement
+            Date(s) de l&apos;événement
           </label>
           <DateSelector form={form} setForm={setForm} />
 
