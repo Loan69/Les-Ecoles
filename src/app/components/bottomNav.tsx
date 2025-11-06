@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Calendar, Home, Settings } from 'lucide-react';
+import { Calendar, Home, PersonStanding, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSupabase } from "@/app/providers";
 
@@ -38,14 +38,13 @@ export default function BottomNav() {
   const navItems = [
     { path: '/calendrier', icon: <Calendar size={22} />, label: 'Calendrier' },
     { path: '/homePage', icon: <Home size={22} />, label: 'Accueil' },
+    { path: '/profil', icon: <PersonStanding size={22} />, label: 'Accueil' },
   ];
 
   if (isAdmin) {
     navItems.push({
-      path: '/admin/utilisatrices',
-      icon: <Settings size={22} />,
-      label: 'Administration',
-    });
+      path: '/admin/utilisatrices', icon: <Settings size={22} />, label: 'Administration',}
+    );
   }
 
   return (

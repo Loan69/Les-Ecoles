@@ -9,6 +9,7 @@ interface Props {
   rootCategory: string;
   onChange: (selected: { [category: string]: Option[] }) => void;
   onlyParent?: boolean;
+  islabel?: boolean;
   disabled?: boolean;
   initialValues?: { [category: string]: Option[] | string[] };
 }
@@ -17,6 +18,7 @@ export default function DynamicMultiSelectGroup({
   rootCategory,
   onChange,
   onlyParent = false,
+  islabel = true,
   disabled = false,
   initialValues,
 }: Props) {
@@ -286,7 +288,9 @@ export default function DynamicMultiSelectGroup({
 
         return (
           <div key={i}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+            {islabel && (
+              <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+            )}
             <Select
               isMulti
               isDisabled={disabled}

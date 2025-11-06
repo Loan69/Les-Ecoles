@@ -1,8 +1,8 @@
 export interface CalendarEvent {
-  id?: number; // facultatif pour la création
+  id?: number;
   couleur?: string;
   titre: string;
-  category?: string; // correspond à category
+  category?: string;
   description?: string;
   dates_event?: string[];
   recurrence?: string;

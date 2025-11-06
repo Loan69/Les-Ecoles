@@ -699,6 +699,13 @@ export default function HomePage() {
         className="mb-3"
       />
 
+      {/* Affichage de la date du jour */}
+      <div className="flex justify-center items-center mb-5 space-x-4">
+        <h2 className="text-2xl font-semibold text-center text-blue-800">
+          {formatDate(currentDate)}
+        </h2>
+      </div>
+
       {/* Présence au foyer */}
       <div className="flex flex-col items-center mt-4 space-y-2 mb-5">
         <PresenceButton 
@@ -810,12 +817,6 @@ export default function HomePage() {
             </div>
           )}
         </ul>
-
-        <div className="flex justify-center items-center mb-5 space-x-4">
-          <h2 className="text-xl font-semibold text-center text-blue-800">
-            {formatDate(currentDate)}
-          </h2>
-        </div>
 
         <AnimatePresence custom={direction} mode="wait">
           <motion.div
