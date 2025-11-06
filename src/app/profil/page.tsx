@@ -7,10 +7,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { Residente } from "@/types/Residente";
+
+type ResidenteWithLabels = Residente & {
+  etageLabel?: string | null;
+  chambreLabel?: string | null;
+};
 
 export default function ProfilPage() {
     const { supabase } = useSupabase();
-    const [profil, setProfil] = useState<any>(null);
+    const [profil, setProfil] = useState<ResidenteWithLabels | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
