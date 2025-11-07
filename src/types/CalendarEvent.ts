@@ -20,4 +20,5 @@ export interface CalendarEvent {
   rappel_event?: number;
   nextReminderDate?: Date;
   joursRestants?: number;
+  is_active?: boolean;
 }

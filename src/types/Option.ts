@@ -10,4 +10,5 @@ export interface Option {
     parent_value?: string | null;
     created_by?: string;
     disabled?: boolean;
+    is_default?: boolean;
 }

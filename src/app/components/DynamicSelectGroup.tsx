@@ -15,7 +15,7 @@ interface Props {
   disabled?: boolean;
   selectClassName?: string;
   isAdmin?: boolean;
-  lockedValues?: string[]; // ✅ valeurs interdites (grisées)
+  lockedValues?: string[]; // valeurs interdites (grisées)
 }
 
 export default function DynamicSelectGroup({
@@ -28,7 +28,7 @@ export default function DynamicSelectGroup({
   disabled = false,
   selectClassName = "",
   isAdmin = false,
-  lockedValues = [], // ✅ par défaut vide
+  lockedValues = [],
 }: Props) {
   const { supabase } = useSupabase();
   const [levels, setLevels] = useState<Option[][]>([]);
@@ -101,7 +101,7 @@ export default function DynamicSelectGroup({
 
         if (!options.length) return null;
 
-        // ✅ on applique le verrouillage ici
+        // On grise les valeurs interdites
         const processedOptions = options.map((opt) => ({
           ...opt,
           disabled: lockedValues.includes(opt.value),
@@ -112,9 +112,11 @@ export default function DynamicSelectGroup({
             key={i}
             name={`level${i}`}
             label={islabel ? label : undefined}
-            value={selected[key]?.value || ""}
-            onChange={(val) => {
-              const option = options.find((o) => o.value === val);
+            // 🧩 valeur = id (puisqu’on a modifié SelectField)
+            value={selected[key]?.id?.toString() || ""}
+            // 🧩 correspondance sur id aussi
+            onChange={(idStr) => {
+              const option = options.find((o) => o.id === Number(idStr));
               if (option) handleSelect(i, option);
             }}
             options={processedOptions}

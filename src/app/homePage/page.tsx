@@ -22,6 +22,8 @@ import { Option } from "@/types/Option";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import VisionConfirmation from "../components/VisionConfirmation";
 import ConfirmationToggle from "../components/ConfirmationToggle";
+import { Rule } from "@/types/Rule";
+import { getLatestRulesByService } from "@/lib/rulesUtils";
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -484,87 +486,71 @@ export default function HomePage() {
     fetchReminders();
   }, [supabase, currentDate, isInitialized]);
 
-
-
-
-
   // Chargement des repas spéciaux
-  useEffect(() => {
-    const fetchSpecialOptions = async () => {
-      if (!user) return;
+useEffect(() => {
+  const fetchSpecialOptions = async () => {
+    if (!user) return;
 
-      const dateIso = formatDateKeyLocal(currentDate);
+    const dateIso = formatDateKeyLocal(currentDate);
 
-      const { data, error } = await supabase
-        .from("special_meal_options")
-        .select("*")
-        .or(`start_date.lte.${dateIso},indefinite.eq.true`)
-        .filter("end_date", "gte", dateIso);
+    const { data, error } = await supabase
+      .from("special_meal_options")
+      .select("*")
+      .or(`start_date.lte.${dateIso},indefinite.eq.true`)
+      .filter("end_date", "gte", dateIso);
 
-      if (error) {
-        console.error("Erreur récupération repas spéciaux :", error);
-        return;
+    if (error) {
+      console.error("Erreur récupération repas spéciaux :", error);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      setSpecialOptions({ dejeuner: [], diner: [] });
+      return;
+    }
+
+    const rules = data as Rule[];
+
+    let idCounter = 1;
+    const dejeunerOpts: Option[] = [];
+    const dinerOpts: Option[] = [];
+
+    const makeOption = (opt: Option, category: 'dejeuner' | 'diner', idBase: number): Option => ({
+      ...opt,
+      id: idBase,
+      category,
+      value: String(opt.value),
+      created_at: new Date().toISOString(),
+      created_by: user?.id ?? "system",
+    });
+
+    // 🧩 On récupère la dernière règle pour chaque service
+    const latestDejeuner = getLatestRulesByService(rules, 'dejeuner') as Rule | null;
+    const latestDiner = getLatestRulesByService(rules, 'diner') as Rule | null;
+
+    const latestRules: Rule[] = [latestDejeuner, latestDiner].filter(Boolean) as Rule[]; // filtre les null
+
+    latestRules.forEach((row) => {
+      const opts = row.options ?? [];
+      const filteredOpts = opts.filter(
+        (o) => (o.is_active ?? true) && (!o.admin_only || profil?.is_admin)
+      );
+
+      if (row.service === "dejeuner") {
+        dejeunerOpts.push(...filteredOpts.map(opt => makeOption(opt, "dejeuner", idCounter++)));
+      } else if (row.service === "diner") {
+        dinerOpts.push(...filteredOpts.map(opt => makeOption(opt, "diner", idCounter++)));
       }
+    });
 
-      // Initialisation des tableaux Option[]
-      const dejeunerOpts: Option[] = [];
-      const dinerOpts: Option[] = [];
+    setSpecialOptions({ dejeuner: dejeunerOpts, diner: dinerOpts });
+  };
 
-      // Générateur d'Option conforme au type global
-      const makeOption = (
-        opt: { label: string; value: string | number; admin_only?: boolean },
-        category: string,
-        idBase: number
-      ): Option => ({
-        id: idBase,
-        category,
-        label: opt.label,
-        value: String(opt.value),
-        admin_only: opt.admin_only ?? false,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        label_category: category,
-        parent_value: null,
-        created_by: user?.id ?? "system",
-      });
+  fetchSpecialOptions();
+}, [currentDate, user, supabase, profil]);
 
-      let idCounter = 1; // compteur local pour des IDs uniques
+console.log(specialOptions)
 
-      data.forEach((row) => {
-        const opts = row.options as {
-          label: string;
-          value: string | number;
-          admin_only?: boolean;
-        }[];
-
-        // Filtrage selon droits admin
-        const filteredOpts = opts.filter(
-          (o) => !o.admin_only || profil?.is_admin
-        );
-
-        // Ajout des options à la bonne catégorie
-        if (row.service === "dejeuner") {
-          dejeunerOpts.push(
-            ...filteredOpts.map((opt) =>
-              makeOption(opt, "dejeuner", idCounter++)
-            )
-          );
-        }
-        if (row.service === "diner") {
-          dinerOpts.push(
-            ...filteredOpts.map((opt) => makeOption(opt, "diner", idCounter++))
-          );
-        }
-      });
-
-      setSpecialOptions({
-        dejeuner: dejeunerOpts,
-        diner: dinerOpts,
-      });
-    };
-
-    fetchSpecialOptions();
-  }, [currentDate, user, supabase, profil]);
 
   // --- Loader global --- 
   if (!isReady || !isAbsentReady) {

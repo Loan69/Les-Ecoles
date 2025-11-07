@@ -11,23 +11,10 @@ import { Badge } from '@/components/ui/badge'
 import { useSupabase } from '@/app/providers'
 import { useRouter } from 'next/navigation'
 import { User } from '@supabase/supabase-js'
-import { Plus, Trash2, Lock, Eye, Save, Pencil, Soup, Sandwich, PencilRuler } from 'lucide-react'
-
-type Option = {
-  label: string
-  value: 12 | 36 | 'non'
-  admin_only: boolean
-}
-
-type Rule = {
-  id: number
-  start_date: string
-  end_date: string | null
-  indefinite: boolean
-  service: 'dejeuner' | 'diner'
-  options: Option[]
-  created_at: string
-}
+import { Plus, Trash2, Lock, Eye, Save, Pencil, Soup, Sandwich, Power } from 'lucide-react'
+import { Rule } from '@/types/Rule'
+import { Option } from '@/types/Option'
+import { getLatestRulesByService } from '@/lib/rulesUtils'
 
 export default function MealOptionsManager() {
   const { supabase } = useSupabase()
@@ -39,10 +26,9 @@ export default function MealOptionsManager() {
   const [indefinite, setIndefinite] = useState(false)
   const [options, setOptions] = useState<Option[]>([])
   const [existingRules, setExistingRules] = useState<Rule[]>([])
-
-  // 👇 Nouveau : mode édition
   const [editingRule, setEditingRule] = useState<Rule | null>(null)
 
+  // ✅ Charger l’utilisateur
   useEffect(() => {
     const fetchUser = async () => {
       const { data, error } = await supabase.auth.getUser()
@@ -52,51 +38,154 @@ export default function MealOptionsManager() {
     fetchUser()
   }, [router, supabase])
 
+  // ✅ Marquage des conflits
+  const markConflicts = (rules: Rule[]) => {
+    const marked = rules.map(r => ({ ...r, conflict: false, active: false }));
+
+    const grouped: Record<'dejeuner' | 'diner', Rule[]> = { dejeuner: [], diner: [] };
+    marked.forEach(r => grouped[r.service].push(r));
+
+    for (const key of ['dejeuner', 'diner'] as ('dejeuner' | 'diner')[]) {
+        const rulesForService = grouped[key];
+
+        for (let i = 0; i < rulesForService.length; i++) {
+        for (let j = i + 1; j < rulesForService.length; j++) {
+            const a = rulesForService[i];
+            const b = rulesForService[j];
+
+            const overlap =
+            (!a.end_date || !b.start_date || a.end_date >= b.start_date) &&
+            (!b.end_date || !a.start_date || b.end_date >= a.start_date);
+
+            if (overlap) {
+            // comparer updated_at puis created_at
+            const dateA = new Date(a.updated_at ?? a.created_at);
+            const dateB = new Date(b.updated_at ?? b.created_at);
+
+            const newer = dateA > dateB ? a : b;
+            const older = newer === a ? b : a;
+
+            newer.active = true;
+            older.conflict = true;
+            }
+        }
+        }
+    }
+
+    return marked;
+    };
+
+
+  // ✅ Charger les règles
   const loadRules = async () => {
-    const { data, error } = await supabase.from('special_meal_options').select('*').order('created_at', { ascending: false })
-    if (!error && data) setExistingRules(data)
+    const { data, error } = await supabase
+        .from('special_meal_options')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (!error && data) {
+        const rules = data as Rule[];
+        setExistingRules(markConflicts(rules));
+    }
+    };
+
+
+
+  // ✅ Charger les options par défaut
+  const loadDefaultOptions = async (selectedService: 'dejeuner' | 'diner') => {
+    const { data, error } = await supabase
+      .from('select_options_repas')
+      .select('id, label, value, admin_only, is_active, category')
+      .eq('is_active', true)
+      .eq('category', selectedService)
+      .order('id', { ascending: true })
+
+    if (!error && data) {
+      const withFlag = data.map(o => ({ ...o, is_default: true }))
+      setOptions(withFlag)
+    }
   }
 
-  useEffect(() => { loadRules() }, [])
+  useEffect(() => {
+    loadRules()
+    loadDefaultOptions('dejeuner')
+  }, [])
 
-  // 🟢 Fonction commune : insert ou update
+  useEffect(() => {
+    if (!editingRule) loadDefaultOptions(service)
+  }, [service])
+
+  // ✅ Sauvegarde
   const save = async () => {
     if (!startDate) return alert('Veuillez sélectionner une date de début')
     if (!options.length) return alert('Ajoutez au moins une option')
 
-    const optionsWithNon = [{ label: 'Non', value: 'non', admin_only: false }, ...options]
-    const payload = {
-      start_date: startDate,
-      end_date: indefinite ? null : endDate,
-      indefinite,
-      service,
-      options: optionsWithNon,
-      created_by: user?.id,
+    // chaque option doit avoir une "résidence" (value) sélectionnée
+    const missingResidence = options.some(
+        (opt) => !opt.is_default && (!opt.value || opt.value.trim() === '')
+    )
+
+    if (missingResidence) {
+        return alert('Veuillez sélectionner une résidence pour chaque nouvelle option')
     }
 
-    let error
+    // Calcul de la valeur end_date
+    const endDateValue = indefinite ? null : endDate === "" ? startDate : endDate;
+
+    // payload commun
+    const payloadCommon = {
+        start_date: startDate,
+        end_date: endDateValue,
+        indefinite,
+        service,
+        options,
+    };
+
+    let error;
+
     if (editingRule) {
-      // ✏️ Mode édition
-      const { error: updateError } = await supabase
+        // Mode édition : on ajoute updated_by / updated_at
+        const payloadUpdate = {
+        ...payloadCommon,
+        updated_by: user?.id ?? null,
+        updated_at: new Date().toISOString(),
+        };
+
+        const { error: e } = await supabase
         .from('special_meal_options')
-        .update(payload)
-        .eq('id', editingRule.id)
-      error = updateError
+        .update(payloadUpdate)
+        .eq('id', editingRule.id);
+
+        error = e;
     } else {
-      // ➕ Nouveau
-      const { error: insertError } = await supabase.from('special_meal_options').insert(payload)
-      error = insertError
+        // on met created_by (déjà présent auparavant)
+        const payloadInsert = {
+        ...payloadCommon,
+        created_by: user?.id ?? null,
+        };
+
+        const { error: e } = await supabase
+        .from('special_meal_options')
+        .insert(payloadInsert);
+
+        error = e;
     }
 
-    if (error) alert('Erreur lors de la sauvegarde')
-    else {
-      // reset du formulaire
-      setStartDate('')
-      setEndDate('')
-      setIndefinite(false)
-      setOptions([])
-      setEditingRule(null)
-      loadRules()
+    if (error) {
+        console.error('Erreur sauvegarde special_meal_options:', error);
+        alert('Erreur lors de la sauvegarde');
+    } else {
+        // ✅ Reset complet du formulaire
+        setStartDate('');
+        setEndDate('');
+        setIndefinite(false);
+        setEditingRule(null);
+
+        // ✅ Recharger les options par défaut du service actuel
+        loadDefaultOptions(service);
+
+        // ✅ Recharger les règles
+        loadRules();
     }
   }
 
@@ -106,35 +195,37 @@ export default function MealOptionsManager() {
     if (!error) loadRules()
   }
 
-  // 🟡 Charger une règle pour modification
   const handleEditRule = (rule: Rule) => {
     setEditingRule(rule)
     setStartDate(rule.start_date)
     setEndDate(rule.end_date || '')
     setIndefinite(rule.indefinite)
     setService(rule.service)
-    // On enlève l’option "Non" du tableau pour éviter les doublons à la sauvegarde
-    setOptions(rule.options.filter((o) => o.value !== 'non'))
+    setOptions(rule.options)
+  }
+
+  // ✅ Toggle is_active
+  const toggleActive = (i: number) => {
+    const updated = [...options]
+    updated[i].is_active = !updated[i].is_active
+    setOptions(updated)
   }
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-10">
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center space-y-2"
-      >
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-2">
         <h1 className="text-3xl font-bold text-gray-600">Gestion des repas spéciaux</h1>
         <p className="text-gray-500 text-sm">Créez, modifiez et gérez les options de repas disponibles pour chaque service.</p>
       </motion.div>
 
-      {/* --- FORMULAIRE DE CRÉATION / MODIFICATION --- */}
+      {/* --- FORM --- */}
       <Card className="shadow-lg border border-gray-200">
         <CardHeader>
           <h2 className="text-lg font-semibold text-gray-800">
             {editingRule ? '✏️ Modifier une règle' : '➕ Nouvelle règle'}
           </h2>
         </CardHeader>
+
         <CardContent className="space-y-6">
           <div className="grid md:grid-cols-3 gap-4">
             <div>
@@ -161,7 +252,7 @@ export default function MealOptionsManager() {
             </div>
           </div>
 
-          {/* Options */}
+          {/* --- Options --- */}
           <div className="space-y-3">
             <Label>Options disponibles</Label>
             {options.map((opt, i) => (
@@ -170,23 +261,29 @@ export default function MealOptionsManager() {
                 layout
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col md:flex-row items-center gap-3 p-3 border rounded-lg bg-gray-50"
+                className={`flex flex-col md:flex-row items-center gap-3 p-3 border rounded-lg ${
+                  opt.is_default ? 'bg-blue-50 border-blue-200' : 'bg-white'
+                }`}
               >
                 <Input
-                  className="flex-1"
+                  className="flex-1 "
                   value={opt.label}
-                  placeholder="Label de l’option"
+                  disabled={opt.is_default} // 🔒 option par défaut non éditable
+                  placeholder="Label"
                   onChange={e => {
                     const newOpts = [...options]
                     newOpts[i].label = e.target.value
                     setOptions(newOpts)
                   }}
                 />
+
+                {/* Sélecteur de valeur */}
                 <Select
-                  value={String(opt.value)}
+                  value={opt.value}
+                  disabled={opt.is_default} // 🔒 valeur non modifiable pour les options par défaut
                   onValueChange={v => {
                     const newOpts = [...options]
-                    newOpts[i].value = Number(v) as 12 | 36
+                    newOpts[i].value = v
                     setOptions(newOpts)
                   }}
                 >
@@ -196,9 +293,13 @@ export default function MealOptionsManager() {
                     <SelectItem value="36">Résidence 36</SelectItem>
                   </SelectContent>
                 </Select>
+
+                {/* Bouton admin/public */}
                 <Button
                   variant="outline"
-                  className={`cursor-pointer flex items-center gap-1 ${opt.admin_only ? 'border-orange-400 text-orange-600' : ''}`}
+                  className={`cursor-pointer flex items-center gap-1 ${
+                    opt.admin_only ? 'border-orange-400 text-orange-600' : ''
+                  }`}
                   onClick={() => {
                     const newOpts = [...options]
                     newOpts[i].admin_only = !opt.admin_only
@@ -208,13 +309,37 @@ export default function MealOptionsManager() {
                   {opt.admin_only ? <Lock size={16} /> : <Eye size={16} />}
                   {opt.admin_only ? 'Admin' : 'Public'}
                 </Button>
-                <Button variant="destructive" className="cursor-pointer" onClick={() => setOptions(options.filter((_, j) => j !== i))}>
-                  <Trash2 size={16} />
+
+                {/* ✅ Toggle actif/inactif */}
+                <Button
+                  variant={opt.is_active ? 'default' : 'outline'}
+                  className={`cursor-pointer flex items-center gap-1 ${
+                    opt.is_active ? 'bg-green-500 text-white hover:bg-green-600' : 'text-gray-600'
+                  }`}
+                  onClick={() => toggleActive(i)}
+                >
+                  <Power size={16} />
+                  {opt.is_active ? 'Active' : 'Inactive'}
                 </Button>
+
+                {/* Suppression uniquement si pas par défaut */}
+                {!opt.is_default && (
+                  <Button
+                    variant="destructive"
+                    className="cursor-pointer"
+                    onClick={() => setOptions(options.filter((_, j) => j !== i))}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                )}
               </motion.div>
             ))}
 
-            <Button variant="secondary" className="mt-3 cursor-pointer" onClick={() => setOptions([...options, { label: '', value: 12, admin_only: false }])}>
+            <Button
+              variant="secondary"
+              className="mt-3 cursor-pointer"
+              onClick={() => setOptions([...options, { id: Date.now(), category: service, label: '', value: '', admin_only: false, is_active: true }])}
+            >
               <Plus size={16} className="mr-1" /> Ajouter une option
             </Button>
           </div>
@@ -233,7 +358,7 @@ export default function MealOptionsManager() {
         </CardContent>
       </Card>
 
-      {/* --- LISTE DES RÈGLES EXISTANTES --- */}
+      {/* Liste des règles */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-800">Règles existantes</h2>
         {existingRules.length === 0 ? (
@@ -243,7 +368,9 @@ export default function MealOptionsManager() {
             <motion.div
               key={r.id}
               layout
-              className="p-5 rounded-xl border bg-white shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center hover:shadow-md transition-all"
+              className={`p-5 rounded-xl border shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center transition-all
+                ${r.active ? 'bg-green-50 border-green-300' : r.conflict ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'}
+              `}
             >
               <div className="space-y-1">
                 <h3 className={`font-semibold ${r.service === 'dejeuner' ? 'text-blue-600' : 'text-violet-600'}`}>
@@ -254,31 +381,26 @@ export default function MealOptionsManager() {
                 </p>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {r.options.map((o, j) => (
-                    <Badge
-                      key={j}
-                      variant={o.admin_only ? 'destructive' : 'secondary'}
-                      className="text-sm py-1 px-3"
-                    >
-                      {o.label} - Res. {o.value}
+                   <Badge
+                        key={j}
+                        variant="secondary"
+                        className={`text-sm py-1 px-3 ${
+                            o.admin_only ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-700'
+                        } ${!o.is_active ? 'opacity-50' : ''}`}
+                        >
+                        {o.label}
                     </Badge>
+
                   ))}
+                  {r.active && <Badge className="bg-green-500 text-white ml-2">Active</Badge>}
+                  {r.conflict && <Badge className="bg-red-500 text-white ml-2">Inactive</Badge>}
                 </div>
               </div>
               <div className="flex gap-2 mt-3 md:mt-0">
-                {/* ✏️ Bouton d’édition */}
-                <Button
-                  variant="outline"
-                  className="text-blue-500 hover:bg-blue-50 cursor-pointer"
-                  onClick={() => handleEditRule(r)}
-                >
+                <Button variant="outline" className="text-blue-500 hover:bg-blue-50 cursor-pointer" onClick={() => handleEditRule(r)}>
                   <Pencil size={18} />
                 </Button>
-                {/* 🗑️ Suppression */}
-                <Button
-                  variant="outline"
-                  className="text-red-500 hover:bg-red-100 cursor-pointer"
-                  onClick={() => handleDeleteRule(r.id)}
-                >
+                <Button variant="outline" className="text-red-500 hover:bg-red-100 cursor-pointer" onClick={() => handleDeleteRule(r.id)}>
                   <Trash2 size={18} />
                 </Button>
               </div>

@@ -56,7 +56,7 @@ export default function SelectField({
             {placeholder}
           </option>
           {options.map((opt) => (
-            <option key={opt.value} value={opt.value} disabled={opt.disabled}>
+            <option key={`${opt.id}-${opt.value}`} value={opt.id} disabled={opt.disabled}>
               {opt.label}
             </option>
           ))}
