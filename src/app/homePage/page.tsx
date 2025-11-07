@@ -69,7 +69,8 @@ export default function HomePage() {
 
   // États pour le swipe
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [touchEndX, setTouchEndX] = useState<number | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Variables pour le commentaire
   const [showCommentModal, setShowCommentModal] = useState(false);
@@ -549,8 +550,6 @@ useEffect(() => {
   fetchSpecialOptions();
 }, [currentDate, user, supabase, profil]);
 
-console.log(specialOptions)
-
 
   // --- Loader global --- 
   if (!isReady || !isAbsentReady) {
@@ -606,43 +605,50 @@ console.log(specialOptions)
   };
 
   // --- Gestion du swipe sur mobile ---
+  // 🧩 Swipe logic
+  const minSwipeDistance = 80;
 
-  // Seuil minimum pour déclencher un swipe
-  const minSwipeDistance = 50;
-
-  // Détecter le début du touch
   const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartX(e.changedTouches[0].clientX);
+    setTouchStartX(e.touches[0].clientX);
+    setIsDragging(true);
   };
 
-  // Détecter la fin du touch et calculer la distance
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    setTouchEndX(e.changedTouches[0].clientX);
-
+  const handleTouchMove = (e: React.TouchEvent) => {
     if (touchStartX === null) return;
-
-    const distance = e.changedTouches[0].clientX - touchStartX;
-
-    if (distance > minSwipeDistance) {
-      // Swipe vers la droite → jour précédent
-      goToPreviousDay();
-    } else if (distance < -minSwipeDistance) {
-      // Swipe vers la gauche → jour suivant
-      goToNextDay();
-    }
-
-    // Reset
-    setTouchStartX(null);
-    setTouchEndX(null);
+    const currentX = e.touches[0].clientX;
+    setDragOffset(currentX - touchStartX);
   };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    if (dragOffset > minSwipeDistance) {
+      // animation de sortie vers la droite
+      setDragOffset(300);
+      setTimeout(() => {
+        goToPreviousDay();
+        setDragOffset(0);
+      }, 150);
+    } else if (dragOffset < -minSwipeDistance) {
+      // animation de sortie vers la gauche
+      setDragOffset(-300);
+      setTimeout(() => {
+        goToNextDay();
+        setDragOffset(0);
+      }, 150);
+    } else {
+      // revient au centre
+      setDragOffset(0);
+    }
+    setTouchStartX(null);
+  };
+
+
 
 
   // --- Rendu principal ---
   return (
     <main 
       className="min-h-screen flex flex-col items-center bg-white px-4 pt-6"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}  
     >
       {/* Flèche gauche (desktop uniquement) */}
       <button
@@ -675,343 +681,345 @@ console.log(specialOptions)
       <div className="w-full max-w-md flex justify-end mb-4">
         <LogoutButton />
       </div>
-
-      {/* Logo */}
-      <Image
-        src="/logo.png"
-        alt="Logo"
-        width={350}
-        height={350}
-        className="mb-3"
-      />
-
-      {/* Affichage de la date du jour */}
-      <div className="flex justify-center items-center mb-5 space-x-4">
-        <h2 className="text-2xl font-semibold text-center text-blue-800">
-          {formatDate(currentDate)}
-        </h2>
-      </div>
-
-      {/* Présence au foyer */}
-      <div className="flex flex-col items-center mt-4 space-y-2 mb-5">
-        <PresenceButton 
-          date={formatDateKeyLocal(currentDate)}
-          isAbsent={isAbsent}
-          togglePresence={togglePresence}
-          isAdmin={profil?.is_admin}
-        />
-      </div>
-
-      {/* Onglets Résidences */}
-      <div className="relative flex justify-center mb-4 z-10">
-        <div
-          className="absolute top-0 h-12 w-20 bg-yellow-400 rounded-t-xl transition-all duration-300"
+      <AnimatePresence custom={direction} mode="wait">
+        <motion.div
+          className="w-full flex flex-col items-center"
           style={{
-            left: selectedResidenceValue === "12" ? "0px" : "80px",
+            x: dragOffset,
+            transition: isDragging ? "none" : "x 0.25s ease-out",
           }}
-        />
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
 
-        {residences.map((res) => (
-          <button
-            key={res.value}
-            onClick={() => {setSelectedResidenceValue(res.value); 
-                            setSelectedResidenceLabel(res.label)}}
-            className={`cursor-pointer relative flex items-center justify-center w-20 h-12 text-lg font-bold border rounded-t-xl transition-colors z-10
-              ${
-                selectedResidenceValue === res.value
-                  ? "text-white border-yellow-400 bg-yellow-400"
-                  : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"
-              }`}
-          >
-            {res.value}
-          </button>
-        ))}
-      </div>
+          {/* Logo */}
+          <Image
+            src="/logo.png"
+            alt="Logo"
+            width={350}
+            height={350}
+            className="mb-3"
+          />
 
-
-      {/* Bloc principal animé */}
-      <section className="w-full max-w-md bg-white rounded-xl shadow-lg p-5 overflow-hidden relative">
-
-        {/* 🔔 Bloc Rappels du jour */}
-        <ul className="space-y-2">
-          {reminders.length > 0 && (
-            <div className="w-full mb-5 bg-yellow-50 border border-yellow-300 rounded-lg p-4 shadow-sm">
-              <h3 className="text-lg font-semibold text-yellow-800 mb-2 flex items-center gap-2">
-                <Bell className="w-5 h-5" /> {/* ✅ Icône Bell de Lucide */}
-                Rappels du jour
-                <span className="text-xs font-normal text-yellow-600">
-                  ({reminders.length} événement{reminders.length > 1 ? "s" : ""} à venir)
-                </span>
-              </h3>
-              <ul className="space-y-2">
-                {reminders.map((evt) => {
-                  // ✅ Vérification de sécurité
-                  if (!evt.nextReminderDate || typeof evt.joursRestants !== 'number') {
-                    return null;
-                  }
-
-                  const eventDateFormatted = evt.nextReminderDate.toLocaleDateString("fr-FR", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  });
-
-                  return (
-                    <li 
-                      key={`${evt.id}-${evt.nextReminderDate.getTime()}`}
-                      className="bg-white p-3 rounded-lg shadow-sm border border-yellow-200 hover:border-yellow-400 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <strong className="text-yellow-800 text-base">{evt.titre}</strong>
-                          
-                          {/* ✅ Affichage sécurisé avec vérification */}
-                          <p className="text-sm text-yellow-700 mt-1 font-medium">
-                            📅 Dans {evt.joursRestants} jour{evt.joursRestants > 1 ? "s" : ""}
-                          </p>
-
-                          <p className="text-xs text-gray-600 mt-1">
-                            Évènement prévu le {eventDateFormatted}
-                            {evt.heures && ` à ${evt.heures}`}
-                            {evt.lieu && ` • Résidence ${evt.lieu}`}
-                          </p>
-
-                          {evt.description && (
-                            <p className="text-gray-700 text-sm mt-2 line-clamp-2">
-                              {evt.description}
-                            </p>
-                          )}
-
-                          {/* Afficher toutes les dates si événement multi-dates */}
-                          {evt.dates_event && evt.dates_event.length > 1 && (
-                            <p className="text-xs text-gray-500 mt-2 italic">
-                              Événement sur {evt.dates_event.length} dates
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Badge avec le nombre de jours */}
-                        <div className="flex-shrink-0 bg-yellow-100 text-yellow-800 rounded-full px-3 py-1 text-xs font-semibold">
-                          J-{evt.joursRestants}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-        </ul>
-
-        <AnimatePresence custom={direction} mode="wait">
-          <motion.div
-            key={currentDate.toDateString()}
-            custom={direction}
-            variants={variants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.25 }}
-          >
-            {/* Événements */}
-            <div className="mb-10">
-              {filteredEvents.length === 0 ? (
-                <p className="text-gray-500 italic text-sm mb-4">
-                  Aucun évènement prévu pour la {selectedResidenceLabel}.
-                </p>
-              ) : (
-                filteredEvents.map((e) => (
-                  <div
-                      key={e.id}
-                      className={`border rounded-lg px-4 py-3 mb-3 ${e.couleur}`}
-                  >
-                      {/* Ligne titre + boutons */}
-                      <div className="flex items-center justify-between">
-                          {/* --- Titre --- */}
-                          <span className="text-sm font-medium text-gray-800">{e.titre}</span>
-
-                          {/* --- Boutons à droite --- */}
-                          <div className="flex items-center space-x-2">
-                              {/* 👁 Vision (admin seulement) */}
-                              {e.demander_confirmation && profil?.is_admin && <VisionConfirmation eventId={e.id} />}
-
-                              {/* ✅ Toggle participation (pour tout le monde si demander_confirmation) */}
-                              {e.demander_confirmation && <ConfirmationToggle eventId={e.id} />}
-                          </div>
-                      </div>
-
-                      {/* Heure et description dessous */}
-                      {e.heures && (
-                      <p className="text-xs text-gray-600 mt-1 italic">
-                          À partir de {e.heures}
-                      </p>
-                      )}
-
-                      {e.description && (
-                      <p className="text-xs text-gray-500 mt-1">{e.description}</p>
-                      )}
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Présence repas */}
-            <h2 className="text-xl font-semibold text-center text-blue-800 mb-4">
-              Présence aux repas
+          {/* Affichage de la date du jour */}
+          <div className="flex justify-center items-center mb-5 space-x-4">
+            <h2 className="text-2xl font-semibold text-center text-blue-800">
+              {formatDate(currentDate)}
             </h2>
+          </div>
 
-            {/* Déjeuner */}
-            <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
-              {/* Label à gauche */}
-              <p className="font-semibold text-blue-900">Déjeuner</p>
+          {/* Présence au foyer */}
+          <div className="flex flex-col items-center mt-4 space-y-2 mb-5">
+            <PresenceButton 
+              date={formatDateKeyLocal(currentDate)}
+              isAbsent={isAbsent}
+              togglePresence={togglePresence}
+              isAdmin={profil?.is_admin}
+            />
+          </div>
 
-              {/* Select + pencil à droite */}
-              <div className="flex items-center gap-2">
-                {specialOptions.dejeuner.length > 0 ? (
-                  <SelectField
-                    name="repasDejeuner"
-                    value={repasDejeuner || ""}
-                    options={specialOptions.dejeuner}
-                    onChange={(val) => handleSelectRepas("dejeuner", val)}
-                    placeholder="Choisissez votre déjeuner"
-                    disabled={locked}
-                    selectClassName="min-w-[220px] h-10"
-                  />
-                ) : (
-                  <DynamicSelectGroup
-                    rootCategory="repas"
-                    subRootCategory="dejeuner"
-                    onlyParent
-                    onChange={(selected) => {
-                      const choix = selected["dejeuner"]?.value;
-                      if (choix) handleSelectRepas("dejeuner", choix);
-                    }}
-                    islabel={false}
-                    initialValue={repasDejeuner}
-                    disabled={locked}
-                    lockedValues={lockedValues} // verrouiller les pn du lendemain
-                    isAdmin={profil?.is_admin}
-                  />
-                )}
+          {/* Onglets Résidences */}
+          <div className="relative flex justify-center mb-4 z-10">
+            <div
+              className="absolute top-0 h-12 w-20 bg-yellow-400 rounded-t-xl transition-all duration-300"
+              style={{
+                left: selectedResidenceValue === "12" ? "0px" : "80px",
+              }}
+            />
 
-                <button
-                  onClick={() => {
-                    if (repasDejeuner !== 'non') {
-                      setShowCommentModal(true)
-                      setSelectedRepasId(dejeuner?.id_repas ?? -1)
-                      setCommentValue(dejeuner?.commentaire ?? '')
-                    }
-                  }}
-                  disabled={repasDejeuner === 'non' || locked}
-                  className={`p-2 rounded-full transition ${
-                    repasDejeuner === 'non' || locked
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      : 'bg-blue-500 text-white hover:bg-blue-900 cursor-pointer'
+            {residences.map((res) => (
+              <button
+                key={res.value}
+                onClick={() => {setSelectedResidenceValue(res.value); 
+                                setSelectedResidenceLabel(res.label)}}
+                className={`cursor-pointer relative flex items-center justify-center w-20 h-12 text-lg font-bold border rounded-t-xl transition-colors z-10
+                  ${
+                    selectedResidenceValue === res.value
+                      ? "text-white border-yellow-400 bg-yellow-400"
+                      : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"
                   }`}
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+              >
+                {res.value}
+              </button>
+            ))}
+          </div>
 
 
-            {/* Dîner */}
-            <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
-              <p className="font-semibold text-blue-900">Dîner</p>
+          {/* Bloc principal animé */}
+          <section className="w-full max-w-md bg-white rounded-xl shadow-lg p-5 overflow-hidden relative">
 
-              <div className="flex items-center gap-2">
-                {specialOptions.diner.length > 0 ? (
-                  <SelectField
-                    name="repasDiner"
-                    value={repasDiner || ""}
-                    options={specialOptions.diner}
-                    onChange={(val) => handleSelectRepas("diner", val)}
-                    placeholder="Choisissez votre dîner"
-                    disabled={locked}
-                    selectClassName="min-w-[220px] h-10"
-                  />
-                ) : (
-                  <DynamicSelectGroup
-                    rootCategory="repas"
-                    subRootCategory="diner"
-                    onlyParent={true}
-                    onChange={(selected) => {
-                      const choix = selected["diner"]?.value;
-                      if (choix) handleSelectRepas("diner", choix);
-                    }}
-                    islabel={false}
-                    initialValue={repasDiner}
-                    disabled={locked}
-                    lockedValues={lockedValues} // verrouiller les pn du lendemain
-                    isAdmin={profil?.is_admin}
-                  />
+            {/* 🔔 Bloc Rappels du jour */}
+            <ul className="space-y-2">
+              {reminders.length > 0 && (
+                <div className="w-full mb-5 bg-yellow-50 border border-yellow-300 rounded-lg p-4 shadow-sm">
+                  <h3 className="text-lg font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                    <Bell className="w-5 h-5" /> {/* ✅ Icône Bell de Lucide */}
+                    Rappels du jour
+                    <span className="text-xs font-normal text-yellow-600">
+                      ({reminders.length} événement{reminders.length > 1 ? "s" : ""} à venir)
+                    </span>
+                  </h3>
+                  <ul className="space-y-2">
+                    {reminders.map((evt) => {
+                      // ✅ Vérification de sécurité
+                      if (!evt.nextReminderDate || typeof evt.joursRestants !== 'number') {
+                        return null;
+                      }
+
+                      const eventDateFormatted = evt.nextReminderDate.toLocaleDateString("fr-FR", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      });
+
+                      return (
+                        <li 
+                          key={`${evt.id}-${evt.nextReminderDate.getTime()}`}
+                          className="bg-white p-3 rounded-lg shadow-sm border border-yellow-200 hover:border-yellow-400 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <strong className="text-yellow-800 text-base">{evt.titre}</strong>
+                              
+                              {/* ✅ Affichage sécurisé avec vérification */}
+                              <p className="text-sm text-yellow-700 mt-1 font-medium">
+                                📅 Dans {evt.joursRestants} jour{evt.joursRestants > 1 ? "s" : ""}
+                              </p>
+
+                              <p className="text-xs text-gray-600 mt-1">
+                                Évènement prévu le {eventDateFormatted}
+                                {evt.heures && ` à ${evt.heures}`}
+                                {evt.lieu && ` • Résidence ${evt.lieu}`}
+                              </p>
+
+                              {evt.description && (
+                                <p className="text-gray-700 text-sm mt-2 line-clamp-2">
+                                  {evt.description}
+                                </p>
+                              )}
+
+                              {/* Afficher toutes les dates si événement multi-dates */}
+                              {evt.dates_event && evt.dates_event.length > 1 && (
+                                <p className="text-xs text-gray-500 mt-2 italic">
+                                  Événement sur {evt.dates_event.length} dates
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Badge avec le nombre de jours */}
+                            <div className="flex-shrink-0 bg-yellow-100 text-yellow-800 rounded-full px-3 py-1 text-xs font-semibold">
+                              J-{evt.joursRestants}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </ul>
+
+                {/* Événements */}
+                <div className="mb-10">
+                  {filteredEvents.length === 0 ? (
+                    <p className="text-gray-500 italic text-sm mb-4">
+                      Aucun évènement prévu pour la {selectedResidenceLabel}.
+                    </p>
+                  ) : (
+                    filteredEvents.map((e) => (
+                      <div
+                          key={e.id}
+                          className={`border rounded-lg px-4 py-3 mb-3 ${e.couleur}`}
+                      >
+                          {/* Ligne titre + boutons */}
+                          <div className="flex items-center justify-between">
+                              {/* --- Titre --- */}
+                              <span className="text-sm font-medium text-gray-800">{e.titre}</span>
+
+                              {/* --- Boutons à droite --- */}
+                              <div className="flex items-center space-x-2">
+                                  {/* 👁 Vision (admin seulement) */}
+                                  {e.demander_confirmation && profil?.is_admin && <VisionConfirmation eventId={e.id} />}
+
+                                  {/* ✅ Toggle participation (pour tout le monde si demander_confirmation) */}
+                                  {e.demander_confirmation && <ConfirmationToggle eventId={e.id} />}
+                              </div>
+                          </div>
+
+                          {/* Heure et description dessous */}
+                          {e.heures && (
+                          <p className="text-xs text-gray-600 mt-1 italic">
+                              À partir de {e.heures}
+                          </p>
+                          )}
+
+                          {e.description && (
+                          <p className="text-xs text-gray-500 mt-1">{e.description}</p>
+                          )}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Présence repas */}
+                <h2 className="text-xl font-semibold text-center text-blue-800 mb-4">
+                  Présence aux repas
+                </h2>
+
+                {/* Déjeuner */}
+                <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
+                  {/* Label à gauche */}
+                  <p className="font-semibold text-blue-900">Déjeuner</p>
+
+                  {/* Select + pencil à droite */}
+                  <div className="flex items-center gap-2">
+                    {specialOptions.dejeuner.length > 0 ? (
+                      <SelectField
+                        name="repasDejeuner"
+                        value={repasDejeuner || ""}
+                        options={specialOptions.dejeuner}
+                        onChange={(val) => handleSelectRepas("dejeuner", val)}
+                        placeholder="Choisissez votre déjeuner"
+                        disabled={locked}
+                        selectClassName="min-w-[220px] h-10"
+                      />
+                    ) : (
+                      <DynamicSelectGroup
+                        rootCategory="repas"
+                        subRootCategory="dejeuner"
+                        onlyParent
+                        onChange={(selected) => {
+                          const choix = selected["dejeuner"]?.value;
+                          if (choix) handleSelectRepas("dejeuner", choix);
+                        }}
+                        islabel={false}
+                        initialValue={repasDejeuner}
+                        disabled={locked}
+                        lockedValues={lockedValues} // verrouiller les pn du lendemain
+                        isAdmin={profil?.is_admin}
+                      />
+                    )}
+
+                    <button
+                      onClick={() => {
+                        if (repasDejeuner !== 'non') {
+                          setShowCommentModal(true)
+                          setSelectedRepasId(dejeuner?.id_repas ?? -1)
+                          setCommentValue(dejeuner?.commentaire ?? '')
+                        }
+                      }}
+                      disabled={repasDejeuner === 'non' || locked}
+                      className={`p-2 rounded-full transition ${
+                        repasDejeuner === 'non' || locked
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-blue-500 text-white hover:bg-blue-900 cursor-pointer'
+                      }`}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+
+                {/* Dîner */}
+                <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
+                  <p className="font-semibold text-blue-900">Dîner</p>
+
+                  <div className="flex items-center gap-2">
+                    {specialOptions.diner.length > 0 ? (
+                      <SelectField
+                        name="repasDiner"
+                        value={repasDiner || ""}
+                        options={specialOptions.diner}
+                        onChange={(val) => handleSelectRepas("diner", val)}
+                        placeholder="Choisissez votre dîner"
+                        disabled={locked}
+                        selectClassName="min-w-[220px] h-10"
+                      />
+                    ) : (
+                      <DynamicSelectGroup
+                        rootCategory="repas"
+                        subRootCategory="diner"
+                        onlyParent={true}
+                        onChange={(selected) => {
+                          const choix = selected["diner"]?.value;
+                          if (choix) handleSelectRepas("diner", choix);
+                        }}
+                        islabel={false}
+                        initialValue={repasDiner}
+                        disabled={locked}
+                        lockedValues={lockedValues} // verrouiller les pn du lendemain
+                        isAdmin={profil?.is_admin}
+                      />
+                    )}
+
+                    <button
+                      onClick={() => {
+                        if (repasDiner !== 'non') {
+                          setShowCommentModal(true)
+                          setSelectedRepasId(diner?.id_repas ?? -1)
+                          setCommentValue(diner?.commentaire ?? '')
+                        }
+                      }}
+                      disabled={repasDiner === 'non' || locked}
+                      className={`p-2 rounded-full transition ${repasDiner === 'non' || locked
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-500 text-white hover:bg-blue-900 cursor-pointer'}`}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+
+                {confirmationMsg && (
+                  <p className="mt-3 text-green-600 font-semibold text-sm">
+                    {confirmationMsg}
+                  </p>
                 )}
 
+            {/* Boutons bas */}
+            <div className="flex justify-between mt-6">
+              {profil?.is_admin && (
                 <button
-                  onClick={() => {
-                    if (repasDiner !== 'non') {
-                      setShowCommentModal(true)
-                      setSelectedRepasId(diner?.id_repas ?? -1)
-                      setCommentValue(diner?.commentaire ?? '')
-                    }
-                  }}
-                  disabled={repasDiner === 'non' || locked}
-                  className={`p-2 rounded-full transition ${repasDiner === 'non' || locked
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-500 text-white hover:bg-blue-900 cursor-pointer'}`}
+                  className="border border-blue-700 text-blue-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-50 cursor-pointer"
+                  onClick={() => router.push("/admin/repas")}
                 >
-                  <Pencil className="w-4 h-4" />
+                  Voir les inscriptions
                 </button>
-              </div>
+              )}
+              
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
+              >
+                Inviter quelqu’un
+              </button>
             </div>
+            
 
-
-            {confirmationMsg && (
-              <p className="mt-3 text-green-600 font-semibold text-sm">
-                {confirmationMsg}
-              </p>
-            )}
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Boutons bas */}
-        <div className="flex justify-between mt-6">
-          {profil?.is_admin && (
-            <button
-              className="border border-blue-700 text-blue-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-50 cursor-pointer"
-              onClick={() => router.push("/admin/repas")}
-            >
-              Voir les inscriptions
-            </button>
-          )}
-          
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
-          >
-            Inviter quelqu’un
-          </button>
-        </div>
-
-        {/* Modals */}
-        {/* Modal d'ajout d'un invité au repas */}
-        <InviteModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-        />
-        
-        {/* Modal d'ajout d'un commentaire au repas */}
-        <CommentModal
-          isOpen={showCommentModal}
-          onClose={() => {setShowCommentModal(false);
-                          setSelectedRepasId(null)
-                          setCommentValue("")
-                    }}
-          onSave={handleSaveComment}
-          initialComment={commentValue}
-        />
-      </section>
+            {/* Modals */}
+            {/* Modal d'ajout d'un invité au repas */}
+            <InviteModal
+              isOpen={isModalOpen}
+              onClose={() => setIsModalOpen(false)}
+            />
+            
+            {/* Modal d'ajout d'un commentaire au repas */}
+            <CommentModal
+              isOpen={showCommentModal}
+              onClose={() => {setShowCommentModal(false);
+                              setSelectedRepasId(null)
+                              setCommentValue("")
+                        }}
+              onSave={handleSaveComment}
+              initialComment={commentValue}
+            />
+          </section>
+        </motion.div>
+      </AnimatePresence>
     </main>
   );
 }
