@@ -11,12 +11,10 @@ import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { Residente } from "@/types/Residente";
 import LoadingSpinner from "../components/LoadingSpinner";
-import { Repas } from "@/types/repas";
 import CommentModal from "../components/commentModal";
 import { Residence } from "@/types/Residence";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
-import DynamicSelectGroup from "../components/DynamicSelectGroup";
 import { Option } from "@/types/Option";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import VisionConfirmation from "../components/VisionConfirmation";
@@ -30,7 +28,7 @@ import SelectField2 from "../components/SelectField2";
 // ============================================================
 
 interface MealOption {
-  id: string; // Identifiant unique (pour les spéciaux) ou valeur (pour les défauts)
+  id: number; // Identifiant unique
   value: string; // Valeur pour le comptage (ex: "oui", "non", "12", "36", "pn_chaud", etc.)
   label: string; // Label d'affichage
   isSpecial: boolean; // true si c'est un repas spécial, false si c'est un repas par défaut
@@ -39,7 +37,7 @@ interface MealOption {
 }
 
 interface MealSelection {
-  selectedId: string; // ID de l'option sélectionnée
+  selectedId: number; // ID de l'option sélectionnée
   selectedValue: string; // Valeur pour le comptage
   dbRecordId: number | null; // ID de l'enregistrement en base
   comment: string; // Commentaire associé
@@ -77,13 +75,13 @@ export default function HomePage() {
   const [dejeunerOptions, setDejeunerOptions] = useState<MealOption[]>([]);
   const [dinerOptions, setDinerOptions] = useState<MealOption[]>([]);
   const [dejeunerSelection, setDejeunerSelection] = useState<MealSelection>({
-    selectedId: "non",
+    selectedId: 0,
     selectedValue: "non",
     dbRecordId: null,
     comment: "",
   });
   const [dinerSelection, setDinerSelection] = useState<MealSelection>({
-    selectedId: "non",
+    selectedId: 0,
     selectedValue: "non",
     dbRecordId: null,
     comment: "",
@@ -124,51 +122,34 @@ export default function HomePage() {
   ): MealOption[] => {
     const options: MealOption[] = [];
 
-    // 1. Ajouter les options par défaut
-    baseOptions.forEach((opt) => {
-      options.push({
-        id: opt.value, // Pour les options par défaut, id = value
-        value: opt.value,
-        label: opt.label || opt.value,
-        isSpecial: false,
-        isLocked: lockedValues.includes(opt.value),
-        adminOnly: false,
-      });
-    });
-
-    // 2. Ajouter ou remplacer par les options spéciales
+    // ✅ S'il y a une règle spéciale, on utilise UNIQUEMENT ses options
     if (specialRules && specialRules.options) {
       specialRules.options.forEach((specialOpt) => {
         // Filtrer les options inactives ou réservées aux admins
-        if (!(specialOpt.is_active ?? true)) return;
+        if (!(specialOpt.is_active ?? true)) return; // ✅ Filtrer les options inactives
         if (specialOpt.admin_only && !isAdmin) return;
 
-        // Vérifier si une option par défaut existe avec la même valeur
-        const existingIndex = options.findIndex(
-          (opt) => opt.value === specialOpt.value && !opt.isSpecial
-        );
-
-        if (existingIndex !== -1) {
-          // Remplacer l'option par défaut par l'option spéciale
-          options[existingIndex] = {
-            id: String(specialOpt.id), // ID unique pour les spéciaux
-            value: specialOpt.value,
-            label: specialOpt.label || specialOpt.value,
-            isSpecial: true,
-            isLocked: lockedValues.includes(specialOpt.value),
-            adminOnly: specialOpt.admin_only || false,
-          };
-        } else {
-          // Ajouter comme nouvelle option
-          options.push({
-            id: String(specialOpt.id),
-            value: specialOpt.value,
-            label: specialOpt.label || specialOpt.value,
-            isSpecial: true,
-            isLocked: lockedValues.includes(specialOpt.value),
-            adminOnly: specialOpt.admin_only || false,
-          });
-        }
+        // Ajouter l'option de la règle spéciale
+        options.push({
+          id: specialOpt.id, // ID unique pour les spéciaux
+          value: specialOpt.value,
+          label: specialOpt.label || specialOpt.value,
+          isSpecial: true,
+          isLocked: lockedValues.includes(specialOpt.value),
+          adminOnly: specialOpt.admin_only || false,
+        });
+      });
+    } else {
+      // ✅ Pas de règle spéciale : on utilise les options par défaut
+      baseOptions.forEach((opt) => {
+        options.push({
+          id: opt.id,
+          value: opt.value,
+          label: opt.label || opt.value,
+          isSpecial: false,
+          isLocked: lockedValues.includes(opt.value),
+          adminOnly: false,
+        });
       });
     }
 
@@ -185,6 +166,7 @@ export default function HomePage() {
       .from("select_options_repas")
       .select("*")
       .eq("category", mealType)
+      .eq("is_active", true)
       .is("parent_value", null)
       .order("label");
 
@@ -291,7 +273,7 @@ export default function HomePage() {
         // Si on a un option_id, on cherche l'option spéciale par son ID
         if (dejeunerData.option_id) {
           matchingOption = dejeunerOptions.find(
-            (opt) => opt.isSpecial && opt.id === String(dejeunerData.option_id)
+            (opt) => opt.isSpecial && opt.id === dejeunerData.option_id
           );
         }
         
@@ -312,7 +294,7 @@ export default function HomePage() {
         // Pas de données = "non" par défaut
         const nonOption = dejeunerOptions.find((opt) => opt.value === "non" && !opt.isSpecial);
         setDejeunerSelection({
-          selectedId: nonOption ? nonOption.id : "non",
+          selectedId: nonOption ? nonOption.id : 0,
           selectedValue: "non",
           dbRecordId: null,
           comment: "",
@@ -326,7 +308,7 @@ export default function HomePage() {
         // Si on a un option_id, on cherche l'option spéciale par son ID
         if (dinerData.option_id) {
           matchingOption = dinerOptions.find(
-            (opt) => opt.isSpecial && opt.id === String(dinerData.option_id)
+            (opt) => opt.isSpecial && opt.id === dinerData.option_id
           );
         }
         
@@ -346,7 +328,7 @@ export default function HomePage() {
       } else {
         const nonOption = dinerOptions.find((opt) => opt.value === "non" && !opt.isSpecial);
         setDinerSelection({
-          selectedId: nonOption ? nonOption.id : "non",
+          selectedId: nonOption ? nonOption.id : 0,
           selectedValue: "non",
           dbRecordId: null,
           comment: "",
@@ -376,7 +358,7 @@ export default function HomePage() {
         choix: selectedOption.value,
         date: formatDateKeyLocal(currentDate),
         // NOUVEAU : On envoie l'ID de l'option si c'est un repas spécial
-        option_id: selectedOption.isSpecial ? parseInt(selectedOption.id) : null,
+        option_id: selectedOption.isSpecial ? selectedOption.id : null,
       }),
     });
 
@@ -928,10 +910,10 @@ export default function HomePage() {
               <div className="flex items-center gap-2">
                 <SelectField2
                   name="repasDejeuner"
-                  value={dejeunerSelection.selectedId}
+                  value={String(dejeunerSelection.selectedId)}
                   options={dejeunerOptions.map((opt) => ({
-                    id: Number(opt.id),
-                    value: opt.id,
+                    id: opt.id,
+                    value: String(opt.id),
                     label: opt.label,
                     category: "dejeuner",
                     created_at: "",
@@ -940,7 +922,7 @@ export default function HomePage() {
                   onChange={(option) => {
                     if (!option) return;
                     const selectedMealOption = dejeunerOptions.find(
-                      (opt) => opt.id === option.value
+                      (opt) => opt.id === option.id
                     );
                     if (selectedMealOption) {
                       handleMealSelection("dejeuner", selectedMealOption);
@@ -977,10 +959,10 @@ export default function HomePage() {
               <div className="flex items-center gap-2">
                 <SelectField2
                   name="repasDiner"
-                  value={dinerSelection.selectedId}
+                  value={String(dinerSelection.selectedId)}
                   options={dinerOptions.map((opt) => ({
-                    id: Number(opt.id),
-                    value: opt.id,
+                    id: opt.id,
+                    value: String(opt.id),
                     label: opt.label,
                     category: "diner",
                     created_at: "",
@@ -988,7 +970,7 @@ export default function HomePage() {
                   }))}
                   onChange={(option) => {
                     if (!option) return;
-                    const selectedMealOption = dinerOptions.find((opt) => opt.id === option.value);
+                    const selectedMealOption = dinerOptions.find((opt) => opt.id === option.id);
                     if (selectedMealOption) {
                       handleMealSelection("diner", selectedMealOption);
                     }

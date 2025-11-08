@@ -14,7 +14,6 @@ import { User } from '@supabase/supabase-js'
 import { Plus, Trash2, Lock, Eye, Save, Pencil, Soup, Sandwich, Power } from 'lucide-react'
 import { Rule } from '@/types/Rule'
 import { Option } from '@/types/Option'
-import { getLatestRulesByService } from '@/lib/rulesUtils'
 
 export default function MealOptionsManager() {
   const { supabase } = useSupabase()
