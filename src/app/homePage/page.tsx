@@ -17,13 +17,37 @@ import { Residence } from "@/types/Residence";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
 import DynamicSelectGroup from "../components/DynamicSelectGroup";
-import SelectField from "../components/SelectField";
 import { Option } from "@/types/Option";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import VisionConfirmation from "../components/VisionConfirmation";
 import ConfirmationToggle from "../components/ConfirmationToggle";
 import { Rule } from "@/types/Rule";
 import { getLatestRulesByService } from "@/lib/rulesUtils";
+import SelectField2 from "../components/SelectField2";
+
+// ============================================================
+// TYPES POUR UNE GESTION UNIFORME DES REPAS
+// ============================================================
+
+interface MealOption {
+  id: string; // Identifiant unique (pour les spéciaux) ou valeur (pour les défauts)
+  value: string; // Valeur pour le comptage (ex: "oui", "non", "12", "36", "pn_chaud", etc.)
+  label: string; // Label d'affichage
+  isSpecial: boolean; // true si c'est un repas spécial, false si c'est un repas par défaut
+  isLocked?: boolean; // Pour les pique-niques verrouillés
+  adminOnly?: boolean; // Réservé aux admins
+}
+
+interface MealSelection {
+  selectedId: string; // ID de l'option sélectionnée
+  selectedValue: string; // Valeur pour le comptage
+  dbRecordId: number | null; // ID de l'enregistrement en base
+  comment: string; // Commentaire associé
+}
+
+// ============================================================
+// COMPOSANT PRINCIPAL
+// ============================================================
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -33,10 +57,8 @@ export default function HomePage() {
   // --- États principaux ---
   const [profil, setProfil] = useState<Residente | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [isInitialized, setIsInitialized] = useState(false); // pour attente lecture de la bonne date
-  const [direction, setDirection] = useState<-1 | 0 | 1>(0); // pour l’animation
-  const [repasDejeuner, setRepasDejeuner] = useState<string | null>(null);
-  const [repasDiner, setRepasDiner] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [direction, setDirection] = useState<-1 | 0 | 1>(0);
   const [locked, setLocked] = useState(false);
   const [confirmationMsg, setConfirmationMsg] = useState("");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -44,28 +66,28 @@ export default function HomePage() {
   const [isReady, setIsReady] = useState(false);
   const [isAbsent, setIsAbsent] = useState(false);
   const [isAbsentReady, setIsAbsentReady] = useState(false);
-  const [dejeuner, setDejeuner] = useState<Repas | null>(null);
-  const [diner, setDiner] = useState<Repas | null>(null);
   const [residences, setResidences] = useState<Residence[]>([]);
   const [selectedResidenceValue, setSelectedResidenceValue] = useState<string | null>("12");
   const [selectedResidenceLabel, setSelectedResidenceLabel] = useState<string | null>("Résidence 12");
   const [settings, setSettings] = useState<{ verrouillage_repas?: string; verrouillage_foyer?: string }>({});
-
-  // --- Rappels d’événements ---
   const [reminders, setReminders] = useState<CalendarEvent[]>([]);
-
-  // Repas spéciaux
-  const [specialOptions, setSpecialOptions] = useState<{
-    dejeuner: Option[];
-    diner: Option[];
-  }>({
-    dejeuner: [],
-    diner: [],
-  });
-
-  // --- Etat pour verrouillage des pique niques ---
   const [lockedValues, setLockedValues] = useState<string[]>([]);
 
+  // --- NOUVELLE STRUCTURE POUR LES REPAS ---
+  const [dejeunerOptions, setDejeunerOptions] = useState<MealOption[]>([]);
+  const [dinerOptions, setDinerOptions] = useState<MealOption[]>([]);
+  const [dejeunerSelection, setDejeunerSelection] = useState<MealSelection>({
+    selectedId: "non",
+    selectedValue: "non",
+    dbRecordId: null,
+    comment: "",
+  });
+  const [dinerSelection, setDinerSelection] = useState<MealSelection>({
+    selectedId: "non",
+    selectedValue: "non",
+    dbRecordId: null,
+    comment: "",
+  });
 
   // États pour le swipe
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -74,77 +96,12 @@ export default function HomePage() {
 
   // Variables pour le commentaire
   const [showCommentModal, setShowCommentModal] = useState(false);
-  const [selectedRepasId, setSelectedRepasId] = useState<number | null>(null);
-  const [commentValue, setCommentValue] = useState('');
+  const [selectedMealType, setSelectedMealType] = useState<"dejeuner" | "diner" | null>(null);
 
-  // Récupération de l'utilisateur
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const { data, error } = await supabase.auth.getUser();
+  // ============================================================
+  // UTILITAIRES
+  // ============================================================
 
-        if (error || !data?.user) {
-          console.warn("Aucun utilisateur valide, redirection vers /signin");
-          router.replace("/signin");
-          return;
-        }
-
-        setUser(data.user);
-        console.log("Utilisateur connecté :", data.user);
-      } catch (err) {
-        console.error("Erreur récupération user :", err);
-        router.replace("/signin");
-      }
-    };
-
-    fetchUser();
-  }, [router, supabase]);
-
-
-  // Résidences pour les onglets
-  useEffect(() => {
-    const fetchResidences = async () => {
-      const { data, error } = await supabase
-        .from('residences')
-        .select('value, label');
-  
-        if (!error && data) {
-          const formatted = data.map((item) => ({
-            value: item.value,
-            label: item.label,
-          }));
-          setResidences(formatted);
-        }
-    };
-  
-    fetchResidences();
-  }, []);
-
-  // Réglage de la date
-  useEffect(() => {
-    const storedDate = localStorage.getItem("dateSelectionnee");
-
-    if (storedDate) {
-      setCurrentDate(parseDateKeyLocal(storedDate)); // date du calendrier
-    } else {
-      setCurrentDate(new Date());
-    }
-
-    setIsInitialized(true); // ✅ on marque qu'on a lu la valeur
-  }, []);
-
-  useEffect(() => {
-    // ✅ Ne rien faire tant que la première lecture n'est pas terminée
-    if (!isInitialized) return;
-
-    // Maintenant on peut écrire sans risque
-    localStorage.setItem("dateSelectionnee", formatDateKeyLocal(currentDate));
-    localStorage.setItem("startDate", formatDateKeyLocal(currentDate));
-    localStorage.setItem("endDate", formatDateKeyLocal(currentDate));
-  }, [currentDate, isInitialized]);
-
-
-  // --- Format date FR ---
   const formatDate = (date: Date) => {
     const formatted = date.toLocaleDateString("fr-FR", {
       weekday: "long",
@@ -155,194 +112,271 @@ export default function HomePage() {
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   };
 
-  // --- Navigation entre jours ---
-  const goToPreviousDay = () => {
-    setDirection(-1);
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev);
-      newDate.setDate(prev.getDate() - 1);
-      localStorage.setItem("dateSelectionnee", formatDateKeyLocal(newDate));
-      return newDate;
-    });
-  };
+  // ============================================================
+  // FONCTION : CONSTRUIRE LES OPTIONS DE REPAS
+  // ============================================================
 
-  const goToNextDay = () => {
-    setDirection(1);
-    setCurrentDate((prev) => {
-      const newDate = new Date(prev);
-      newDate.setDate(prev.getDate() + 1);
-      localStorage.setItem("dateSelectionnee", formatDateKeyLocal(newDate));
-      return newDate;
-    });
-  };
+  const buildMealOptions = (
+    baseOptions: Option[], // Options par défaut depuis DynamicSelectGroup
+    specialRules: Rule | null, // Règles spéciales depuis special_meal_options
+    lockedValues: string[],
+    isAdmin: boolean
+  ): MealOption[] => {
+    const options: MealOption[] = [];
 
-  // --- Gestion de la présence de l'utilisatrice au foyer ---
-  // --- Récupération de la présence pour la date sélectionnée ---
-  useEffect(() => {
-    const fetchStatus = async () => {
-      if (!user) return;
-
-      const res = await fetch("/api/get-is-absent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: currentDate }),
+    // 1. Ajouter les options par défaut
+    baseOptions.forEach((opt) => {
+      options.push({
+        id: opt.value, // Pour les options par défaut, id = value
+        value: opt.value,
+        label: opt.label || opt.value,
+        isSpecial: false,
+        isLocked: lockedValues.includes(opt.value),
+        adminOnly: false,
       });
-
-      const result = await res.json();
-      setIsAbsent(result.isAbsent);
-      setIsAbsentReady(true);
-    };
-
-    fetchStatus();
-  }, [currentDate, user]);
-
-  // --- Toggle présence ---
-  const togglePresence = async () => {
-
-    const res = await fetch("/api/presence-foyer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isAbsent, date: currentDate }),
     });
 
-    const result = await res.json();
-    if (res.ok) {
-      setIsAbsent(!isAbsent);
-    } else {
-      console.error(result.error);
+    // 2. Ajouter ou remplacer par les options spéciales
+    if (specialRules && specialRules.options) {
+      specialRules.options.forEach((specialOpt) => {
+        // Filtrer les options inactives ou réservées aux admins
+        if (!(specialOpt.is_active ?? true)) return;
+        if (specialOpt.admin_only && !isAdmin) return;
+
+        // Vérifier si une option par défaut existe avec la même valeur
+        const existingIndex = options.findIndex(
+          (opt) => opt.value === specialOpt.value && !opt.isSpecial
+        );
+
+        if (existingIndex !== -1) {
+          // Remplacer l'option par défaut par l'option spéciale
+          options[existingIndex] = {
+            id: String(specialOpt.id), // ID unique pour les spéciaux
+            value: specialOpt.value,
+            label: specialOpt.label || specialOpt.value,
+            isSpecial: true,
+            isLocked: lockedValues.includes(specialOpt.value),
+            adminOnly: specialOpt.admin_only || false,
+          };
+        } else {
+          // Ajouter comme nouvelle option
+          options.push({
+            id: String(specialOpt.id),
+            value: specialOpt.value,
+            label: specialOpt.label || specialOpt.value,
+            isSpecial: true,
+            isLocked: lockedValues.includes(specialOpt.value),
+            adminOnly: specialOpt.admin_only || false,
+          });
+        }
+      });
     }
+
+    // Filtrer les options verrouillées (sauf pour les admins)
+    return options.filter((opt) => !opt.isLocked || isAdmin);
   };
 
-  // --- Récupération des paramètres globaux ---
-  useEffect(() => {
-    const fetchSettings = async () => {
-      const { data, error } = await supabase.from("app_settings").select("key, value");
-      if (error) {
-        console.error("Erreur récupération paramètres :", error);
-        return;
-      }
+  // ============================================================
+  // FONCTION : CHARGER LES OPTIONS PAR DÉFAUT DEPUIS LA BDD
+  // ============================================================
 
-      const settingsMap: Record<string, string> = {};
-      data.forEach((s) => (settingsMap[s.key] = s.value));
-      setSettings(settingsMap);
-    };
+  const getDefaultMealOptions = async (mealType: "dejeuner" | "diner"): Promise<Option[]> => {
+    const { data, error } = await supabase
+      .from("select_options_repas")
+      .select("*")
+      .eq("category", mealType)
+      .is("parent_value", null)
+      .order("label");
 
-    fetchSettings();
-  }, []);
-
-  // --- Verrouillage après XhY (paramétré dans app_settings)
-  useEffect(() => {
-    if (!settings.verrouillage_repas) return;
-
-    // Heure actuelle en timezone Paris
-    const now = new Date();
-    const parisNow = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-    const [lockHour, lockMinute] = settings.verrouillage_repas.split(":").map(Number);
-
-    // Date sélectionnée et dates de référence (toutes en format YYYY-MM-DD)
-    const selectedDay = formatDateKeyLocal(currentDate);
-    const parisToday = formatDateKeyLocal(parisNow);
-
-
-    // Construire la date "demain" selon l'heure de Paris
-    const parisTomorrowDate = new Date(parisNow);
-    parisTomorrowDate.setDate(parisNow.getDate() + 1);
-    const parisTomorrow = formatDateKeyLocal(parisTomorrowDate);
-
-    // Est-ce que l'heure actuelle a dépassée la limite ?
-    const afterLock =
-      parisNow.getHours() > lockHour ||
-      (parisNow.getHours() === lockHour && parisNow.getMinutes() >= lockMinute);
-
-    // --- 1) Verrouillage global des présences (ta logique existante) ---
-    const isPastDay = selectedDay < parisToday; // date sélectionnée est dans le passé
-    const isToday = selectedDay === parisToday;
-
-    if (isPastDay || (isToday && afterLock)) {
-      setLocked(true);
-      setConfirmationMsg(`Les présences aux repas ne sont plus modifiables après ${settings.verrouillage_repas}.`);
-    } else {
-      setLocked(false);
-      setConfirmationMsg("");
+    if (error) {
+      console.error(`Erreur chargement options ${mealType}:`, error);
+      return [];
     }
 
-    // --- 2) Verrouillage fin (valeurs spécifiques) pour le LENDMAIN si on est après l'heure ---
-    if (
-        // après l’heure pour le lendemain
-        (selectedDay === parisTomorrow && afterLock) ||
-        // OU le jour même (les pique-niques restent bloqués)
-        selectedDay === parisToday
-      ) {
-        setLockedValues(["pn_chaud", "pn_froid"]);
-      } else {
-        setLockedValues([]);
-      }
+    if (!data) return [];
 
-  }, [currentDate, settings, profil]);
+    // Filtrer selon les permissions admin
+    const filtered = profil?.is_admin ? data : data.filter((o) => !o.admin_only);
 
+    return filtered.map((item) => ({
+      id: item.id,
+      value: item.value,
+      label: item.label,
+      category: item.category,
+      created_at: item.created_at || "",
+      created_by: item.created_by || "",
+      admin_only: item.admin_only || false,
+    }));
+  };
 
-  // --- Chargement : profil + présences repas + événements ---
+  // ============================================================
+  // EFFET : CHARGER LES OPTIONS DE REPAS
+  // ============================================================
+
   useEffect(() => {
-    const fetchAllData = async () => {
-      if (!user) return;
-      setIsReady(false);
+    const loadMealOptions = async () => {
+      if (!user || !profil) return;
 
       const dateIso = formatDateKeyLocal(currentDate);
 
-      // Profil
-      const { data: profilData, error: profilError } = await supabase
-        .from("residentes")
+      // 1. Récupérer les règles spéciales
+      const { data: specialRulesData, error } = await supabase
+        .from("special_meal_options")
         .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (profilError) console.error("Erreur profil :", profilError);
-      if (profilData) setProfil(profilData);
+        .or(`start_date.lte.${dateIso},indefinite.eq.true`)
+        .filter("end_date", "gte", dateIso);
 
-      // Présences repas
-      const { data: presences, error: presencesError } = await supabase
-        .from("presences")
-        .select("id_repas, user_id, type_repas, date_repas, choix_repas, commentaire")
-        .eq("date_repas", dateIso);
-
-      if (presencesError) console.error("Erreur présences :", presencesError);
-
-
-      if (user && presences) {
-        const userPresences = presences.filter((p) => p.user_id === user.id);
-      
-        const dejeunerData = userPresences.find((p) => p.type_repas === "dejeuner");
-        const dinerData = userPresences.find((p) => p.type_repas === "diner");
-
-        setRepasDejeuner(dejeunerData?.choix_repas || "non");
-        setRepasDiner(dinerData?.choix_repas || "non");
-        setDejeuner(dejeunerData ?? null);
-        setDiner(dinerData  ?? null)
+      if (error) {
+        console.error("Erreur récupération repas spéciaux :", error);
+        return;
       }
 
-      // Événements du jour
-      const { data: eventsData, error: eventsError } = await supabase
-        .from("evenements")
-        .select("*")
-        .contains("dates_event", [dateIso]);
+      const rules = (specialRulesData as Rule[]) || [];
+      const latestDejeuner = getLatestRulesByService(rules, "dejeuner") as Rule | null;
+      const latestDiner = getLatestRulesByService(rules, "diner") as Rule | null;
 
-      if (eventsError) console.error("Erreur événements :", eventsError);
-      if (eventsData) setEvents(eventsData);
+      // 2. Charger les options par défaut
+      const defaultDejeuner = await getDefaultMealOptions("dejeuner");
+      const defaultDiner = await getDefaultMealOptions("diner");
 
-      setIsReady(true);
+      // 3. Construire les options complètes
+      const dejOptions = buildMealOptions(
+        defaultDejeuner,
+        latestDejeuner,
+        lockedValues,
+        profil.is_admin || false
+      );
+      const dinOptions = buildMealOptions(
+        defaultDiner,
+        latestDiner,
+        lockedValues,
+        profil.is_admin || false
+      );
+
+      setDejeunerOptions(dejOptions);
+      setDinerOptions(dinOptions);
     };
 
-    fetchAllData();
-  }, [user, currentDate]);
+    loadMealOptions();
+  }, [currentDate, user, supabase, profil, lockedValues]);
 
-  // Sélection des présences et du types de repas
-  const handleSelectRepas = async (repas: "dejeuner" | "diner", choix: string) => {
+  // ============================================================
+  // EFFET : CHARGER LES SÉLECTIONS EXISTANTES
+  // ============================================================
+
+  useEffect(() => {
+    const loadMealSelections = async () => {
+      if (!user) return;
+
+      const dateIso = formatDateKeyLocal(currentDate);
+
+      const { data: presences, error } = await supabase
+        .from("presences")
+        .select("id_repas, user_id, type_repas, date_repas, choix_repas, commentaire, option_id")
+        .eq("date_repas", dateIso)
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error("Erreur chargement présences :", error);
+        return;
+      }
+
+      const dejeunerData = presences?.find((p) => p.type_repas === "dejeuner");
+      const dinerData = presences?.find((p) => p.type_repas === "diner");
+
+      // Déjeuner
+      if (dejeunerData) {
+        let matchingOption: MealOption | undefined;
+        
+        // Si on a un option_id, on cherche l'option spéciale par son ID
+        if (dejeunerData.option_id) {
+          matchingOption = dejeunerOptions.find(
+            (opt) => opt.isSpecial && opt.id === String(dejeunerData.option_id)
+          );
+        }
+        
+        // Sinon, on cherche l'option par défaut par sa value
+        if (!matchingOption) {
+          matchingOption = dejeunerOptions.find(
+            (opt) => !opt.isSpecial && opt.value === dejeunerData.choix_repas
+          );
+        }
+        
+        setDejeunerSelection({
+          selectedId: matchingOption ? matchingOption.id : dejeunerData.choix_repas,
+          selectedValue: dejeunerData.choix_repas,
+          dbRecordId: dejeunerData.id_repas,
+          comment: dejeunerData.commentaire || "",
+        });
+      } else {
+        // Pas de données = "non" par défaut
+        const nonOption = dejeunerOptions.find((opt) => opt.value === "non" && !opt.isSpecial);
+        setDejeunerSelection({
+          selectedId: nonOption ? nonOption.id : "non",
+          selectedValue: "non",
+          dbRecordId: null,
+          comment: "",
+        });
+      }
+
+      // Dîner
+      if (dinerData) {
+        let matchingOption: MealOption | undefined;
+        
+        // Si on a un option_id, on cherche l'option spéciale par son ID
+        if (dinerData.option_id) {
+          matchingOption = dinerOptions.find(
+            (opt) => opt.isSpecial && opt.id === String(dinerData.option_id)
+          );
+        }
+        
+        // Sinon, on cherche l'option par défaut par sa value
+        if (!matchingOption) {
+          matchingOption = dinerOptions.find(
+            (opt) => !opt.isSpecial && opt.value === dinerData.choix_repas
+          );
+        }
+        
+        setDinerSelection({
+          selectedId: matchingOption ? matchingOption.id : dinerData.choix_repas,
+          selectedValue: dinerData.choix_repas,
+          dbRecordId: dinerData.id_repas,
+          comment: dinerData.commentaire || "",
+        });
+      } else {
+        const nonOption = dinerOptions.find((opt) => opt.value === "non" && !opt.isSpecial);
+        setDinerSelection({
+          selectedId: nonOption ? nonOption.id : "non",
+          selectedValue: "non",
+          dbRecordId: null,
+          comment: "",
+        });
+      }
+    };
+
+    // Ne charger que si les options sont disponibles
+    if (dejeunerOptions.length > 0 && dinerOptions.length > 0) {
+      loadMealSelections();
+    }
+  }, [currentDate, user, supabase, dejeunerOptions, dinerOptions]); 
+
+  // ============================================================
+  // FONCTION : GÉRER LA SÉLECTION D'UN REPAS
+  // ============================================================
+
+  const handleMealSelection = async (
+    mealType: "dejeuner" | "diner",
+    selectedOption: MealOption
+  ) => {
     const response = await fetch("/api/presence-repas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        repas,
-        choix,
+        repas: mealType,
+        choix: selectedOption.value,
         date: formatDateKeyLocal(currentDate),
+        // NOUVEAU : On envoie l'ID de l'option si c'est un repas spécial
+        option_id: selectedOption.isSpecial ? parseInt(selectedOption.id) : null,
       }),
     });
 
@@ -354,58 +388,236 @@ export default function HomePage() {
       return;
     }
 
-    repas === "dejeuner" ? setRepasDejeuner(choix) : setRepasDiner(choix);
+    // Mettre à jour l'état local
+    const newSelection: MealSelection = {
+      selectedId: selectedOption.id,
+      selectedValue: selectedOption.value,
+      dbRecordId: result.id_repas || null,
+      comment: mealType === "dejeuner" ? dejeunerSelection.comment : dinerSelection.comment,
+    };
+
+    if (mealType === "dejeuner") {
+      setDejeunerSelection(newSelection);
+    } else {
+      setDinerSelection(newSelection);
+    }
+
     setConfirmationMsg(result.message);
   };
 
-  // Ajout d'un commentaire à un repas
-  const handleSaveComment = async (newComment: string) => {
-    if (!selectedRepasId) return;
+  // ============================================================
+  // FONCTION : GÉRER LES COMMENTAIRES
+  // ============================================================
 
-    // 1️⃣ Mise à jour en base
-    const { error: updateError } = await supabase
+  const handleSaveComment = async (newComment: string) => {
+    if (!selectedMealType) return;
+
+    const selection = selectedMealType === "dejeuner" ? dejeunerSelection : dinerSelection;
+    if (!selection.dbRecordId) return;
+
+    const { error } = await supabase
       .from("presences")
       .update({ commentaire: newComment })
-      .eq("id_repas", selectedRepasId);
+      .eq("id_repas", selection.dbRecordId);
 
-    if (updateError) {
-      console.error("Erreur lors de la mise à jour du commentaire :", updateError);
+    if (error) {
+      console.error("Erreur mise à jour commentaire :", error);
       return;
     }
 
-    // 2️⃣ Recharge la ligne mise à jour
-    const { data: updatedRow, error: fetchError } = await supabase
-      .from("presences")
-      .select("id_repas, type_repas, commentaire")
-      .eq("id_repas", selectedRepasId)
-      .maybeSingle();
-
-    if (fetchError) {
-      console.error("Erreur lors du rechargement du commentaire :", fetchError);
-      return;
+    // Mettre à jour l'état local
+    if (selectedMealType === "dejeuner") {
+      setDejeunerSelection((prev) => ({ ...prev, comment: newComment }));
+    } else {
+      setDinerSelection((prev) => ({ ...prev, comment: newComment }));
     }
 
-    // 3️⃣ Mets à jour les states locaux selon le type de repas
-    if (updatedRow?.type_repas === "dejeuner") {
-      setDejeuner((prev) => (prev ? { ...prev, commentaire: updatedRow.commentaire } : prev));
-    } else if (updatedRow?.type_repas === "diner") {
-      setDiner((prev) => (prev ? { ...prev, commentaire: updatedRow.commentaire } : prev));
-    }
-
-    // 4️⃣ Mets à jour la valeur du commentaire utilisée par la modale
-    setCommentValue(updatedRow?.commentaire || "");
+    setShowCommentModal(false);
+    setSelectedMealType(null);
   };
 
-  // Chargement des rappels d'évènements
+  // ============================================================
+  // AUTRES EFFETS (inchangés)
+  // ============================================================
+
   useEffect(() => {
-    // ✅ Ne pas exécuter tant que la date n'est pas initialisée
+    const fetchUser = async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (error || !data?.user) {
+          router.replace("/signin");
+          return;
+        }
+        setUser(data.user);
+      } catch (err) {
+        console.error("Erreur récupération user :", err);
+        router.replace("/signin");
+      }
+    };
+    fetchUser();
+  }, [router, supabase]);
+
+  useEffect(() => {
+    const fetchResidences = async () => {
+      const { data, error } = await supabase.from("residences").select("value, label");
+      if (!error && data) {
+        const formatted = data.map((item) => ({
+          value: item.value,
+          label: item.label,
+        }));
+        setResidences(formatted);
+      }
+    };
+    fetchResidences();
+  }, [supabase]);
+
+  useEffect(() => {
+    const storedDate = localStorage.getItem("dateSelectionnee");
+    if (storedDate) {
+      setCurrentDate(parseDateKeyLocal(storedDate));
+    } else {
+      setCurrentDate(new Date());
+    }
+    setIsInitialized(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+    localStorage.setItem("dateSelectionnee", formatDateKeyLocal(currentDate));
+    localStorage.setItem("startDate", formatDateKeyLocal(currentDate));
+    localStorage.setItem("endDate", formatDateKeyLocal(currentDate));
+  }, [currentDate, isInitialized]);
+
+  const goToPreviousDay = () => {
+    setDirection(-1);
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev);
+      newDate.setDate(prev.getDate() - 1);
+      return newDate;
+    });
+  };
+
+  const goToNextDay = () => {
+    setDirection(1);
+    setCurrentDate((prev) => {
+      const newDate = new Date(prev);
+      newDate.setDate(prev.getDate() + 1);
+      return newDate;
+    });
+  };
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      if (!user) return;
+      const res = await fetch("/api/get-is-absent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: currentDate }),
+      });
+      const result = await res.json();
+      setIsAbsent(result.isAbsent);
+      setIsAbsentReady(true);
+    };
+    fetchStatus();
+  }, [currentDate, user]);
+
+  const togglePresence = async () => {
+    const res = await fetch("/api/presence-foyer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isAbsent, date: currentDate }),
+    });
+    const result = await res.json();
+    if (res.ok) {
+      setIsAbsent(!isAbsent);
+    } else {
+      console.error(result.error);
+    }
+  };
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data, error } = await supabase.from("app_settings").select("key, value");
+      if (error) {
+        console.error("Erreur récupération paramètres :", error);
+        return;
+      }
+      const settingsMap: Record<string, string> = {};
+      data.forEach((s) => (settingsMap[s.key] = s.value));
+      setSettings(settingsMap);
+    };
+    fetchSettings();
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!settings.verrouillage_repas) return;
+
+    const now = new Date();
+    const parisNow = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+    const [lockHour, lockMinute] = settings.verrouillage_repas.split(":").map(Number);
+
+    const selectedDay = formatDateKeyLocal(currentDate);
+    const parisToday = formatDateKeyLocal(parisNow);
+
+    const parisTomorrowDate = new Date(parisNow);
+    parisTomorrowDate.setDate(parisNow.getDate() + 1);
+    const parisTomorrow = formatDateKeyLocal(parisTomorrowDate);
+
+    const afterLock =
+      parisNow.getHours() > lockHour ||
+      (parisNow.getHours() === lockHour && parisNow.getMinutes() >= lockMinute);
+
+    const isPastDay = selectedDay < parisToday;
+    const isToday = selectedDay === parisToday;
+
+    if (isPastDay || (isToday && afterLock)) {
+      setLocked(true);
+      setConfirmationMsg(`Les présences aux repas ne sont plus modifiables après ${settings.verrouillage_repas}.`);
+    } else {
+      setLocked(false);
+      setConfirmationMsg("");
+    }
+
+    if ((selectedDay === parisTomorrow && afterLock) || selectedDay === parisToday) {
+      setLockedValues(["pn_chaud", "pn_froid"]);
+    } else {
+      setLockedValues([]);
+    }
+  }, [currentDate, settings, profil]);
+
+  useEffect(() => {
+    const fetchAllData = async () => {
+      if (!user) return;
+      setIsReady(false);
+
+      const dateIso = formatDateKeyLocal(currentDate);
+
+      const { data: profilData, error: profilError } = await supabase
+        .from("residentes")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (profilError) console.error("Erreur profil :", profilError);
+      if (profilData) setProfil(profilData);
+
+      const { data: eventsData, error: eventsError } = await supabase
+        .from("evenements")
+        .select("*")
+        .contains("dates_event", [dateIso]);
+      if (eventsError) console.error("Erreur événements :", eventsError);
+      if (eventsData) setEvents(eventsData);
+
+      setIsReady(true);
+    };
+    fetchAllData();
+  }, [user, currentDate, supabase]);
+
+  useEffect(() => {
     if (!isInitialized) return;
 
     const fetchReminders = async () => {
-      // ✅ Date du jour à 00h00 en heure locale
       const today = new Date(currentDate);
       today.setHours(0, 0, 0, 0);
-
 
       const { data: allEvents, error } = await supabase
         .from("evenements")
@@ -428,12 +640,9 @@ export default function HomePage() {
           if (!evt.dates_event || evt.dates_event.length === 0) return null;
 
           const rappelJours = evt.rappel_event || 0;
-          
-          // ✅ Convertir toutes les dates en Date objects à 00h00
           const eventDates: Date[] = (evt.dates_event as string[])
             .map((dateStr) => {
-              // Parser la date YYYY-MM-DD correctement
-              const [year, month, day] = dateStr.split('-').map(Number);
+              const [year, month, day] = dateStr.split("-").map(Number);
               const d = new Date(year, month - 1, day);
               d.setHours(0, 0, 0, 0);
               return d;
@@ -442,170 +651,30 @@ export default function HomePage() {
 
           if (eventDates.length === 0) return null;
 
-          // ✅ Trouver les dates futures qui nécessitent un rappel AUJOURD'HUI
           const datesToRemind = eventDates.filter((eventDate) => {
-            // Nombre de jours entre aujourd'hui et l'événement
             const diffTime = eventDate.getTime() - today.getTime();
             const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-            
-            // ✅ On affiche le rappel si :
-            // 1. L'événement est dans le futur (diffDays > 0)
-            // 2. Le nombre de jours restants est <= au rappel configuré (diffDays <= rappelJours)
             return diffDays > 0 && diffDays <= rappelJours;
           });
 
           if (datesToRemind.length === 0) return null;
 
-          // Garder la date la plus proche parmi celles à rappeler
-          const nextReminderDate = datesToRemind.reduce((a, b) =>
-            a.getTime() < b.getTime() ? a : b
-          );
-
-          // ✅ Calculer les jours restants réels
+          const nextReminderDate = datesToRemind.reduce((a, b) => (a.getTime() < b.getTime() ? a : b));
           const diffTime = nextReminderDate.getTime() - today.getTime();
           const joursRestants = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
-          return { 
-            ...evt, 
-            nextReminderDate,
-            joursRestants 
-          };
+          return { ...evt, nextReminderDate, joursRestants };
         })
-        .filter(Boolean) as (typeof allEvents[0] & { 
-          nextReminderDate: Date; 
-          joursRestants: number 
-        })[];
+        .filter(Boolean) as (typeof allEvents[0] & { nextReminderDate: Date; joursRestants: number })[];
 
-      // Trier par date d'événement la plus proche
-      activeReminders.sort((a, b) => 
-        a.nextReminderDate.getTime() - b.nextReminderDate.getTime()
-      );
-
+      activeReminders.sort((a, b) => a.nextReminderDate.getTime() - b.nextReminderDate.getTime());
       setReminders(activeReminders);
     };
 
     fetchReminders();
   }, [supabase, currentDate, isInitialized]);
 
-  // Chargement des repas spéciaux
-useEffect(() => {
-  const fetchSpecialOptions = async () => {
-    if (!user) return;
-
-    const dateIso = formatDateKeyLocal(currentDate);
-
-    const { data, error } = await supabase
-      .from("special_meal_options")
-      .select("*")
-      .or(`start_date.lte.${dateIso},indefinite.eq.true`)
-      .filter("end_date", "gte", dateIso);
-
-    if (error) {
-      console.error("Erreur récupération repas spéciaux :", error);
-      return;
-    }
-
-    if (!data || data.length === 0) {
-      setSpecialOptions({ dejeuner: [], diner: [] });
-      return;
-    }
-
-    const rules = data as Rule[];
-
-    let idCounter = 1;
-    const dejeunerOpts: Option[] = [];
-    const dinerOpts: Option[] = [];
-
-    const makeOption = (opt: Option, category: 'dejeuner' | 'diner', idBase: number): Option => ({
-      ...opt,
-      id: idBase,
-      category,
-      value: String(opt.value),
-      created_at: new Date().toISOString(),
-      created_by: user?.id ?? "system",
-    });
-
-    // 🧩 On récupère la dernière règle pour chaque service
-    const latestDejeuner = getLatestRulesByService(rules, 'dejeuner') as Rule | null;
-    const latestDiner = getLatestRulesByService(rules, 'diner') as Rule | null;
-
-    const latestRules: Rule[] = [latestDejeuner, latestDiner].filter(Boolean) as Rule[]; // filtre les null
-
-    latestRules.forEach((row) => {
-      const opts = row.options ?? [];
-      const filteredOpts = opts.filter(
-        (o) => (o.is_active ?? true) && (!o.admin_only || profil?.is_admin)
-      );
-
-      if (row.service === "dejeuner") {
-        dejeunerOpts.push(...filteredOpts.map(opt => makeOption(opt, "dejeuner", idCounter++)));
-      } else if (row.service === "diner") {
-        dinerOpts.push(...filteredOpts.map(opt => makeOption(opt, "diner", idCounter++)));
-      }
-    });
-
-    setSpecialOptions({ dejeuner: dejeunerOpts, diner: dinerOpts });
-  };
-
-  fetchSpecialOptions();
-}, [currentDate, user, supabase, profil]);
-
-
-  // --- Loader global --- 
-  if (!isReady || !isAbsentReady) {
-    return (
-      <main className="flex items-center justify-center min-h-screen bg-white">
-        <LoadingSpinner />
-      </main>
-    );
-  }
-
-  // --- Filtrage des événements par résidence et visibilité ---
-  const filteredEvents = selectedResidenceValue
-    ? events.filter((event) => {
-        // Vérifie que l'évènement appartient bien à la résidence sélectionnée
-        const lieux = (event.lieu || "").split(",").map((r) => r.trim());
-        if (!lieux.includes(selectedResidenceValue)) return false;
-
-        // Si admin → toujours visible
-        if (profil?.is_admin) return true;
-
-        // Si réservé au staff admin → visible uniquement si admin
-        if (event.reserve_admin && !profil?.is_admin) return false;
-
-        // Si invitée sans résidence → visible uniquement si visible_invites
-        if (!profil?.residence) return event.visible_invites === true;
-
-        // Récupère proprement les tableaux de visibilité (avec fallback [])
-        const residences: string[] = event.visibilite?.residence ?? [];
-        const etages: string[] = event.visibilite?.etage ?? [];
-        const chambres: string[] = event.visibilite?.chambre ?? [];
-
-        // Une résidente voit l'évènement si elle correspond à au moins un niveau
-        const isVisible =
-          residences.includes(profil.residence) ||
-          etages.includes(profil.etage) ||
-          chambres.includes(profil.chambre);
-
-        return isVisible;
-      }) : [];
-
-
-  // --- Animation (slide + fade) ---
-  const variants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? 100 : -100,
-      opacity: 0,
-    }),
-    center: { x: 0, opacity: 1 },
-    exit: (direction: number) => ({
-      x: direction > 0 ? -100 : 100,
-      opacity: 0,
-    }),
-  };
-
-  // --- Gestion du swipe sur mobile ---
-  // 🧩 Swipe logic
+  // Swipe
   const minSwipeDistance = 80;
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -622,65 +691,85 @@ useEffect(() => {
   const handleTouchEnd = () => {
     setIsDragging(false);
     if (dragOffset > minSwipeDistance) {
-      // animation de sortie vers la droite
       setDragOffset(300);
       setTimeout(() => {
         goToPreviousDay();
         setDragOffset(0);
       }, 150);
     } else if (dragOffset < -minSwipeDistance) {
-      // animation de sortie vers la gauche
       setDragOffset(-300);
       setTimeout(() => {
         goToNextDay();
         setDragOffset(0);
       }, 150);
     } else {
-      // revient au centre
       setDragOffset(0);
     }
     setTouchStartX(null);
   };
 
+  if (!isReady || !isAbsentReady) {
+    return (
+      <main className="flex items-center justify-center min-h-screen bg-white">
+        <LoadingSpinner />
+      </main>
+    );
+  }
 
+  const filteredEvents = selectedResidenceValue
+    ? events.filter((event) => {
+        const lieux = (event.lieu || "").split(",").map((r) => r.trim());
+        if (!lieux.includes(selectedResidenceValue)) return false;
+        if (profil?.is_admin) return true;
+        if (event.reserve_admin && !profil?.is_admin) return false;
+        if (!profil?.residence) return event.visible_invites === true;
+        const residences: string[] = event.visibilite?.residence ?? [];
+        const etages: string[] = event.visibilite?.etage ?? [];
+        const chambres: string[] = event.visibilite?.chambre ?? [];
+        const isVisible =
+          residences.includes(profil.residence) ||
+          etages.includes(profil.etage) ||
+          chambres.includes(profil.chambre);
+        return isVisible;
+      })
+    : [];
 
+  const variants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 100 : -100,
+      opacity: 0,
+    }),
+    center: { x: 0, opacity: 1 },
+    exit: (direction: number) => ({
+      x: direction > 0 ? -100 : 100,
+      opacity: 0,
+    }),
+  };
 
-  // --- Rendu principal ---
+  // ============================================================
+  // RENDU
+  // ============================================================
+
   return (
-    <main 
-      className="min-h-screen flex flex-col items-center bg-white px-4 pt-6"
-    >
-      {/* Flèche gauche (desktop uniquement) */}
+    <main className="min-h-screen flex flex-col items-center bg-white px-4 pt-6">
       <button
         onClick={goToPreviousDay}
-        className="
-          hidden sm:flex items-center justify-center
-          absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-[calc(50%+210px)]
-          bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700
-          transition-transform duration-200 hover:scale-110 cursor-pointer
-        "
+        className="hidden sm:flex items-center justify-center absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-[calc(50%+210px)] bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700 transition-transform duration-200 hover:scale-110 cursor-pointer"
       >
         <ChevronLeft className="w-6 h-6" />
       </button>
 
-      {/* Flèche droite (desktop uniquement) */}
       <button
         onClick={goToNextDay}
-        className="
-          hidden sm:flex items-center justify-center
-          absolute top-1/2 left-1/2 -translate-y-1/2 translate-x-[calc(50%+165px)]
-          bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700
-          transition-transform duration-200 hover:scale-110 cursor-pointer
-        "
+        className="hidden sm:flex items-center justify-center absolute top-1/2 left-1/2 -translate-y-1/2 translate-x-[calc(50%+165px)] bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700 transition-transform duration-200 hover:scale-110 cursor-pointer"
       >
         <ChevronRight className="w-6 h-6" />
       </button>
 
-
-      {/* Bouton de déconnexion */}
       <div className="w-full max-w-md flex justify-end mb-4">
         <LogoutButton />
       </div>
+
       <AnimatePresence custom={direction} mode="wait">
         <motion.div
           className="w-full flex flex-col items-center"
@@ -692,26 +781,16 @@ useEffect(() => {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
+          <Image src="/logo.png" alt="Logo" width={350} height={350} className="mb-3" />
 
-          {/* Logo */}
-          <Image
-            src="/logo.png"
-            alt="Logo"
-            width={350}
-            height={350}
-            className="mb-3"
-          />
-
-          {/* Affichage de la date du jour */}
           <div className="flex justify-center items-center mb-5 space-x-4">
             <h2 className="text-2xl font-semibold text-center text-blue-800">
               {formatDate(currentDate)}
             </h2>
           </div>
 
-          {/* Présence au foyer */}
           <div className="flex flex-col items-center mt-4 space-y-2 mb-5">
-            <PresenceButton 
+            <PresenceButton
               date={formatDateKeyLocal(currentDate)}
               isAbsent={isAbsent}
               togglePresence={togglePresence}
@@ -719,7 +798,6 @@ useEffect(() => {
             />
           </div>
 
-          {/* Onglets Résidences */}
           <div className="relative flex justify-center mb-4 z-10">
             <div
               className="absolute top-0 h-12 w-20 bg-yellow-400 rounded-t-xl transition-all duration-300"
@@ -731,8 +809,10 @@ useEffect(() => {
             {residences.map((res) => (
               <button
                 key={res.value}
-                onClick={() => {setSelectedResidenceValue(res.value); 
-                                setSelectedResidenceLabel(res.label)}}
+                onClick={() => {
+                  setSelectedResidenceValue(res.value);
+                  setSelectedResidenceLabel(res.label);
+                }}
                 className={`cursor-pointer relative flex items-center justify-center w-20 h-12 text-lg font-bold border rounded-t-xl transition-colors z-10
                   ${
                     selectedResidenceValue === res.value
@@ -745,240 +825,201 @@ useEffect(() => {
             ))}
           </div>
 
-
-          {/* Bloc principal animé */}
           <section className="w-full max-w-md bg-white rounded-xl shadow-lg p-5 overflow-hidden relative">
+            {/* Rappels */}
+            {reminders.length > 0 && (
+              <div className="w-full mb-5 bg-yellow-50 border border-yellow-300 rounded-lg p-4 shadow-sm">
+                <h3 className="text-lg font-semibold text-yellow-800 mb-2 flex items-center gap-2">
+                  <Bell className="w-5 h-5" />
+                  Rappels du jour
+                  <span className="text-xs font-normal text-yellow-600">
+                    ({reminders.length} événement{reminders.length > 1 ? "s" : ""} à venir)
+                  </span>
+                </h3>
+                <ul className="space-y-2">
+                  {reminders.map((evt) => {
+                    if (!evt.nextReminderDate || typeof evt.joursRestants !== "number") {
+                      return null;
+                    }
 
-            {/* 🔔 Bloc Rappels du jour */}
-            <ul className="space-y-2">
-              {reminders.length > 0 && (
-                <div className="w-full mb-5 bg-yellow-50 border border-yellow-300 rounded-lg p-4 shadow-sm">
-                  <h3 className="text-lg font-semibold text-yellow-800 mb-2 flex items-center gap-2">
-                    <Bell className="w-5 h-5" /> {/* ✅ Icône Bell de Lucide */}
-                    Rappels du jour
-                    <span className="text-xs font-normal text-yellow-600">
-                      ({reminders.length} événement{reminders.length > 1 ? "s" : ""} à venir)
-                    </span>
-                  </h3>
-                  <ul className="space-y-2">
-                    {reminders.map((evt) => {
-                      // ✅ Vérification de sécurité
-                      if (!evt.nextReminderDate || typeof evt.joursRestants !== 'number') {
-                        return null;
-                      }
+                    const eventDateFormatted = evt.nextReminderDate.toLocaleDateString("fr-FR", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    });
 
-                      const eventDateFormatted = evt.nextReminderDate.toLocaleDateString("fr-FR", {
-                        weekday: "long",
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      });
-
-                      return (
-                        <li 
-                          key={`${evt.id}-${evt.nextReminderDate.getTime()}`}
-                          className="bg-white p-3 rounded-lg shadow-sm border border-yellow-200 hover:border-yellow-400 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <strong className="text-yellow-800 text-base">{evt.titre}</strong>
-                              
-                              {/* ✅ Affichage sécurisé avec vérification */}
-                              <p className="text-sm text-yellow-700 mt-1 font-medium">
-                                📅 Dans {evt.joursRestants} jour{evt.joursRestants > 1 ? "s" : ""}
-                              </p>
-
-                              <p className="text-xs text-gray-600 mt-1">
-                                Évènement prévu le {eventDateFormatted}
-                                {evt.heures && ` à ${evt.heures}`}
-                                {evt.lieu && ` • Résidence ${evt.lieu}`}
-                              </p>
-
-                              {evt.description && (
-                                <p className="text-gray-700 text-sm mt-2 line-clamp-2">
-                                  {evt.description}
-                                </p>
-                              )}
-
-                              {/* Afficher toutes les dates si événement multi-dates */}
-                              {evt.dates_event && evt.dates_event.length > 1 && (
-                                <p className="text-xs text-gray-500 mt-2 italic">
-                                  Événement sur {evt.dates_event.length} dates
-                                </p>
-                              )}
-                            </div>
-
-                            {/* Badge avec le nombre de jours */}
-                            <div className="flex-shrink-0 bg-yellow-100 text-yellow-800 rounded-full px-3 py-1 text-xs font-semibold">
-                              J-{evt.joursRestants}
-                            </div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </ul>
-
-                {/* Événements */}
-                <div className="mb-10">
-                  {filteredEvents.length === 0 ? (
-                    <p className="text-gray-500 italic text-sm mb-4">
-                      Aucun évènement prévu pour la {selectedResidenceLabel}.
-                    </p>
-                  ) : (
-                    filteredEvents.map((e) => (
-                      <div
-                          key={e.id}
-                          className={`border rounded-lg px-4 py-3 mb-3 ${e.couleur}`}
+                    return (
+                      <li
+                        key={`${evt.id}-${evt.nextReminderDate.getTime()}`}
+                        className="bg-white p-3 rounded-lg shadow-sm border border-yellow-200 hover:border-yellow-400 transition-colors"
                       >
-                          {/* Ligne titre + boutons */}
-                          <div className="flex items-center justify-between">
-                              {/* --- Titre --- */}
-                              <span className="text-sm font-medium text-gray-800">{e.titre}</span>
-
-                              {/* --- Boutons à droite --- */}
-                              <div className="flex items-center space-x-2">
-                                  {/* 👁 Vision (admin seulement) */}
-                                  {e.demander_confirmation && profil?.is_admin && <VisionConfirmation eventId={e.id} />}
-
-                                  {/* ✅ Toggle participation (pour tout le monde si demander_confirmation) */}
-                                  {e.demander_confirmation && <ConfirmationToggle eventId={e.id} />}
-                              </div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <strong className="text-yellow-800 text-base">{evt.titre}</strong>
+                            <p className="text-sm text-yellow-700 mt-1 font-medium">
+                              📅 Dans {evt.joursRestants} jour{evt.joursRestants > 1 ? "s" : ""}
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              Évènement prévu le {eventDateFormatted}
+                              {evt.heures && ` à ${evt.heures}`}
+                              {evt.lieu && ` • Résidence ${evt.lieu}`}
+                            </p>
+                            {evt.description && (
+                              <p className="text-gray-700 text-sm mt-2 line-clamp-2">
+                                {evt.description}
+                              </p>
+                            )}
+                            {evt.dates_event && evt.dates_event.length > 1 && (
+                              <p className="text-xs text-gray-500 mt-2 italic">
+                                Événement sur {evt.dates_event.length} dates
+                              </p>
+                            )}
                           </div>
+                          <div className="flex-shrink-0 bg-yellow-100 text-yellow-800 rounded-full px-3 py-1 text-xs font-semibold">
+                            J-{evt.joursRestants}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
 
-                          {/* Heure et description dessous */}
-                          {e.heures && (
-                          <p className="text-xs text-gray-600 mt-1 italic">
-                              À partir de {e.heures}
-                          </p>
-                          )}
-
-                          {e.description && (
-                          <p className="text-xs text-gray-500 mt-1">{e.description}</p>
-                          )}
+            {/* Événements */}
+            <div className="mb-10">
+              {filteredEvents.length === 0 ? (
+                <p className="text-gray-500 italic text-sm mb-4">
+                  Aucun évènement prévu pour la {selectedResidenceLabel}.
+                </p>
+              ) : (
+                filteredEvents.map((e) => (
+                  <div key={e.id} className={`border rounded-lg px-4 py-3 mb-3 ${e.couleur}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-800">{e.titre}</span>
+                      <div className="flex items-center space-x-2">
+                        {e.demander_confirmation && profil?.is_admin && (
+                          <VisionConfirmation eventId={e.id} />
+                        )}
+                        {e.demander_confirmation && <ConfirmationToggle eventId={e.id} />}
                       </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Présence repas */}
-                <h2 className="text-xl font-semibold text-center text-blue-800 mb-4">
-                  Présence aux repas
-                </h2>
-
-                {/* Déjeuner */}
-                <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
-                  {/* Label à gauche */}
-                  <p className="font-semibold text-blue-900">Déjeuner</p>
-
-                  {/* Select + pencil à droite */}
-                  <div className="flex items-center gap-2">
-                    {specialOptions.dejeuner.length > 0 ? (
-                      <SelectField
-                        name="repasDejeuner"
-                        value={repasDejeuner || ""}
-                        options={specialOptions.dejeuner}
-                        onChange={(val) => handleSelectRepas("dejeuner", val)}
-                        placeholder="Choisissez votre déjeuner"
-                        disabled={locked}
-                        selectClassName="min-w-[220px] h-10"
-                      />
-                    ) : (
-                      <DynamicSelectGroup
-                        rootCategory="repas"
-                        subRootCategory="dejeuner"
-                        onlyParent
-                        onChange={(selected) => {
-                          const choix = selected["dejeuner"]?.value;
-                          if (choix) handleSelectRepas("dejeuner", choix);
-                        }}
-                        islabel={false}
-                        initialValue={repasDejeuner}
-                        disabled={locked}
-                        lockedValues={lockedValues} // verrouiller les pn du lendemain
-                        isAdmin={profil?.is_admin}
-                      />
+                    </div>
+                    {e.heures && (
+                      <p className="text-xs text-gray-600 mt-1 italic">À partir de {e.heures}</p>
                     )}
-
-                    <button
-                      onClick={() => {
-                        if (repasDejeuner !== 'non') {
-                          setShowCommentModal(true)
-                          setSelectedRepasId(dejeuner?.id_repas ?? -1)
-                          setCommentValue(dejeuner?.commentaire ?? '')
-                        }
-                      }}
-                      disabled={repasDejeuner === 'non' || locked}
-                      className={`p-2 rounded-full transition ${
-                        repasDejeuner === 'non' || locked
-                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                          : 'bg-blue-500 text-white hover:bg-blue-900 cursor-pointer'
-                      }`}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-
-                {/* Dîner */}
-                <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
-                  <p className="font-semibold text-blue-900">Dîner</p>
-
-                  <div className="flex items-center gap-2">
-                    {specialOptions.diner.length > 0 ? (
-                      <SelectField
-                        name="repasDiner"
-                        value={repasDiner || ""}
-                        options={specialOptions.diner}
-                        onChange={(val) => handleSelectRepas("diner", val)}
-                        placeholder="Choisissez votre dîner"
-                        disabled={locked}
-                        selectClassName="min-w-[220px] h-10"
-                      />
-                    ) : (
-                      <DynamicSelectGroup
-                        rootCategory="repas"
-                        subRootCategory="diner"
-                        onlyParent={true}
-                        onChange={(selected) => {
-                          const choix = selected["diner"]?.value;
-                          if (choix) handleSelectRepas("diner", choix);
-                        }}
-                        islabel={false}
-                        initialValue={repasDiner}
-                        disabled={locked}
-                        lockedValues={lockedValues} // verrouiller les pn du lendemain
-                        isAdmin={profil?.is_admin}
-                      />
+                    {e.description && (
+                      <p className="text-xs text-gray-500 mt-1">{e.description}</p>
                     )}
-
-                    <button
-                      onClick={() => {
-                        if (repasDiner !== 'non') {
-                          setShowCommentModal(true)
-                          setSelectedRepasId(diner?.id_repas ?? -1)
-                          setCommentValue(diner?.commentaire ?? '')
-                        }
-                      }}
-                      disabled={repasDiner === 'non' || locked}
-                      className={`p-2 rounded-full transition ${repasDiner === 'non' || locked
-                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        : 'bg-blue-500 text-white hover:bg-blue-900 cursor-pointer'}`}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
                   </div>
-                </div>
+                ))
+              )}
+            </div>
 
+            {/* Présence repas */}
+            <h2 className="text-xl font-semibold text-center text-blue-800 mb-4">
+              Présence aux repas
+            </h2>
 
-                {confirmationMsg && (
-                  <p className="mt-3 text-green-600 font-semibold text-sm">
-                    {confirmationMsg}
-                  </p>
-                )}
+            {/* Déjeuner */}
+            <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
+              <p className="font-semibold text-blue-900">Déjeuner</p>
+
+              <div className="flex items-center gap-2">
+                <SelectField2
+                  name="repasDejeuner"
+                  value={dejeunerSelection.selectedId}
+                  options={dejeunerOptions.map((opt) => ({
+                    id: opt.id as any,
+                    value: opt.id,
+                    label: opt.label,
+                    category: "dejeuner",
+                    created_at: "",
+                    created_by: "",
+                  }))}
+                  onChange={(option) => {
+                    if (!option) return;
+                    const selectedMealOption = dejeunerOptions.find(
+                      (opt) => opt.id === option.value
+                    );
+                    if (selectedMealOption) {
+                      handleMealSelection("dejeuner", selectedMealOption);
+                    }
+                  }}
+                  placeholder="Choisissez votre déjeuner"
+                  disabled={locked}
+                  selectClassName="min-w-[220px] h-10"
+                />
+
+                <button
+                  onClick={() => {
+                    if (dejeunerSelection.selectedValue !== "non") {
+                      setShowCommentModal(true);
+                      setSelectedMealType("dejeuner");
+                    }
+                  }}
+                  disabled={dejeunerSelection.selectedValue === "non" || locked}
+                  className={`p-2 rounded-full transition ${
+                    dejeunerSelection.selectedValue === "non" || locked
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-blue-500 text-white hover:bg-blue-900 cursor-pointer"
+                  }`}
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Dîner */}
+            <div className="flex items-center justify-between bg-blue-100 rounded-lg px-4 py-3 mb-3">
+              <p className="font-semibold text-blue-900">Dîner</p>
+
+              <div className="flex items-center gap-2">
+                <SelectField2
+                  name="repasDiner"
+                  value={dinerSelection.selectedId}
+                  options={dinerOptions.map((opt) => ({
+                    id: opt.id as any,
+                    value: opt.id,
+                    label: opt.label,
+                    category: "diner",
+                    created_at: "",
+                    created_by: "",
+                  }))}
+                  onChange={(option) => {
+                    if (!option) return;
+                    const selectedMealOption = dinerOptions.find((opt) => opt.id === option.value);
+                    if (selectedMealOption) {
+                      handleMealSelection("diner", selectedMealOption);
+                    }
+                  }}
+                  placeholder="Choisissez votre dîner"
+                  disabled={locked}
+                  selectClassName="min-w-[220px] h-10"
+                />
+
+                <button
+                  onClick={() => {
+                    if (dinerSelection.selectedValue !== "non") {
+                      setShowCommentModal(true);
+                      setSelectedMealType("diner");
+                    }
+                  }}
+                  disabled={dinerSelection.selectedValue === "non" || locked}
+                  className={`p-2 rounded-full transition ${
+                    dinerSelection.selectedValue === "non" || locked
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "bg-blue-500 text-white hover:bg-blue-900 cursor-pointer"
+                  }`}
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {confirmationMsg && (
+              <p className="mt-3 text-green-600 font-semibold text-sm">{confirmationMsg}</p>
+            )}
 
             {/* Boutons bas */}
             <div className="flex justify-between mt-6">
@@ -990,32 +1031,30 @@ useEffect(() => {
                   Voir les inscriptions
                 </button>
               )}
-              
+
               <button
                 onClick={() => setIsModalOpen(true)}
                 className="bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
               >
-                Inviter quelqu’un
+                Inviter quelqu'un
               </button>
             </div>
-            
 
             {/* Modals */}
-            {/* Modal d'ajout d'un invité au repas */}
-            <InviteModal
-              isOpen={isModalOpen}
-              onClose={() => setIsModalOpen(false)}
-            />
-            
-            {/* Modal d'ajout d'un commentaire au repas */}
+            <InviteModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+
             <CommentModal
               isOpen={showCommentModal}
-              onClose={() => {setShowCommentModal(false);
-                              setSelectedRepasId(null)
-                              setCommentValue("")
-                        }}
+              onClose={() => {
+                setShowCommentModal(false);
+                setSelectedMealType(null);
+              }}
               onSave={handleSaveComment}
-              initialComment={commentValue}
+              initialComment={
+                selectedMealType === "dejeuner"
+                  ? dejeunerSelection.comment
+                  : dinerSelection.comment
+              }
             />
           </section>
         </motion.div>

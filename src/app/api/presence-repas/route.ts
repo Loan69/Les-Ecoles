@@ -6,9 +6,8 @@ type RepasType = "dejeuner" | "diner";
 
 export async function POST(req: NextRequest) {
   try {
-    // 🧩 Correction ici : cookies() est une Promise en Next 15+
+    // 🧩 cookies() est une Promise en Next 15+
     const cookieStore = await cookies();
-
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,22 +24,34 @@ export async function POST(req: NextRequest) {
     );
 
     // 🔹 Récupération de l'utilisateur connecté
-     const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-     if (userError || !user) {
-     return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
-     }
+    if (userError || !user) {
+      return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
+    }
 
-    const { repas, date, choix }: { repas: RepasType; date?: string; choix: string } = await req.json();
+    const {
+      repas,
+      date,
+      choix,
+      option_id, // NOUVEAU : ID de l'option sélectionnée (pour les repas spéciaux)
+    }: { 
+      repas: RepasType; 
+      date?: string; 
+      choix: string;
+      option_id?: number | null;
+    } = await req.json();
 
     const userId = user.id;
     const dateToday = date || new Date().toISOString().split("T")[0];
 
-
     // --- 🔍 Vérifie si un repas existe déjà ---
     const { data: existing, error: selectError } = await supabase
       .from("presences")
-      .select("id_repas")
+      .select("id_repas, choix_repas, option_id")
       .eq("user_id", userId)
       .eq("date_repas", dateToday)
       .eq("type_repas", repas)
@@ -55,7 +66,7 @@ export async function POST(req: NextRequest) {
     }
 
     // --- ❌ Suppression si "non" ---
-    if (choix === "non") {
+    if (choix === "non" || choix === "1") {
       if (existing) {
         const { error: deleteError } = await supabase
           .from("presences")
@@ -75,6 +86,7 @@ export async function POST(req: NextRequest) {
           action: "deleted",
           repas,
           choix,
+          id_repas: null,
           message: `Vous êtes désinscrite pour le ${repas}.`,
         });
       }
@@ -84,6 +96,7 @@ export async function POST(req: NextRequest) {
         action: "noop",
         repas,
         choix,
+        id_repas: null,
         message: `Aucun repas à supprimer pour le ${repas}.`,
       });
     }
@@ -92,7 +105,10 @@ export async function POST(req: NextRequest) {
     if (existing) {
       const { error: updateError } = await supabase
         .from("presences")
-        .update({ choix_repas: choix })
+        .update({ 
+          choix_repas: choix,
+          option_id: option_id || null, // NOUVEAU : mise à jour de l'option_id
+        })
         .eq("id_repas", existing.id_repas);
 
       if (updateError) {
@@ -108,23 +124,29 @@ export async function POST(req: NextRequest) {
         action: "updated",
         repas,
         choix,
+        id_repas: existing.id_repas,
         message: `Votre choix du ${repas} a été mis à jour.`,
       });
     }
 
     // --- ➕ Insertion sinon ---
-    const { error: insertError } = await supabase.from("presences").insert({
-      user_id: userId,
-      type_repas: repas,
-      date_repas: dateToday,
-      choix_repas: choix,
-    });
+    const { data: insertedData, error: insertError } = await supabase
+      .from("presences")
+      .insert({
+        user_id: userId,
+        type_repas: repas,
+        date_repas: dateToday,
+        choix_repas: choix,
+        option_id: option_id || null, // NOUVEAU : insertion de l'option_id
+      })
+      .select("id_repas")
+      .single();
 
     if (insertError) {
       console.error("Erreur insert repas:", insertError.message);
       return NextResponse.json({
         success: false,
-        message: "Erreur lors de l’ajout du repas.",
+        message: "Erreur lors de l'ajout du repas.",
       });
     }
 
@@ -133,7 +155,8 @@ export async function POST(req: NextRequest) {
       action: "inserted",
       repas,
       choix,
-      message: `Vous êtes inscrite pour le ${repas} (${choix}).`,
+      id_repas: insertedData?.id_repas || null,
+      message: `Vous êtes inscrite pour le ${repas}.`,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
