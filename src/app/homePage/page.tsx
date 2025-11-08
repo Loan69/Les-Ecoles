@@ -930,7 +930,7 @@ export default function HomePage() {
                   name="repasDejeuner"
                   value={dejeunerSelection.selectedId}
                   options={dejeunerOptions.map((opt) => ({
-                    id: opt.id as any,
+                    id: Number(opt.id),
                     value: opt.id,
                     label: opt.label,
                     category: "dejeuner",
@@ -979,7 +979,7 @@ export default function HomePage() {
                   name="repasDiner"
                   value={dinerSelection.selectedId}
                   options={dinerOptions.map((opt) => ({
-                    id: opt.id as any,
+                    id: Number(opt.id),
                     value: opt.id,
                     label: opt.label,
                     category: "diner",
@@ -1036,7 +1036,7 @@ export default function HomePage() {
                 onClick={() => setIsModalOpen(true)}
                 className="bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
               >
-                Inviter quelqu'un
+                Inviter quelqu&apos;un
               </button>
             </div>
 
