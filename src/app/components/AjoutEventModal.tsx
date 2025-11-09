@@ -36,7 +36,7 @@ export default function ModalAjoutEvenement({
     visibilite: { residence: [], etage: [], chambre: [] },
     visible_invites: false,
     demander_confirmation: false,
-    reserve_admin: false,
+    reserve_admin: null,
     rappel_event: 0,
   });
 
@@ -56,7 +56,7 @@ export default function ModalAjoutEvenement({
           visibilite: eventToEdit.visibilite || { residence: [], etage: [], chambre: [] },
           visible_invites: eventToEdit.visible_invites || false,
           demander_confirmation: eventToEdit.demander_confirmation || false,
-          reserve_admin: eventToEdit.reserve_admin || false,
+          reserve_admin: eventToEdit.reserve_admin || null,
           rappel_event: eventToEdit.rappel_event || 0,
         });
       } else {
@@ -72,7 +72,7 @@ export default function ModalAjoutEvenement({
           visibilite: { residence: [], etage: [], chambre: [] },
           visible_invites: false,
           demander_confirmation: false,
-          reserve_admin: false,
+          reserve_admin: null,
           rappel_event: 0,
         });
       }
@@ -127,6 +127,7 @@ export default function ModalAjoutEvenement({
         <div className="w-full bg-blue-500 h-[1px] mb-4" />
 
         <form onSubmit={handleSubmit} className="space-y-4">
+
           {/* Type d'évènement */}
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Type de l&apos;évènement
@@ -222,13 +223,20 @@ export default function ModalAjoutEvenement({
                   Si activé, seuls les résidentes admins verront cet évènement.
                 </span>
               </div>
-              <input
-                type="checkbox"
-                name="reserve_admin"
-                checked={form.reserve_admin || false}
-                onChange={handleChange}
-                className="w-5 h-5 accent-blue-600 rounded-md cursor-pointer"
-              />
+               <select
+                  name="reserve_admin"
+                  value={form.reserve_admin || ""}
+                  onChange={(e) => {
+                    const value = e.target.value === "" ? null : e.target.value;
+                    handleSelectChange("reserve_admin", value);
+                  }}
+                  className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Accessible à tous</option>
+                  <option value="12">Staff Résidence 12 uniquement</option>
+                  <option value="36">Staff Résidence 36 uniquement</option>
+                  <option value="all">Tout le staff</option>
+                </select>
             </label>
           )}
 
@@ -236,7 +244,7 @@ export default function ModalAjoutEvenement({
           <DynamicMultiSelectGroup
             key={`visi-${open}`}
             rootCategory="residence"
-            disabled={form.reserve_admin}
+            disabled={!!form.reserve_admin} // désactivé si un staff est sélectionné
             onChange={(selected) => {
               const transformed: { [category: string]: string[] } = {};
               Object.entries(selected).forEach(([category, options]) => {

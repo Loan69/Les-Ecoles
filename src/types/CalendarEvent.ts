@@ -16,7 +16,7 @@ export interface CalendarEvent {
   visible_invites?: boolean;
   demander_confirmation?: boolean;
   confirmations?: string[];
-  reserve_admin?: boolean;
+  reserve_admin?: "12" | "36" | "all" | null;
   rappel_event?: number;
   nextReminderDate?: Date;
   joursRestants?: number;

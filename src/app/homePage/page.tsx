@@ -22,6 +22,7 @@ import ConfirmationToggle from "../components/ConfirmationToggle";
 import { Rule } from "@/types/Rule";
 import { getLatestRulesByService } from "@/lib/rulesUtils";
 import SelectField2 from "../components/SelectField2";
+import { setFips } from "crypto";
 
 // ============================================================
 // TYPES POUR UNE GESTION UNIFORME DES REPAS
@@ -152,9 +153,7 @@ export default function HomePage() {
         });
       });
     }
-
-    // Filtrer les options verrouillées (sauf pour les admins)
-    return options.filter((opt) => !opt.isLocked || isAdmin);
+    return options.filter((opt) => !opt.isLocked || !opt.isLocked && isAdmin);
   };
 
   // ============================================================
@@ -560,7 +559,11 @@ export default function HomePage() {
       setConfirmationMsg("");
     }
 
-    if ((selectedDay === parisTomorrow && afterLock) || selectedDay === parisToday) {
+    // VERROUILLAGE DES PIQUE-NIQUES pour le lendemain après l'heure de lock
+    if (selectedDay === parisTomorrow && afterLock) {
+      setLockedValues(["pn_chaud", "pn_froid"]);
+    } else if (selectedDay === parisToday && !afterLock) {
+      // Aujourd'hui avant l'heure de lock : pique-niques verrouillés aussi
       setLockedValues(["pn_chaud", "pn_froid"]);
     } else {
       setLockedValues([]);
@@ -702,9 +705,25 @@ export default function HomePage() {
     ? events.filter((event) => {
         const lieux = (event.lieu || "").split(",").map((r) => r.trim());
         if (!lieux.includes(selectedResidenceValue)) return false;
-        if (profil?.is_admin) return true;
-        if (event.reserve_admin && !profil?.is_admin) return false;
+
+        // Gestion visibilité admin
+        if (event.reserve_admin) {
+          // Si pas admin, ne pas afficher
+          if (!profil?.is_admin) return false;
+          
+          // Si admin, vérifier la résidence
+          if (event.reserve_admin === "all") {
+            // Visible par tout le staff
+            return true;
+          } else if (event.reserve_admin === "12" || event.reserve_admin === "36") {
+            // Visible uniquement si on est sur la bonne résidence
+            return selectedResidenceValue === event.reserve_admin;
+          }
+        }
+
+        // Logique existante pour les non-admin
         if (!profil?.residence) return event.visible_invites === true;
+        
         const residences: string[] = event.visibilite?.residence ?? [];
         const etages: string[] = event.visibilite?.etage ?? [];
         const chambres: string[] = event.visibilite?.chambre ?? [];
@@ -930,7 +949,7 @@ export default function HomePage() {
                   }}
                   placeholder="Choisissez votre déjeuner"
                   disabled={locked}
-                  selectClassName="min-w-[220px] h-10"
+                  selectClassName="w-full max-w-[180px] md:max-w-[220px] h-10"
                 />
 
                 <button
@@ -977,7 +996,7 @@ export default function HomePage() {
                   }}
                   placeholder="Choisissez votre dîner"
                   disabled={locked}
-                  selectClassName="min-w-[220px] h-10"
+                  selectClassName="w-full max-w-[180px] md:max-w-[220px] h-10"
                 />
 
                 <button
