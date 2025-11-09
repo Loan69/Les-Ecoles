@@ -6,16 +6,17 @@ import { useSupabase } from "../providers";
 import { useRouter } from "next/navigation";
 
 export default function SignInPage() {
-    const { supabase } = useSupabase(); // ← Remplace createClientComponentClient
+    const { supabase } = useSupabase();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
     const [successMsg, setSuccessMsg] = useState("");
+    const [showResetPassword, setShowResetPassword] = useState(false); // ✅ NOUVEAU
+    const [resetLoading, setResetLoading] = useState(false); // ✅ NOUVEAU
     const router = useRouter();
 
     useEffect(() => {
-      // 1️⃣ Récupère depuis localStorage
       const savedEmail = localStorage.getItem("pendingEmail");
     
       if (savedEmail) {
@@ -30,35 +31,55 @@ export default function SignInPage() {
         setErrorMsg("");
         setSuccessMsg("");
       
-        // 1️⃣ Vérification côté client
         if (!email || !password) {
           setErrorMsg("Merci de remplir votre adresse e-mail et votre mot de passe.");
           setLoading(false);
           return;
         }
       
-        // 2️⃣ Appel Supabase
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
       
-        // 3️⃣ Gestion des erreurs
         if (error) {
           handleAuthError(error);
           setLoading(false);
           return;
         }
       
-        // 4️⃣ Succès
-        // Appel de la route serveur
         await fetch("/api/sync-user", { method: "POST" });
-
         router.push("/homePage");
         setLoading(false);
     };
+
+    // ✅ NOUVEAU : Réinitialisation du mot de passe
+    const handleResetPassword = async () => {
+      setResetLoading(true);
+      setErrorMsg("");
+      setSuccessMsg("");
+
+      if (!email) {
+        setErrorMsg("Merci de renseigner votre adresse e-mail.");
+        setResetLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/resetPassword`,
+      });
+
+      if (error) {
+        setErrorMsg("Une erreur est survenue. Vérifiez votre adresse e-mail.");
+        setResetLoading(false);
+        return;
+      }
+
+      setSuccessMsg("Un e-mail de réinitialisation a été envoyé. Vérifiez votre boîte mail.");
+      setShowResetPassword(false);
+      setResetLoading(false);
+    };
       
-    // Fonction pour traduire les messages Supabase
     const handleAuthError = (error: Error) => {
         const message = error.message || "";
         
@@ -75,7 +96,6 @@ export default function SignInPage() {
       
     return (
         <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gray-50">
-            {/* Logo */}
             <Image
                 src="/logo.png"
                 alt="Logo des écoles"
@@ -84,10 +104,12 @@ export default function SignInPage() {
                 className="mb-3"
             />
 
-            {/* Formulaire */}
             <div className="w-full max-w-sm bg-white shadow-md rounded-2xl p-6">
-            <h1 className="text-2xl text-black font-bold text-blue-800">Connexion</h1>
+            <h1 className="text-2xl text-black font-bold text-blue-800">
+              {showResetPassword ? "Mot de passe oublié" : "Connexion"}
+            </h1>
             <div className="w-full bg-blue-500 h-[2px] mb-2" />
+            
             {/* Email */}
             <input
                 type="email"
@@ -98,47 +120,29 @@ export default function SignInPage() {
                 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
-            {/* Mot de passe */}
-            <input
-                type="password"
-                placeholder="Mot de passe"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSignIn();
-                  }}
-                className="w-full mb-3 px-4 py-2 border border-blue-500 text-blue-800 
-                focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            {/* ✅ Affichage conditionnel : Mot de passe ou Reset */}
+            {!showResetPassword ? (
+              <>
+                <input
+                    type="password"
+                    placeholder="Mot de passe"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSignIn();
+                    }}
+                    className="w-full mb-3 px-4 py-2 border border-blue-500 text-blue-800 
+                    focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
 
-            {/* Bouton connexion */}
-            <button
-                onClick={handleSignIn}
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-800 text-white font-semibold py-2 rounded-lg transition cursor-pointer"
-            >
-                {loading ? "Connexion..." : "Je me connecte"}
-            </button>
-            
-            {/* Inscription */}
-            <div className="mt-8">
-                <h1 className="text-2xl text-blue-800 font-bold">Ou inscrivez-vous</h1>
-                <div className="w-full bg-blue-500 h-[2px] mb-2" />
-                    <div className="flex gap-4 justify-center">
-                      <button
-                      onClick={() => router.push(`/completionProfile?role=residente`)}
-                      className="px-6 py-2 border border-blue-600 text-white font-bold bg-blue-600 rounded-lg hover:bg-blue-800 transition cursor-pointer"
-                      >
-                        Résidente
-                      </button>
-                      <button
-                      onClick={() => router.push(`/completionProfile?role=invitee`)}
-                      className="px-6 py-2 border border-blue-600 text-white font-bold bg-blue-600 rounded-lg hover:bg-blue-800 transition cursor-pointer"
-                      >
-                      Invitée
-                      </button>
-                    </div>
-                </div>
+                <button
+                    onClick={handleSignIn}
+                    disabled={loading}
+                    className="w-full bg-blue-600 hover:bg-blue-800 text-white font-semibold py-2 rounded-lg transition cursor-pointer"
+                >
+                    {loading ? "Connexion..." : "Je me connecte"}
+                </button>
+
                 {/* Messages */}
                 {errorMsg && (
                     <p className="text-red-500 text-sm mt-3 text-center">{errorMsg}</p>
@@ -146,6 +150,63 @@ export default function SignInPage() {
                 {successMsg && (
                     <p className="text-green-600 text-sm mt-3 text-center">{successMsg}</p>
                 )}
+
+                {/* ✅ NOUVEAU : Lien mot de passe oublié */}
+                <button
+                  onClick={() => setShowResetPassword(true)}
+                  className="w-full text-blue-600 text-sm mt-3 hover:underline cursor-pointer"
+                >
+                  Mot de passe oublié ?
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 mb-4">
+                  Entrez votre adresse e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe.
+                </p>
+
+                <button
+                    onClick={handleResetPassword}
+                    disabled={resetLoading}
+                    className="w-full bg-blue-600 hover:bg-blue-800 text-white font-semibold py-2 rounded-lg transition cursor-pointer mb-2"
+                >
+                    {resetLoading ? "Envoi..." : "Envoyer le lien"}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowResetPassword(false);
+                    setErrorMsg("");
+                    setSuccessMsg("");
+                  }}
+                  className="w-full text-blue-600 text-sm hover:underline cursor-pointer"
+                >
+                  Retour à la connexion
+                </button>
+              </>
+            )}
+            
+            {/* Inscription */}
+            {!showResetPassword && (
+              <div className="mt-8">
+                  <h1 className="text-2xl text-blue-800 font-bold">Ou inscrivez-vous</h1>
+                  <div className="w-full bg-blue-500 h-[2px] mb-2" />
+                      <div className="flex gap-4 justify-center">
+                        <button
+                        onClick={() => router.push(`/completionProfile?role=residente`)}
+                        className="px-6 py-2 border border-blue-600 text-white font-bold bg-blue-600 rounded-lg hover:bg-blue-800 transition cursor-pointer"
+                        >
+                          Résidente
+                        </button>
+                        <button
+                        onClick={() => router.push(`/completionProfile?role=invitee`)}
+                        className="px-6 py-2 border border-blue-600 text-white font-bold bg-blue-600 rounded-lg hover:bg-blue-800 transition cursor-pointer"
+                        >
+                        Invitée
+                        </button>
+                      </div>
+                  </div>
+            )}
             </div>
         </div>
     );
