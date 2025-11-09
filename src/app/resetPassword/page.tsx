@@ -37,7 +37,7 @@ export default function ResetPasswordPage() {
   const passwordStrength = getPasswordStrength(newPassword);
 
   // ✅ Traduction des erreurs Supabase
-  const translateError = (error: any) => {
+  const translateError = (error: Error) => {
     const message = error?.message || "";
     
     // Erreurs courantes de Supabase Auth
