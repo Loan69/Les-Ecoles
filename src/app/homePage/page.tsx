@@ -701,9 +701,11 @@ export default function HomePage() {
     );
   }
 
+  
   const filteredEvents = selectedResidenceValue
     ? events.filter((event) => {
-        const lieux = (event.lieu || "").split(",").map((r) => r.trim());
+        // lieu est maintenant un tableau
+        const lieux = event.lieu || [];
         if (!lieux.includes(selectedResidenceValue)) return false;
 
         // Gestion visibilité admin

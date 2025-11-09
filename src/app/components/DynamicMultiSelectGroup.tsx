@@ -181,7 +181,7 @@ export default function DynamicMultiSelectGroup({
 
   // --- Appliquer les valeurs initiales APRÈS le chargement des levels ---
   useEffect(() => {
-    if (!initialValues || levels.length < 2 || hasInitialized.current) {
+    if (!initialValues || levels.length < 1 || hasInitialized.current) {
       return;
     }
 

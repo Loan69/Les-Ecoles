@@ -7,7 +7,7 @@ export interface CalendarEvent {
   dates_event?: string[];
   recurrence?: string;
   heures?: string;
-  lieu?: string;
+  lieu?: string[];
   visibilite?: {
     residence: string[];
     etage: string[];

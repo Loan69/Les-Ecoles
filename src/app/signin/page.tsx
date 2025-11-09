@@ -120,7 +120,7 @@ export default function SignInPage() {
                 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
-            {/* ✅ Affichage conditionnel : Mot de passe ou Reset */}
+            {/* Affichage conditionnel : Mot de passe ou Reset */}
             {!showResetPassword ? (
               <>
                 <input
@@ -151,7 +151,7 @@ export default function SignInPage() {
                     <p className="text-green-600 text-sm mt-3 text-center">{successMsg}</p>
                 )}
 
-                {/* ✅ NOUVEAU : Lien mot de passe oublié */}
+                {/* Lien mot de passe oublié */}
                 <button
                   onClick={() => setShowResetPassword(true)}
                   className="w-full text-blue-600 text-sm mt-3 hover:underline cursor-pointer"

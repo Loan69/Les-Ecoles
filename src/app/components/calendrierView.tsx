@@ -201,6 +201,11 @@ export default function CalendrierView({
                     </div>
 
                     {e.heures && <p className="text-xs text-gray-600 mt-1 italic">À partir de {e.heures}</p>}
+                    {e.lieu && e.lieu.length > 0 && (
+                        <p className="text-xs text-gray-600 mt-1">
+                            📍 Résidence{e.lieu.length > 1 ? "s" : ""} : {e.lieu.join(", ")}
+                        </p>
+                        )}
                     {e.description && <p className="text-xs text-gray-500 mt-1">{e.description}</p>}
                 </div>
                 ))}

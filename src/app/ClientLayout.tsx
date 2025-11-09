@@ -5,7 +5,7 @@ import BottomNav from "./components/bottomNav"
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const hideBottomNav = ["/signin", "/signup", "/completionProfile"]
+  const hideBottomNav = ["/signin", "/signup", "/completionProfile", "/resetPassword"]
   const shouldHideNavbar = hideBottomNav.includes(pathname)
 
   return (

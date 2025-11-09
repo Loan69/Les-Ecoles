@@ -12,7 +12,7 @@ type ModalProps = {
   onClose: () => void;
   onSave: (data: CalendarEvent) => void | Promise<void>;
   isAdmin?: boolean;
-  eventToEdit?: Partial <CalendarEvent | null>; // ✅ Événement à modifier
+  eventToEdit?: Partial<CalendarEvent | null>;
   isEditing?: boolean;
 };
 
@@ -21,7 +21,7 @@ export default function ModalAjoutEvenement({
   onClose, 
   onSave, 
   isAdmin = false,
-  eventToEdit = null, // ✅ null = mode ajout, objet = mode édition
+  eventToEdit = null,
   isEditing = false
 }: ModalProps) {
   
@@ -32,7 +32,7 @@ export default function ModalAjoutEvenement({
     dates_event: [],
     recurrence: "",
     heures: "",
-    lieu: "",
+    lieu: [],
     visibilite: { residence: [], etage: [], chambre: [] },
     visible_invites: false,
     demander_confirmation: false,
@@ -40,11 +40,16 @@ export default function ModalAjoutEvenement({
     rappel_event: 0,
   });
 
-  // ✅ Réinitialisation à chaque ouverture
+  // ✅ NOUVEAU : État pour les valeurs initiales du multiselect lieu
+  const [lieuInitialValues, setLieuInitialValues] = useState<{ residence: string[] }>({ 
+    residence: [] 
+  });
+
   useEffect(() => {
     if (open) {
       if (eventToEdit) {
-        // Mode édition : pré-remplir avec les données existantes
+        const lieu = Array.isArray(eventToEdit.lieu) ? eventToEdit.lieu : [];
+        
         setForm({
           titre: eventToEdit.titre || "",
           category: eventToEdit.category || "",
@@ -52,15 +57,17 @@ export default function ModalAjoutEvenement({
           dates_event: eventToEdit.dates_event || [],
           recurrence: eventToEdit.recurrence || "",
           heures: eventToEdit.heures || "",
-          lieu: eventToEdit.lieu || "",
+          lieu: lieu,
           visibilite: eventToEdit.visibilite || { residence: [], etage: [], chambre: [] },
           visible_invites: eventToEdit.visible_invites || false,
           demander_confirmation: eventToEdit.demander_confirmation || false,
           reserve_admin: eventToEdit.reserve_admin || null,
           rappel_event: eventToEdit.rappel_event || 0,
         });
+
+        // Mettre à jour les valeurs initiales pour le multiselect
+        setLieuInitialValues({ residence: lieu });
       } else {
-        // Mode ajout : formulaire vide
         setForm({
           titre: "",
           category: "",
@@ -68,13 +75,16 @@ export default function ModalAjoutEvenement({
           dates_event: [],
           recurrence: "",
           heures: "",
-          lieu: "",
+          lieu: [],
           visibilite: { residence: [], etage: [], chambre: [] },
           visible_invites: false,
           demander_confirmation: false,
           reserve_admin: null,
           rappel_event: 0,
         });
+
+        // Réinitialiser les valeurs initiales
+        setLieuInitialValues({ residence: [] });
       }
     }
   }, [open, eventToEdit]);
@@ -100,8 +110,8 @@ export default function ModalAjoutEvenement({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!form.category || !form.titre || !form.dates_event?.length || !form.lieu) {
-      alert("Merci de remplir tous les champs requis.");
+    if (!form.category || !form.titre || !form.dates_event?.length || !form.lieu?.length) {
+      alert("Merci de remplir tous les champs requis (au moins une résidence doit être sélectionnée).");
       return;
     }
     
@@ -127,7 +137,6 @@ export default function ModalAjoutEvenement({
         <div className="w-full bg-blue-500 h-[1px] mb-4" />
 
         <form onSubmit={handleSubmit} className="space-y-4">
-
           {/* Type d'évènement */}
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Type de l&apos;évènement
@@ -191,22 +200,24 @@ export default function ModalAjoutEvenement({
             className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md resize-none"
           />
 
-          {/* Lieu */}
+          {/* Lieu avec multiselect */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Lieu de l&apos;évènement
+              Lieu(x) de l&apos;évènement *
             </label>
-            <DynamicSelectGroup
-              key={`lieu-${open}`}
+            <DynamicMultiSelectGroup
+              key={`lieu-${open}-${isEditing}`}
               rootCategory="residence"
               onChange={(selected) => {
-                const catValue = Object.values(selected)[0]?.value || "";
-                handleSelectChange("lieu", catValue);
+                const residenceValues = selected.residence?.map((opt) => opt.value) || [];
+                handleSelectChange("lieu", residenceValues);
               }}
-              initialValue={form.lieu}
+              initialValues={lieuInitialValues}
               onlyParent={true}
-              islabel={false}
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Sélectionnez une ou plusieurs résidences
+            </p>
           </div>
 
           {/* Section visibilité */}
@@ -244,7 +255,7 @@ export default function ModalAjoutEvenement({
           <DynamicMultiSelectGroup
             key={`visi-${open}`}
             rootCategory="residence"
-            disabled={!!form.reserve_admin} // désactivé si un staff est sélectionné
+            disabled={!!form.reserve_admin}
             onChange={(selected) => {
               const transformed: { [category: string]: string[] } = {};
               Object.entries(selected).forEach(([category, options]) => {
