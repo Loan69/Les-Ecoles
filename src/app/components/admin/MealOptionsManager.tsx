@@ -27,7 +27,7 @@ export default function MealOptionsManager() {
   const [existingRules, setExistingRules] = useState<Rule[]>([])
   const [editingRule, setEditingRule] = useState<Rule | null>(null)
 
-  // ✅ Charger l’utilisateur
+  // ✅ Charger l'utilisateur
   useEffect(() => {
     const fetchUser = async () => {
       const { data, error } = await supabase.auth.getUser()
@@ -276,22 +276,37 @@ export default function MealOptionsManager() {
                   }}
                 />
 
-                {/* Sélecteur de valeur */}
-                <Select
-                  value={opt.value}
-                  disabled={opt.is_default} // 🔒 valeur non modifiable pour les options par défaut
-                  onValueChange={v => {
-                    const newOpts = [...options]
-                    newOpts[i].value = v
-                    setOptions(newOpts)
-                  }}
-                >
-                  <SelectTrigger className="w-36"><SelectValue placeholder="Résidence" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="12">Résidence 12</SelectItem>
-                    <SelectItem value="36">Résidence 36</SelectItem>
-                  </SelectContent>
-                </Select>
+                {/* ✨ Sélecteur de résidence (pour options par défaut ou options spéciales) */}
+                {opt.is_default ? (
+                  // Options par défaut : affichage simple de la résidence
+                  <Select
+                    value={opt.value}
+                    disabled={true}
+                  >
+                    <SelectTrigger className="w-36"><SelectValue placeholder="Résidence" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="12">Résidence 12</SelectItem>
+                      <SelectItem value="36">Résidence 36</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  // Nouvelles options : toujours spéciales, sélecteur de résidence
+                  <Select
+                    value={opt.value?.includes('special:') ? opt.value.split(':')[1] : ''}
+                    onValueChange={residence => {
+                      const newOpts = [...options]
+                      // Concaténer "special:residence:label"
+                      newOpts[i].value = `special:${residence}:${opt.label}`
+                      setOptions(newOpts)
+                    }}
+                  >
+                    <SelectTrigger className="w-36"><SelectValue placeholder="Résidence" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="12">Résidence 12</SelectItem>
+                      <SelectItem value="36">Résidence 36</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
 
                 {/* Bouton admin/public */}
                 <Button
@@ -387,7 +402,7 @@ export default function MealOptionsManager() {
                             o.admin_only ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-700'
                         } ${!o.is_active ? 'opacity-50' : ''}`}
                         >
-                        {o.label}
+                        {o.label} {o.value === 'special' && '⭐'}
                     </Badge>
 
                   ))}

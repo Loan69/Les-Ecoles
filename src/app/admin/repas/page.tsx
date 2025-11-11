@@ -128,22 +128,52 @@ export default function AdminRepasView() {
 
   const findPerson = (user_id: string) => residentes.find((p) => p.user_id === user_id);
 
+  // --- Structure pour les options spéciales ---
+  type SpecialOption = { label: string; count: number };
+  
   // --- Initialisation dynamiques des objets résumé ---
-  const summaryByLieu: Record<string, { dejeuner: number; diner: number; plateau: number; piqueNique: number }> = {};
+  const summaryByLieu: Record<string, { 
+    dejeuner: number; 
+    diner: number; 
+    plateau: number; 
+    piqueNique: number;
+    specialOptions: SpecialOption[];
+  }> = {};
+  
   const comptaByResidence: Record<string, { nom: string; prenom: string; dejeuner: number; diner: number; total: number }[]> = {};
 
   residences.forEach((r) => {
-    summaryByLieu[r.value] = { dejeuner: 0, diner: 0, plateau: 0, piqueNique: 0 };
+    summaryByLieu[r.value] = { dejeuner: 0, diner: 0, plateau: 0, piqueNique: 0, specialOptions: [] };
     comptaByResidence[r.value] = [];
   });
 
   const tomorrowStr = getTomorrowString(startDate);
 
-  // --- Comptage repas résidentes ---
+  // --- Comptage repas résidentes avec options spéciales ---
+  console.log(repasData)
   repasData.forEach((r) => {
     const personne = findPerson(r.user_id);
     if (!personne) return;
     const choix = r.choix_repas?.toLowerCase() || "";
+
+    // ✨ Gestion des options spéciales (format: "special:residence:label")
+    if (choix.startsWith("special:") && r.date_repas === startDate) {
+      const parts = choix.split(":");
+      if (parts.length >= 3) {
+        const residence = parts[1]; // "12" ou "36"
+        const specialLabel = parts.slice(2).join(":"); // Le label peut contenir des ":"
+        
+        if (summaryByLieu[residence]) {
+          const existingOption = summaryByLieu[residence].specialOptions.find(opt => opt.label === specialLabel);
+          if (existingOption) {
+            existingOption.count++;
+          } else {
+            summaryByLieu[residence].specialOptions.push({ label: specialLabel, count: 1 });
+          }
+        }
+      }
+      return;
+    }
 
     const lieuRepas =
       choix === "12" || choix === "36"
@@ -162,6 +192,7 @@ export default function AdminRepasView() {
       summaryByLieu[lieuRepas].piqueNique++;
       return;
     }
+    
     if (r.date_repas === startDate) {
       if (r.type_repas === "dejeuner" && (choix.includes("36") || choix.includes("12"))) summaryByLieu[lieuRepas].dejeuner++;
       if (r.type_repas === "diner" && (choix.includes("36") || choix.includes("12"))) summaryByLieu[lieuRepas].diner++;
@@ -297,6 +328,19 @@ export default function AdminRepasView() {
                     <span>Pique-niques (à venir)</span>
                     <span className="font-semibold">{s.piqueNique}</span>
                   </div>
+                  
+                  {/* ✨ Affichage des options spéciales */}
+                  {s.specialOptions.length > 0 && (
+                    <div className="w-full mt-3 pt-3 border-t border-orange-300">
+                      <p className="text-sm font-semibold text-orange-900 mb-2">Options spéciales ⭐</p>
+                      {s.specialOptions.map((opt, idx) => (
+                        <div key={idx} className="flex justify-between w-48 mx-auto text-sm">
+                          <span className="italic">{opt.label}</span>
+                          <span className="font-semibold">{opt.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -395,7 +439,18 @@ export default function AdminRepasView() {
                               );
                               if (repas) {
                                 const choix = repas.choix_repas?.toLowerCase() || "";
-                                if (choix === "12" || choix === "36") {
+                                
+                                // ✨ Gestion affichage option spéciale
+                                if (choix.startsWith("special:")) {
+                                  const parts = choix.split(":");
+                                  if (parts.length >= 3) {
+                                    const residence = parts[1]; // "12" ou "36"
+                                    const specialLabel = parts.slice(2).join(":"); // Le label
+                                    lieuRepas = residence;
+                                    label = specialLabel + " ⭐";
+                                    couleur = "bg-purple-100 text-purple-800";
+                                  }
+                                } else if (choix === "12" || choix === "36") {
                                   lieuRepas = choix;
                                   label = "Oui";
                                   couleur = "bg-green-100 text-green-800";
