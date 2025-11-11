@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSupabase } from "../providers";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { Residente } from "@/types/Residente";
