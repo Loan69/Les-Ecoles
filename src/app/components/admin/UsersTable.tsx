@@ -9,12 +9,17 @@ type UserRow = {
   role: 'résidente' | 'invitée'
   is_admin: boolean
   source_pk: string | number
+  last_sign_in_at?: string | null
 }
 
 export default function UsersTable({ currentUserId }: { currentUserId: string }) {
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Ton UID pour afficher la colonne dernière connexion
+  const SUPER_ADMIN_UID = '17e3e1c7-3219-46e4-8aad-324f93b7b5de'
+  const showLastLogin = currentUserId === SUPER_ADMIN_UID
 
   async function fetchUsers() {
     setLoading(true)
@@ -26,8 +31,7 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
     } catch (e) {
       if (e instanceof Error) setError(e.message)
       else setError(String(e))
-    }
-     finally {
+    } finally {
       setLoading(false)
     }
   }
@@ -56,7 +60,36 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
       if (e instanceof Error) setError(e.message)
       else setError(String(e))
       setUsers(prev)
-    }       
+    }
+  }
+
+  function formatLastLogin(dateStr: string | null | undefined): string {
+    if (!dateStr) return '—'
+    
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+      if (diffHours === 0) {
+        const diffMins = Math.floor(diffMs / (1000 * 60))
+        return diffMins <= 1 ? "À l'instant" : `Il y a ${diffMins}min`
+      }
+      return diffHours === 1 ? "Il y a 1h" : `Il y a ${diffHours}h`
+    }
+    
+    if (diffDays === 1) return "Hier"
+    if (diffDays < 7) return `Il y a ${diffDays}j`
+    if (diffDays < 30) return `Il y a ${Math.floor(diffDays / 7)} sem.`
+    if (diffDays < 365) return `Il y a ${Math.floor(diffDays / 30)} mois`
+    
+    return date.toLocaleDateString('fr-FR', { 
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric' 
+    })
   }
 
   return (
@@ -71,14 +104,19 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rôle</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th>
+              {showLastLogin && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Dernière connexion
+                </th>
+              )}
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
-              <tr><td colSpan={5} className="px-6 py-4">Chargement...</td></tr>
+              <tr><td colSpan={showLastLogin ? 6 : 5} className="px-6 py-4">Chargement...</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={5} className="px-6 py-4">Aucune utilisatrice trouvée.</td></tr>
+              <tr><td colSpan={showLastLogin ? 6 : 5} className="px-6 py-4">Aucune utilisatrice trouvée.</td></tr>
             ) : (
               users.map(u => {
                 const isSelf = u.id === currentUserId
@@ -90,6 +128,11 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.email || '—'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{u.role}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.is_admin ? 'Oui' : 'Non'}</td>
+                    {showLastLogin && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatLastLogin(u.last_sign_in_at)}
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       {u.role === 'résidente' && !isSelf && (
                         u.is_admin ? (
