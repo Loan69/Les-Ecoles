@@ -50,7 +50,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: err1?.message || err2?.message }, { status: 500 })
 
   // Si tu es le super admin, récupérer les infos de dernière connexion depuis auth.users
-  let authUsers: Record<string, string | null> = {}
+  const authUsers: Record<string, string | null> = {}
   
   if (includeLastLogin) {
     const allUserIds = [
@@ -72,7 +72,7 @@ export async function GET(req: Request) {
     }
   }
 
-  let users = [
+  const users = [
     ...residentes.map(r => ({
       id: r.user_id,
       name: `${r.prenom} ${r.nom}`,
