@@ -12,8 +12,8 @@ export default function SignInPage() {
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
     const [successMsg, setSuccessMsg] = useState("");
-    const [showResetPassword, setShowResetPassword] = useState(false); // ✅ NOUVEAU
-    const [resetLoading, setResetLoading] = useState(false); // ✅ NOUVEAU
+    const [showResetPassword, setShowResetPassword] = useState(false);
+    const [resetLoading, setResetLoading] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -53,7 +53,7 @@ export default function SignInPage() {
         setLoading(false);
     };
 
-    // ✅ NOUVEAU : Réinitialisation du mot de passe
+    // Réinitialisation du mot de passe
     const handleResetPassword = async () => {
       setResetLoading(true);
       setErrorMsg("");

@@ -22,7 +22,6 @@ import ConfirmationToggle from "../components/ConfirmationToggle";
 import { Rule } from "@/types/Rule";
 import { getLatestRulesByService } from "@/lib/rulesUtils";
 import SelectField2 from "../components/SelectField2";
-import { setFips } from "crypto";
 
 // ============================================================
 // TYPES POUR UNE GESTION UNIFORME DES REPAS
@@ -418,7 +417,7 @@ export default function HomePage() {
   };
 
   // ============================================================
-  // AUTRES EFFETS (inchangés)
+  // AUTRES EFFETS
   // ============================================================
 
   useEffect(() => {
@@ -453,6 +452,7 @@ export default function HomePage() {
   }, [supabase]);
 
   useEffect(() => {
+    console.log(localStorage.getItem("dateSelectionnee"))
     const storedDate = localStorage.getItem("dateSelectionnee");
     if (storedDate) {
       setCurrentDate(parseDateKeyLocal(storedDate));
@@ -468,6 +468,8 @@ export default function HomePage() {
     localStorage.setItem("startDate", formatDateKeyLocal(currentDate));
     localStorage.setItem("endDate", formatDateKeyLocal(currentDate));
   }, [currentDate, isInitialized]);
+
+  
 
   const goToPreviousDay = () => {
     setDirection(-1);
@@ -493,7 +495,7 @@ export default function HomePage() {
       const res = await fetch("/api/get-is-absent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: currentDate }),
+        body: JSON.stringify({ date: formatDateKeyLocal(currentDate) }),
       });
       const result = await res.json();
       setIsAbsent(result.isAbsent);
@@ -506,7 +508,7 @@ export default function HomePage() {
     const res = await fetch("/api/presence-foyer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isAbsent, date: currentDate }),
+      body: JSON.stringify({ isAbsent, date: formatDateKeyLocal(currentDate) }),
     });
     const result = await res.json();
     if (res.ok) {

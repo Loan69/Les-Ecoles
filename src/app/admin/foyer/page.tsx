@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Home, Moon, Search, Calendar, Building } from "lucide-react";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { Residence } from "@/types/Residence";
+import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 
 type Personne = {
   user_id: string;
@@ -21,21 +22,22 @@ export default function AdminFoyerView() {
   const [residences, setResidences] = useState<Residence[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   // --- Date persistée dans le localStorage ---
-  const [date, setDate] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("dateSelectionnee") || new Date().toISOString().slice(0, 10);
+  useEffect(() => {
+    const storedDate = localStorage.getItem("dateSelectionnee");
+    if (storedDate) {
+      setCurrentDate(parseDateKeyLocal(storedDate));
+    } else {
+      setCurrentDate(new Date());
     }
-    return new Date().toISOString().slice(0, 10);
-  });
+  }, []);
 
   // --- Sauvegarde de la date sélectionnée ---
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("dateSelectionnee", date);
-    }
-  }, [date]);
+    localStorage.setItem("dateSelectionnee", formatDateKeyLocal(currentDate));
+    },[currentDate]);
 
   // --- Récupération des données ---
   useEffect(() => {
@@ -74,7 +76,7 @@ export default function AdminFoyerView() {
       const res = await fetch("/api/get-presence-foyer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date }),
+        body: JSON.stringify({ date : formatDateKeyLocal(currentDate) }),
       });
 
       const { absenteIds } = await res.json();
@@ -88,7 +90,7 @@ export default function AdminFoyerView() {
     };
 
     fetchData();
-  }, [date]);
+  }, [currentDate]);
 
   const filterBySearch = (list: Personne[]) =>
     list.filter(
@@ -150,8 +152,8 @@ export default function AdminFoyerView() {
             <Calendar className="text-gray-500 w-5 h-5 mr-2" />
             <input
               type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
+              value={formatDateKeyLocal(currentDate)}
+              onChange={(e) => setCurrentDate(parseDateKeyLocal(e.target.value))}
               className="bg-transparent outline-none text-gray-700 cursor-pointer"
             />
           </div>
@@ -160,7 +162,7 @@ export default function AdminFoyerView() {
         {/* --- Tuiles par résidence --- */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={date}
+            key={formatDateKeyLocal(currentDate)}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
