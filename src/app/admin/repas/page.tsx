@@ -79,13 +79,18 @@ export default function AdminRepasView() {
             .select("id_repas, user_id, date_repas, type_repas, choix_repas, commentaire")
             .gte("date_repas", startDate)
             .lte("date_repas", tomorrowStr),
-          supabase.from("residentes").select("user_id, nom, prenom, residence"),
+          supabase
+            .from("residentes")
+            .select("user_id, nom, prenom, residence")
+            .order("nom", {ascending : true}),
           supabase
             .from("invites_repas")
             .select("id, nom, prenom, invite_par, lieu_repas, date_repas, type_repas")
             .gte("date_repas", startDate)
             .lte("date_repas", tomorrowStr),
-          supabase.from("residences").select("value, label"),
+          supabase
+            .from("residences")
+            .select("value, label"),
         ]);
 
       if (repasError) console.error("Erreur repas :", repasError);
@@ -368,14 +373,16 @@ export default function AdminRepasView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {comptaByResidence[r.value].map((p, idx) => (
-                    <tr key={idx} className="border-b">
-                      <td className="p-2">{p.prenom} {p.nom}</td>
-                      <td className="text-center p-2">{p.dejeuner}</td>
-                      <td className="text-center p-2">{p.diner}</td>
-                      <td className="text-center p-2 font-semibold text-amber-800">{p.total}</td>
-                    </tr>
-                  ))}
+                  {comptaByResidence[r.value]
+                    .sort((a, b) => a.nom.localeCompare(b.nom)) // tri par nom des utilisatrices
+                    .map((p, idx) => (
+                      <tr key={idx} className="border-b">
+                        <td className="p-2">{p.nom} {p.prenom}</td>
+                        <td className="text-center p-2">{p.dejeuner}</td>
+                        <td className="text-center p-2">{p.diner}</td>
+                        <td className="text-center p-2 font-semibold text-amber-800">{p.total}</td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
@@ -418,81 +425,83 @@ export default function AdminRepasView() {
                           </tr>
                         </thead>
                         <tbody>
-                          {toutesPersonnes.map((p) => {
-                            let lieuRepas: string | undefined;
-                            let label = "Non";
-                            let couleur = "bg-red-100 text-red-800";
-                            let commentaire = "-";
+                          {toutesPersonnes
+                            .sort((a, b) => a.nom.localeCompare(b.nom)) // tri par nom des utilisatrices
+                            .map((p) => {
+                              let lieuRepas: string | undefined;
+                              let label = "Non";
+                              let couleur = "bg-red-100 text-red-800";
+                              let commentaire = "-";
 
-                            if (p.estInvite) {
-                              const inv = invites.find(
-                                i => `invite-${i.id}` === p.user_id && i.date_repas === date && i.type_repas === type
-                              );
-                              if (!inv) return null;
-                              lieuRepas = inv.lieu_repas;
-                              label = "Oui";
-                              couleur = "bg-green-100 text-green-800";
-                              commentaire = "-";
-                            } else {
-                              const repas = repasFiltres.find(
-                                r => r.user_id === p.user_id && r.date_repas === date && r.type_repas === type
-                              );
-                              if (repas) {
-                                const choix = repas.choix_repas?.toLowerCase() || "";
-                                
-                                // ✨ Gestion affichage option spéciale
-                                if (choix.startsWith("special:")) {
-                                  const parts = choix.split(":");
-                                  if (parts.length >= 3) {
-                                    const residence = parts[1]; // "12" ou "36"
-                                    const specialLabel = parts.slice(2).join(":"); // Le label
-                                    lieuRepas = residence;
-                                    label = specialLabel + " ⭐";
-                                    couleur = "bg-purple-100 text-purple-800";
-                                  }
-                                } else if (choix === "12" || choix === "36") {
-                                  lieuRepas = choix;
-                                  label = "Oui";
-                                  couleur = "bg-green-100 text-green-800";
-                                } else if (choix.includes("pn")) {
-                                  lieuRepas = p.residence;
-                                  label = choix.includes("chaud") ? "Pique-nique chaud" : "Pique-nique froid";
-                                  couleur = "bg-yellow-100 text-yellow-800";
-                                } else if (choix.includes("plateau")) {
-                                  lieuRepas = p.residence;
-                                  label = "Plateau repas";
-                                  couleur = "bg-blue-100 text-blue-800";
-                                }
-                                commentaire = repas.commentaire ?? "-";
-                              } else {
-                                lieuRepas = p.residence;
-                                label = "Non";
-                                couleur = "bg-red-100 text-red-800";
+                              if (p.estInvite) {
+                                const inv = invites.find(
+                                  i => `invite-${i.id}` === p.user_id && i.date_repas === date && i.type_repas === type
+                                );
+                                if (!inv) return null;
+                                lieuRepas = inv.lieu_repas;
+                                label = "Oui";
+                                couleur = "bg-green-100 text-green-800";
                                 commentaire = "-";
+                              } else {
+                                const repas = repasFiltres.find(
+                                  r => r.user_id === p.user_id && r.date_repas === date && r.type_repas === type
+                                );
+                                if (repas) {
+                                  const choix = repas.choix_repas?.toLowerCase() || "";
+                                  
+                                  // ✨ Gestion affichage option spéciale
+                                  if (choix.startsWith("special:")) {
+                                    const parts = choix.split(":");
+                                    if (parts.length >= 3) {
+                                      const residence = parts[1]; // "12" ou "36"
+                                      const specialLabel = parts.slice(2).join(":"); // Le label
+                                      lieuRepas = residence;
+                                      label = specialLabel + " ⭐";
+                                      couleur = "bg-purple-100 text-purple-800";
+                                    }
+                                  } else if (choix === "12" || choix === "36") {
+                                    lieuRepas = choix;
+                                    label = "Oui";
+                                    couleur = "bg-green-100 text-green-800";
+                                  } else if (choix.includes("pn")) {
+                                    lieuRepas = p.residence;
+                                    label = choix.includes("chaud") ? "Pique-nique chaud" : "Pique-nique froid";
+                                    couleur = "bg-yellow-100 text-yellow-800";
+                                  } else if (choix.includes("plateau")) {
+                                    lieuRepas = p.residence;
+                                    label = "Plateau repas";
+                                    couleur = "bg-blue-100 text-blue-800";
+                                  }
+                                  commentaire = repas.commentaire ?? "-";
+                                } else {
+                                  lieuRepas = p.residence;
+                                  label = "Non";
+                                  couleur = "bg-red-100 text-red-800";
+                                  commentaire = "-";
+                                }
                               }
-                            }
 
-                            if (lieuRepas !== openLieu) return null;
+                              if (lieuRepas !== openLieu) return null;
 
-                            return (
-                              <tr key={p.user_id + date + type} className="border-b">
-                                <td className="p-2 font-medium">
-                                  {p.prenom} {p.nom}
-                                  {p.estInvite && p.inviteParPrenom && (
-                                    <span className="text-xs text-green-600 ml-1">
-                                      (invitée par {p.inviteParPrenom})
+                              return (
+                                <tr key={p.user_id + date + type} className="border-b">
+                                  <td className="p-2 font-medium">
+                                    {p.nom} {p.prenom}
+                                    {p.estInvite && p.inviteParPrenom && (
+                                      <span className="text-xs text-green-600 ml-1">
+                                        (invitée par {p.inviteParPrenom})
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className={`p-2`}>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${couleur}`}>
+                                      {label}
                                     </span>
-                                  )}
-                                </td>
-                                <td className={`p-2`}>
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${couleur}`}>
-                                    {label}
-                                  </span>
-                                </td>
-                                <td className="p-2 text-gray-700">{commentaire}</td>
-                              </tr>
-                            );
-                          })}
+                                  </td>
+                                  <td className="p-2 text-gray-700">{commentaire}</td>
+                                </tr>
+                              );
+                            })}
                         </tbody>
                       </table>
                     </div>

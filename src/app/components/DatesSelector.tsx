@@ -4,6 +4,7 @@ import DatePicker from "react-multi-date-picker";
 import DateObject from "react-date-object";
 import { CalendarDays, X } from "lucide-react";
 import { CalendarEvent } from "@/types/CalendarEvent";
+import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 
 // locale FR (inline)
 const localeFr = {
@@ -23,13 +24,13 @@ const localeFr = {
     ["Décembre", "Déc"],
   ],
   weekDays: [
+    ["Samedi", "Sam"],
     ["Dimanche", "Dim"],
     ["Lundi", "Lun"],
     ["Mardi", "Mar"],
     ["Mercredi", "Mer"],
     ["Jeudi", "Jeu"],
     ["Vendredi", "Ven"],
-    ["Samedi", "Sam"],
   ],
   digits: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
   meridiems: [
@@ -99,10 +100,13 @@ export default function DateSelector({ form, setForm }: DateSelectorProps) {
         multiple
         locale={localeFr}
         format="DD/MM/YYYY"
-        value={dates.map((d) => new DateObject({ date: d, format: "YYYY-MM-DD" }))}
+        weekStartDayIndex={1}
+        value={
+          dates.map((d) => new DateObject(d))
+        }
         onChange={(datesPicked: DateObject | DateObject[]) => {
           const arr = Array.isArray(datesPicked) ? datesPicked : [datesPicked];
-          const formatted = arr.map((d) => d.format("YYYY-MM-DD"));
+          const formatted = arr.map((d) => formatDateKeyLocal(d.toDate()));
           setForm((prev) => ({ ...prev, dates_event: formatted }));
         }}
         onClose={() => setIsOpen(false)}

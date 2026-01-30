@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useSupabase } from "../providers";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react"; 
 
 export default function SignInPage() {
     const { supabase } = useSupabase();
@@ -13,6 +14,7 @@ export default function SignInPage() {
     const [errorMsg, setErrorMsg] = useState("");
     const [successMsg, setSuccessMsg] = useState("");
     const [showResetPassword, setShowResetPassword] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const [resetLoading, setResetLoading] = useState(false);
     const router = useRouter();
 
@@ -123,17 +125,28 @@ export default function SignInPage() {
             {/* Affichage conditionnel : Mot de passe ou Reset */}
             {!showResetPassword ? (
               <>
-                <input
-                    type="password"
+                <div className="relative w-full mb-3">
+                  <input
+                    type={showPassword ? "text" : "password"} // Change selon l'état
                     placeholder="Mot de passe"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSignIn();
+                      if (e.key === "Enter") handleSignIn();
                     }}
-                    className="w-full mb-3 px-4 py-2 border border-blue-500 text-blue-800 
+                    className="w-full px-4 py-2 pr-10 border border-blue-500 text-blue-800 
                     focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-600 hover:text-blue-800"
+                  >
+                    {showPassword ? <EyeOff className= "cursor-pointer" size={20} /> : 
+                                    <Eye className= "cursor-pointer" size={20} />
+                    }
+                  </button>
+                </div>
 
                 <button
                     onClick={handleSignIn}

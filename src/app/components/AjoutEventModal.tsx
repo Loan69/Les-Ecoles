@@ -40,7 +40,7 @@ export default function ModalAjoutEvenement({
     rappel_event: 0,
   });
 
-  // ✅ NOUVEAU : État pour les valeurs initiales du multiselect lieu
+  // État pour les valeurs initiales du multiselect lieu
   const [lieuInitialValues, setLieuInitialValues] = useState<{ residence: string[] }>({ 
     residence: [] 
   });
@@ -137,6 +137,7 @@ export default function ModalAjoutEvenement({
         <div className="w-full bg-blue-500 h-[1px] mb-4" />
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          
           {/* Type d'évènement */}
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Type de l&apos;évènement

@@ -911,7 +911,7 @@ export default function HomePage() {
                       </div>
                     </div>
                     {e.heures && (
-                      <p className="text-xs text-gray-600 mt-1 italic">À partir de {e.heures}</p>
+                      <p className="text-xs text-gray-600 mt-1 italic">{e.heures}</p>
                     )}
                     {e.description && (
                       <p className="text-xs text-gray-500 mt-1">{e.description}</p>
