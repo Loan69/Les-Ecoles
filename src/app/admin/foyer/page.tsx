@@ -194,7 +194,9 @@ export default function AdminFoyerView() {
 
                   {filtered.length > 0 ? (
                     <ul className="space-y-2">
-                      {filtered.map((p) => {
+                      {filtered
+                        .sort((a, b) => a.nom.localeCompare(b.nom))
+                        .map((p) => {
                         const isPresente = pRes.some((x) => x.user_id === p.user_id);
                         return (
                           <motion.li
@@ -206,7 +208,7 @@ export default function AdminFoyerView() {
                           >
                             <div>
                               <span className="font-medium text-gray-800">
-                                {p.prenom} {p.nom}
+                                {p.nom} {p.prenom}
                               </span>
                               <span className="ml-2 text-xs text-gray-500 italic">
                                 ({p.type})

@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useSupabase } from "../providers";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react"; 
+import { formatDateKeyLocal } from "@/lib/utilDate";
 
 export default function SignInPage() {
     const { supabase } = useSupabase();
@@ -17,6 +18,10 @@ export default function SignInPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [resetLoading, setResetLoading] = useState(false);
     const router = useRouter();
+
+    useEffect(() => {
+        localStorage.setItem("dateSelectionnee", formatDateKeyLocal(new Date()))
+      }, []);
 
     useEffect(() => {
       const savedEmail = localStorage.getItem("pendingEmail");
