@@ -11,6 +11,41 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { InviteRepas } from "@/types/InviteRepas";
 import { Residence } from "@/types/Residence";
 
+// --- Définition des Types Stricts ---
+
+interface SpecialOption {
+  label: string;
+  count: number;
+}
+
+interface DayStats {
+  dejeuner: number;
+  diner: number;
+  plateau: number;
+  piqueNique: number;
+  specialOptions: SpecialOption[];
+}
+
+type DailySummaryMap = Record<string, DayStats>;
+
+interface ExtendedPersonne extends Partial<Personne> {
+  user_id: string;
+  nom: string;
+  prenom: string;
+  residence?: string;
+  estInvite: boolean;
+  inviteParPrenom?: string;
+  inviteParNom?: string;
+}
+
+interface UserCompta extends Personne {
+  dejeuner: number;
+  diner: number;
+  total: number;
+}
+
+type ComptaByResidenceMap = Record<string, UserCompta[]>;
+
 export default function AdminRepasView() {
   const { supabase } = useSupabase();
   const [startDate, setStartDate] = useState("");
@@ -81,21 +116,30 @@ export default function AdminRepasView() {
   }, [startDate, endDate, supabase]);
 
   // --- Mémos de calcul ---
-  const toutesPersonnes = useMemo(() => {
-    const list = [...residentes.map((r) => ({ ...r, estInvite: false }))];
+  const toutesPersonnes = useMemo<ExtendedPersonne[]>(() => {
+    const list: ExtendedPersonne[] = residentes.map((r) => ({
+      ...r,
+      estInvite: false
+    }));
+
     invites.forEach((i) => {
       const parent = residentes.find((r) => r.user_id === i.invite_par);
       list.push({
-        user_id: `invite-${i.id}`, nom: i.nom, prenom: i.prenom, residence: i.lieu_repas,
-        estInvite: true, inviteParPrenom: parent?.prenom || "", inviteParNom: parent?.nom || "",
-      } as any);
+        user_id: `invite-${i.id}`,
+        nom: i.nom,
+        prenom: i.prenom,
+        residence: i.lieu_repas,
+        estInvite: true,
+        inviteParPrenom: parent?.prenom || "",
+        inviteParNom: parent?.nom || "",
+      });
     });
     return list;
   }, [residentes, invites]);
 
   // FONCTION DE RÉSUMÉ : La logique PN Lendemain est ici
-  const getDailySummary = (currentDate: string) => {
-    const summary: Record<string, any> = {};
+  const getDailySummary = (currentDate: string): DailySummaryMap => {
+    const summary: DailySummaryMap = {};
     residences.forEach(r => {
       summary[r.value] = { dejeuner: 0, diner: 0, plateau: 0, piqueNique: 0, specialOptions: [] };
     });
@@ -112,7 +156,7 @@ export default function AdminRepasView() {
         if (choix.startsWith("special:")) {
           const [_, residence, label] = choix.split(":");
           if (summary[residence]) {
-            const opt = summary[residence].specialOptions.find((o: any) => o.label === label);
+            const opt = summary[residence].specialOptions.find((o: SpecialOption) => o.label === label);
             opt ? opt.count++ : summary[residence].specialOptions.push({ label, count: 1 });
           }
         } else {
@@ -145,8 +189,8 @@ export default function AdminRepasView() {
     return summary;
   };
 
-  const comptaByResidence = useMemo(() => {
-    const compta: Record<string, any[]> = {};
+  const comptaByResidence = useMemo<ComptaByResidenceMap>(() => {
+    const compta: ComptaByResidenceMap = {};
     residences.forEach(r => compta[r.value] = []);
     residentes.forEach(p => {
       const count = { dejeuner: 0, diner: 0 };
@@ -399,8 +443,8 @@ export default function AdminRepasView() {
                           
                           if (!repas && !inv && !p.estInvite) return null; // On n'affiche que ceux qui ont une action
                           
-                          let label = repas?.choix_repas || (inv ? "Oui" : "Non");
-                          let color = label.includes("Non") ? "bg-red-100" : "bg-green-100";
+                          const label = repas?.choix_repas || (inv ? "Oui" : "Non");
+                          const color = label.includes("Non") ? "bg-red-100" : "bg-green-100";
                           
                           return (
                             <tr key={p.user_id + date + type} className="border-b">
