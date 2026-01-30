@@ -1,17 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useEffect, useState, useMemo } from "react";
 import { useSupabase } from "@/app/providers";
-import { CalendarDays, Search, HouseHeart, UserRound } from "lucide-react";
+import { CalendarDays, Search, HouseHeart, UserRound, Scale, Soup, CalendarCheck } from "lucide-react";
 import { Personne } from "@/types/Personne";
 import { Repas } from "@/types/repas";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InviteRepas } from "@/types/InviteRepas";
 import { Residence } from "@/types/Residence";
 
@@ -26,489 +22,400 @@ export default function AdminRepasView() {
   const [openLieu, setOpenLieu] = useState<string | null>(null);
   const [residences, setResidences] = useState<Residence[]>([]);
 
-  // --- Formattage des dates (type mercredi 15 octobre 2025) ---
-  const formatDateFR = (dateString: string): string => {
+  // --- Helpers de date ---
+  const formatDateFR = (dateString: string, short = false): string => {
     if (!dateString) return "";
     const date = new Date(dateString);
-    return date
-      .toLocaleDateString("fr-FR", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-      .replace(/^./, (c) => c.toUpperCase());
+    return date.toLocaleDateString("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: short ? "short" : "long",
+    }).replace(/^./, (c) => c.toUpperCase());
   };
 
-  // --- Fonction utilitaire pour obtenir YYYY-MM-DD ---
-  const getTomorrowString = (dateString: string) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    date.setDate(date.getDate() + 1);
-    return date.toISOString().slice(0, 10);
+  const getNextDayStr = (dateStr: string) => {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
   };
 
-  // --- Initialisation des dates ---
+  // --- Initialisation ---
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const today = new Date();
-      setStartDate(localStorage.getItem("startDate") || today.toISOString().slice(0, 10));
-      setEndDate(localStorage.getItem("endDate") || today.toISOString().slice(0, 10));
-    }
+    const today = new Date().toISOString().slice(0, 10);
+    setStartDate(localStorage.getItem("startDate") || today);
+    setEndDate(localStorage.getItem("endDate") || today);
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (startDate) localStorage.setItem("startDate", startDate);
-      if (endDate) localStorage.setItem("endDate", endDate);
-    }
-  }, [startDate, endDate]);
-
-  // --- Fetch résidentes, repas, invités et résidences ---
+  // --- Fetch avec sécurité Loading + J+1 ---
   useEffect(() => {
     if (!startDate || !endDate) return;
 
     const fetchData = async () => {
       setLoading(true);
-      const tomorrowStr = getTomorrowString(endDate);
+      try {
+        // IMPORTANT : On va jusqu'au lendemain de la date de fin pour les PN
+        const extraDayForPN = getNextDayStr(endDate);
 
-      const [{ data: repas, error: repasError }, { data: residentesData }, { data: invitesData }, { data: residencesData, error: resError }] =
-        await Promise.all([
-          supabase
-            .from("presences")
-            .select("id_repas, user_id, date_repas, type_repas, choix_repas, commentaire")
-            .gte("date_repas", startDate)
-            .lte("date_repas", tomorrowStr),
-          supabase
-            .from("residentes")
-            .select("user_id, nom, prenom, residence")
-            .order("nom", {ascending : true}),
-          supabase
-            .from("invites_repas")
-            .select("id, nom, prenom, invite_par, lieu_repas, date_repas, type_repas")
-            .gte("date_repas", startDate)
-            .lte("date_repas", tomorrowStr),
-          supabase
-            .from("residences")
-            .select("value, label"),
-        ]);
+        const [{ data: rData }, { data: resData }, { data: invData }, { data: residData }] =
+          await Promise.all([
+            supabase.from("presences").select("*").gte("date_repas", startDate).lte("date_repas", extraDayForPN),
+            supabase.from("residentes").select("*"),
+            supabase.from("invites_repas").select("*").gte("date_repas", startDate).lte("date_repas", endDate),
+            supabase.from("residences").select("*"),
+          ]);
 
-      if (repasError) console.error("Erreur repas :", repasError);
-      if (resError) console.error("Erreur résidences :", resError);
-
-      setRepasData(repas || []);
-      setResidentes(residentesData || []);
-      setInvites(invitesData || []);
-      setResidences(residencesData || []);
-
-      setLoading(false);
+        setRepasData(rData || []);
+        setResidentes(resData || []);
+        setInvites(invData || []);
+        setResidences(residData || []);
+      } catch (error) {
+        console.error("Erreur:", error);
+      } finally {
+        setLoading(false); // S'assure que le spinner s'arrête toujours
+      }
     };
 
     fetchData();
-  }, [startDate, endDate]);
+    localStorage.setItem("startDate", startDate);
+    localStorage.setItem("endDate", endDate);
+  }, [startDate, endDate, supabase]);
 
-  // --- Type pour TypeScript pour distinguer résidente vs invitée ---
-  type PersonneWithInvite = Personne & {
-    estInvite: boolean;
-    inviteParPrenom?: string;
-    inviteParNom?: string;
-  };
+  // --- Mémos de calcul ---
+  const toutesPersonnes = useMemo(() => {
+    const list = [...residentes.map((r) => ({ ...r, estInvite: false }))];
+    invites.forEach((i) => {
+      const parent = residentes.find((r) => r.user_id === i.invite_par);
+      list.push({
+        user_id: `invite-${i.id}`, nom: i.nom, prenom: i.prenom, residence: i.lieu_repas,
+        estInvite: true, inviteParPrenom: parent?.prenom || "", inviteParNom: parent?.nom || "",
+      } as any);
+    });
+    return list;
+  }, [residentes, invites]);
 
-  // --- Toutes les personnes (résidentes + invités) ---
-  const toutesPersonnes: PersonneWithInvite[] = [
-    ...residentes.map((r) => ({ ...r, estInvite: false })),
-    ...invites.map((i) => {
-      const res = residentes.find((r) => r.user_id === i.invite_par);
-      return {
-        user_id: `invite-${i.id}`,
-        nom: i.nom,
-        prenom: i.prenom,
-        residence: i.lieu_repas,
-        estInvite: true,
-        inviteParPrenom: res?.prenom || "",
-        inviteParNom: res?.nom || "",
-      };
-    }),
-  ];
+  // FONCTION DE RÉSUMÉ : La logique PN Lendemain est ici
+  const getDailySummary = (currentDate: string) => {
+    const summary: Record<string, any> = {};
+    residences.forEach(r => {
+      summary[r.value] = { dejeuner: 0, diner: 0, plateau: 0, piqueNique: 0, specialOptions: [] };
+    });
 
-  const findPerson = (user_id: string) => residentes.find((p) => p.user_id === user_id);
+    const tomorrowStr = getNextDayStr(currentDate);
 
-  // --- Structure pour les options spéciales ---
-  type SpecialOption = { label: string; count: number };
-  
-  // --- Initialisation dynamiques des objets résumé ---
-  const summaryByLieu: Record<string, { 
-    dejeuner: number; 
-    diner: number; 
-    plateau: number; 
-    piqueNique: number;
-    specialOptions: SpecialOption[];
-  }> = {};
-  
-  const comptaByResidence: Record<string, { nom: string; prenom: string; dejeuner: number; diner: number; total: number }[]> = {};
+    repasData.forEach(r => {
+      const p = residentes.find(res => res.user_id === r.user_id);
+      if (!p) return;
+      const choix = (r.choix_repas || "").toLowerCase();
 
-  residences.forEach((r) => {
-    summaryByLieu[r.value] = { dejeuner: 0, diner: 0, plateau: 0, piqueNique: 0, specialOptions: [] };
-    comptaByResidence[r.value] = [];
-  });
-
-  const tomorrowStr = getTomorrowString(startDate);
-
-  // --- Comptage repas résidentes avec options spéciales ---
-  console.log(repasData)
-  repasData.forEach((r) => {
-    const personne = findPerson(r.user_id);
-    if (!personne) return;
-    const choix = r.choix_repas?.toLowerCase() || "";
-
-    // ✨ Gestion des options spéciales (format: "special:residence:label")
-    if (choix.startsWith("special:") && r.date_repas === startDate) {
-      const parts = choix.split(":");
-      if (parts.length >= 3) {
-        const residence = parts[1]; // "12" ou "36"
-        const specialLabel = parts.slice(2).join(":"); // Le label peut contenir des ":"
-        
-        if (summaryByLieu[residence]) {
-          const existingOption = summaryByLieu[residence].specialOptions.find(opt => opt.label === specialLabel);
-          if (existingOption) {
-            existingOption.count++;
-          } else {
-            summaryByLieu[residence].specialOptions.push({ label: specialLabel, count: 1 });
+      // CAS 1 : Repas du jour même (Midi, Soir, Plateau, Spécial)
+      if (r.date_repas === currentDate) {
+        if (choix.startsWith("special:")) {
+          const [_, residence, label] = choix.split(":");
+          if (summary[residence]) {
+            const opt = summary[residence].specialOptions.find((o: any) => o.label === label);
+            opt ? opt.count++ : summary[residence].specialOptions.push({ label, count: 1 });
+          }
+        } else {
+          const lieu = (choix === "12" || choix === "36") ? choix : (choix.includes("plateau") ? p.residence : null);
+          if (lieu && summary[lieu]) {
+            if (choix.includes("plateau")) summary[lieu].plateau++;
+            else if (r.type_repas === "dejeuner") summary[lieu].dejeuner++;
+            else if (r.type_repas === "diner") summary[lieu].diner++;
           }
         }
       }
-      return;
-    }
 
-    const lieuRepas =
-      choix === "12" || choix === "36"
-        ? choix
-        : ["pn", "plateau"].some((kw) => choix.includes(kw))
-        ? personne.residence?.toString()
-        : undefined;
-
-    if (!lieuRepas || !summaryByLieu[lieuRepas]) return;
-
-    if (choix.includes("plateau") && r.date_repas === startDate) {
-      summaryByLieu[lieuRepas].plateau++;
-      return;
-    }
-    if (choix.includes("pn") && r.date_repas === tomorrowStr) {
-      summaryByLieu[lieuRepas].piqueNique++;
-      return;
-    }
-    
-    if (r.date_repas === startDate) {
-      if (r.type_repas === "dejeuner" && (choix.includes("36") || choix.includes("12"))) summaryByLieu[lieuRepas].dejeuner++;
-      if (r.type_repas === "diner" && (choix.includes("36") || choix.includes("12"))) summaryByLieu[lieuRepas].diner++;
-    }
-  });
-
-  // --- Comptage repas invités ---
-  invites
-    .filter((i) => i.date_repas === startDate)
-    .forEach((inv) => {
-      const lieu = inv.lieu_repas;
-      if (!summaryByLieu[lieu]) return;
-      if (inv.type_repas === "dejeuner") summaryByLieu[lieu].dejeuner++;
-      if (inv.type_repas === "diner") summaryByLieu[lieu].diner++;
-    });
-
-  // --- Comptabilité par résidence ---
-  residentes.forEach((p) => {
-    const repasPerso = repasData.filter((r) => r.user_id === p.user_id);
-    const invitesPerso = invites.filter((i) => i.invite_par === p.user_id);
-
-    let dejeuner = 0;
-    let diner = 0;
-
-    // Comptage repas personnelles uniquement dans la période sélectionnée
-    repasPerso.forEach((r) => {
-      const choix = r.choix_repas?.toLowerCase() || "";
-
-      // ⚙️ Filtrer sur la plage de dates sélectionnée
-      if (r.date_repas < startDate || r.date_repas > endDate) return;
-
-      if (!choix.includes("non")) {
-        if (r.type_repas === "dejeuner") dejeuner++;
-        if (r.type_repas === "diner") diner++;
+      // CAS 2 : Pique-niques du LENDEMAIN à préparer AUJOURD'HUI
+      if (r.date_repas === tomorrowStr && choix.includes("pn")) {
+        const lieu = p.residence; // Les PN sont préparés dans la résidence de la personne
+        if (lieu && summary[lieu]) {
+          summary[lieu].piqueNique++;
+        }
       }
     });
 
-    // Comptage repas des invitées dans la même plage
-    invitesPerso.forEach((i) => {
-      if (i.date_repas < startDate || i.date_repas > endDate) return;
-
-      if (i.type_repas === "dejeuner" || i.type_repas === "diner") dejeuner++;
+    // Invités (Jour même)
+    invites.filter(i => i.date_repas === currentDate).forEach(i => {
+      if (summary[i.lieu_repas]) {
+        if (i.type_repas === "dejeuner") summary[i.lieu_repas].dejeuner++;
+        if (i.type_repas === "diner") summary[i.lieu_repas].diner++;
+      }
     });
 
-    // Enregistrement dans la compta par résidence
-    if (p.residence && comptaByResidence[p.residence]) {
-      comptaByResidence[p.residence].push({
-        nom: p.nom,
-        prenom: p.prenom,
-        dejeuner,
-        diner,
-        total: dejeuner + diner,
+    return summary;
+  };
+
+  const comptaByResidence = useMemo(() => {
+    const compta: Record<string, any[]> = {};
+    residences.forEach(r => compta[r.value] = []);
+    residentes.forEach(p => {
+      const count = { dejeuner: 0, diner: 0 };
+      repasData.filter(r => r.user_id === p.user_id && r.date_repas <= endDate).forEach(r => {
+        if (!r.choix_repas?.toLowerCase().includes("non")) {
+          if (r.type_repas === "dejeuner") count.dejeuner++;
+          if (r.type_repas === "diner") count.diner++;
+        }
       });
-    } else {
-      console.warn("Résidente avec résidence inconnue :", p);
-    }
-  });
+      invites.filter(i => i.invite_par === p.user_id).forEach(i => {
+        if (i.type_repas === "dejeuner") count.dejeuner++;
+        if (i.type_repas === "diner") count.diner++;
+      });
+      if (p.residence && compta[p.residence]) {
+        compta[p.residence].push({ ...p, ...count, total: count.dejeuner + count.diner });
+      }
+    });
+    return compta;
+  }, [residences, residentes, repasData, invites, endDate]);
 
+  const daysInRange = useMemo(() => {
+    if (!startDate) return [];
+    return Array.from({ length: 8 }, (_, i) => {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      return d.toISOString().slice(0, 10);
+    });
+  }, [startDate]);
 
-  if (loading || !startDate || !endDate) {
-    return (
-      <main className="flex items-center justify-center min-h-screen bg-white">
-        <LoadingSpinner />
-      </main>
-    );
-  }
+  if (loading) return <main className="flex items-center justify-center min-h-screen"><LoadingSpinner /></main>;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-white py-10 px-6">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-amber-800 mb-2">Inscriptions aux repas</h1>
-          <p className="text-gray-600">
-            Consultez les inscriptions aux repas sur la période choisie.
-          </p>
-        </div>
+        <h1 className="text-3xl font-bold text-amber-800 text-center mb-10">Inscriptions aux repas</h1>
 
-        {/* Sélecteur de dates */}
-        <div className="flex justify-center items-center mb-8 gap-3">
-          <CalendarDays className="text-amber-600" />
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="border border-amber-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 text-black"
-          />
-          <span className="text-gray-500 font-semibold">→</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="border border-amber-300 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 focus:ring-amber-400 text-black"
-          />
-        </div>
-
-        {/* Résumé par lieu */}
-        <h2 className="text-2xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
-          <HouseHeart />
-          Total des repas du {formatDateFR(startDate)}
-        </h2>
-        <div className="flex flex-col md:flex-row justify-center gap-8 mb-10">
-          {residences.map((r) => {
-            const s = summaryByLieu[r.value];
-            return (
-              <div
-                key={r.value}
-                className="relative bg-orange-50 border border-orange-200 rounded-2xl p-6 shadow-sm w-full md:w-1/3 text-center"
+        <Tabs defaultValue="sum" className="w-full">
+          <div className="flex justify-center w-full mb-12">
+            <TabsList className="
+              inline-flex items-center justify-center 
+              bg-orange-100/50 p-2 rounded-3xl shadow-inner
+              h-20 sm:h-24 w-full max-w-2xl
+            ">
+              <TabsTrigger
+                value="sum"
+                className="
+                  flex-1 flex items-center justify-center gap-3
+                  px-6 py-4 rounded-2xl text-lg sm:text-xl font-bold
+                  transition-all duration-300
+                  text-orange-900/60
+                  data-[state=active]:bg-white 
+                  data-[state=active]:text-orange-800 
+                  data-[state=active]:shadow-lg 
+                  data-[state=active]:scale-105
+                  hover:bg-white/50
+                "
               >
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-2xl font-bold text-orange-800">{r.label}</h3>
-                  <button
-                    onClick={() => setOpenLieu(r.value)}
-                    className="cursor-pointer text-orange-700 hover:text-orange-900 transition-colors"
-                  >
-                    <Search size={22} />
-                  </button>
-                </div>
+                <Soup className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" />
+                <span>Inscriptions</span>
+              </TabsTrigger>
 
-                <div className="flex flex-col items-center text-orange-700 space-y-1">
-                  <div className="flex justify-between w-48">
-                    <span>Déjeuner</span>
-                    <span className="font-semibold">{s.dejeuner}</span>
-                  </div>
-                  <div className="flex justify-between w-48">
-                    <span>Dîner</span>
-                    <span className="font-semibold">{s.diner}</span>
-                  </div>
-                  <div className="flex justify-between w-48">
-                    <span>Plateaux repas</span>
-                    <span className="font-semibold">{s.plateau}</span>
-                  </div>
-                  <div className="flex justify-between w-48">
-                    <span>Pique-niques (à venir)</span>
-                    <span className="font-semibold">{s.piqueNique}</span>
-                  </div>
-                  
-                  {/* ✨ Affichage des options spéciales */}
-                  {s.specialOptions.length > 0 && (
-                    <div className="w-full mt-3 pt-3 border-t border-orange-300">
-                      <p className="text-sm font-semibold text-orange-900 mb-2">Options spéciales ⭐</p>
-                      {s.specialOptions.map((opt, idx) => (
-                        <div key={idx} className="flex justify-between w-48 mx-auto text-sm">
-                          <span className="italic">{opt.label}</span>
-                          <span className="font-semibold">{opt.count}</span>
+              <TabsTrigger
+                value="compta"
+                className="
+                  flex-1 flex items-center justify-center gap-3
+                  px-6 py-4 rounded-2xl text-lg sm:text-xl font-bold
+                  transition-all duration-300
+                  text-orange-900/60
+                  data-[state=active]:bg-amber-600 
+                  data-[state=active]:text-white 
+                  data-[state=active]:shadow-lg 
+                  data-[state=active]:scale-105
+                  hover:bg-amber-500/20
+                "
+              >
+                <Scale className="w-6 h-6 sm:w-8 sm:h-8" />
+                <span>Comptabilité</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          {/* Filtre CALENDRIER */}
+          <div className="flex justify-center items-center mb-8 gap-3">
+            <CalendarDays className="text-amber-600" />
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-amber-300 rounded-lg px-3 py-1 text-black" />
+            <span>→</span>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-amber-300 rounded-lg px-3 py-1 text-black" />
+          </div>
+
+          {/* Onglet Récap par RESIDENCE */}
+          <TabsContent value="sum" className="space-y-12">
+
+            {/* VUE JOUR J */}
+              <section>
+                <h2 className="text-2xl font-semibold text-amber-900 mb-6 flex items-center gap-2"><HouseHeart /> Aujourd'hui, {formatDateFR(startDate)}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {residences.map(res => {
+                    const s = getDailySummary(startDate)[res.value];
+                    return (
+                      <div key={res.value} className="bg-white border-2 border-orange-100 rounded-3xl p-6 shadow-sm flex justify-between items-center">
+                        <div>
+                          <h3 className="text-xl font-bold text-orange-800">{res.label}</h3>
+                          <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-3 text-sm font-medium">
+                            <p className="text-orange-600">☀️ Midi: <b className="text-orange-900 text-lg ml-1">{s.dejeuner}</b></p>
+                            <p className="text-blue-600">🌙 Soir: <b className="text-blue-900 text-lg ml-1">{s.diner}</b></p>
+                            <p className="text-emerald-600">🍱 Plat.: <b className="text-emerald-900 text-lg ml-1">{s.plateau}</b></p>
+                            <p className="text-purple-600">🎒 PN (demain): <b className="text-purple-900 text-lg ml-1">{s.piqueNique}</b></p>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <button onClick={() => setOpenLieu(res.value)} className="p-4 bg-orange-50 rounded-full hover:bg-orange-100 transition-transform hover:scale-110"><Search className="text-orange-600" /></button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+           {/* RÉSUMÉ DE LA SEMAINE */}
+            <section className="mt-12">
+              <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+                <CalendarCheck className="text-orange-600" /> 
+                Planning Hebdomadaire
+              </h2>
+              
+              <div className="overflow-x-auto pb-6">
+                <div className="flex gap-6 min-w-max">
+                  {daysInRange.map((date) => {
+                    const daily = getDailySummary(date);
+                    const estAujourdhui = date === startDate;
+
+                    return (
+                      <div 
+                        key={date} 
+                        className={`
+                          w-72 rounded-3xl border-2 transition-all
+                          ${estAujourdhui 
+                            ? 'bg-orange-50 border-orange-300 shadow-md ring-2 ring-orange-200 ring-offset-2' 
+                            : 'bg-white border-gray-100 shadow-sm'}
+                        `}
+                      >
+                        {/* Header du jour */}
+                        <div className={`
+                          p-4 rounded-t-[22px] border-b text-center
+                          ${estAujourdhui ? 'bg-orange-100/50' : 'bg-gray-50/50'}
+                        `}>
+                          <p className="text-sm font-bold text-orange-900 uppercase tracking-wider">
+                            {formatDateFR(date, true)}
+                          </p>
+                        </div>
+
+                        <div className="p-5 space-y-6">
+                          {residences.map((res) => {
+                            const s = daily[res.value];
+                            return (
+                              <div key={res.value}>
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-1 h-4 bg-orange-400 rounded-full"></div>
+                                  <p className="font-bold text-gray-700 text-sm uppercase">{res.label}</p>
+                                </div>
+
+                                {/* Grille 2x2 pour les repas */}
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="bg-orange-50/50 p-2 rounded-xl flex flex-col items-center">
+                                    <span className="text-[10px] text-orange-600 font-bold uppercase">Midi</span>
+                                    <span className="text-lg font-black text-orange-900">{s.dejeuner}</span>
+                                  </div>
+                                  <div className="bg-blue-50/50 p-2 rounded-xl flex flex-col items-center">
+                                    <span className="text-[10px] text-blue-600 font-bold uppercase">Soir</span>
+                                    <span className="text-lg font-black text-blue-900">{s.diner}</span>
+                                  </div>
+                                  <div className="bg-emerald-50/50 p-2 rounded-xl flex flex-col items-center">
+                                    <span className="text-[10px] text-emerald-600 font-bold uppercase">Plateau</span>
+                                    <span className="text-lg font-black text-emerald-900">{s.plateau}</span>
+                                  </div>
+                                  <div className="bg-purple-50/50 p-2 rounded-xl flex flex-col items-center">
+                                    <span className="text-[10px] text-purple-600 font-bold uppercase">P.N.</span>
+                                    <span className="text-lg font-black text-purple-900">{s.piqueNique}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Total du jour en pied de carte */}
+                        <div className="px-5 py-3 bg-gray-50/50 rounded-b-[22px] border-t border-gray-100 text-center">
+                          <p className="text-xs text-gray-500 font-medium">
+                            Total Jour : <span className="text-orange-800 font-bold">
+                              {residences.reduce((acc, r) => acc + daily[r.value].dejeuner + daily[r.value].diner + daily[r.value].plateau + daily[r.value].piqueNique, 0)}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            );
-          })}
-        </div>
-
-        {/* Comptabilité */}
-        <div className="space-y-10">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <UserRound />
-            Total par lieu de résidence des utilisatrices
-          </h2>
-          {residences.map((r) => (
-            <div key={r.value} className="bg-white shadow-sm border border-gray-200 rounded-xl p-6">
-              <h3 className="text-xl font-semibold text-amber-800 mb-4">
-                Comptabilité - {r.label}
-              </h3>
-              <table className="min-w-full border text-sm bg-white">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="text-left p-2 font-semibold">Nom</th>
-                    <th className="text-center p-2 font-semibold">Déjeuners</th>
-                    <th className="text-center p-2 font-semibold">Dîners</th>
-                    <th className="text-center p-2 font-semibold">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comptaByResidence[r.value]
-                    .sort((a, b) => a.nom.localeCompare(b.nom)) // tri par nom des utilisatrices
-                    .map((p, idx) => (
-                      <tr key={idx} className="border-b">
-                        <td className="p-2">{p.nom} {p.prenom}</td>
-                        <td className="text-center p-2">{p.dejeuner}</td>
-                        <td className="text-center p-2">{p.diner}</td>
-                        <td className="text-center p-2 font-semibold text-amber-800">{p.total}</td>
+            </section>
+          </TabsContent>
+          
+          {/* Onglet COMPTABILITE */}
+          <TabsContent value="compta">
+            <div className="space-y-10">
+              {residences.map((r) => (
+                <div key={r.value} className="bg-white shadow-sm border border-gray-200 rounded-xl p-6">
+                  <h3 className="text-xl font-semibold text-amber-800 mb-4">Comptabilité - {r.label}</h3>
+                  <table className="min-w-full border text-sm bg-white">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left p-2 font-semibold">Nom</th>
+                        <th className="text-center p-2 font-semibold">Déjeuners</th>
+                        <th className="text-center p-2 font-semibold">Dîners</th>
+                        <th className="text-center p-2 font-semibold">Total</th>
                       </tr>
-                    ))}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {comptaByResidence[r.value]?.sort((a,b) => a.nom.localeCompare(b.nom)).map((p, idx) => (
+                        <tr key={idx} className="border-b">
+                          <td className="p-2">{p.nom} {p.prenom}</td>
+                          <td className="text-center p-2">{p.dejeuner}</td>
+                          <td className="text-center p-2">{p.diner}</td>
+                          <td className="text-center p-2 font-semibold text-amber-800">{p.total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </TabsContent>
+        </Tabs>
 
-        {/* Popup détail */}
+        {/* Popup Détails */}
         <Dialog open={!!openLieu} onOpenChange={() => setOpenLieu(null)}>
           <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Détails des repas - Résidence {openLieu}</DialogTitle>
-            </DialogHeader>
-
-            {(() => {
-              const repasFiltres = repasData.filter(
-                (r) => r.date_repas >= startDate && r.date_repas <= endDate
-              );
-              const datesAffichees = Array.from(
-                new Set([...repasFiltres.map(r => r.date_repas), ...invites.map(i => i.date_repas)])
-              ).sort();
-
-              return datesAffichees.map(date => (
-                <div key={date} className="mb-8">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                    📅 {new Date(date).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}
-                  </h3>
-
-                  {["dejeuner", "diner"].map(type => (
-                    <div key={type} className="mb-4">
-                      <h4 className="text-md font-medium text-gray-700 mb-2 capitalize">
-                        {type === "dejeuner" ? "☀️ Déjeuner" : "🌙 Dîner"}
-                      </h4>
-
-                      <table className="min-w-full border text-sm bg-white">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="text-left p-2 font-semibold">Nom</th>
-                            <th className="text-left p-2 font-semibold">Repas</th>
-                            <th className="text-left p-2 font-semibold">Commentaire</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {toutesPersonnes
-                            .sort((a, b) => a.nom.localeCompare(b.nom)) // tri par nom des utilisatrices
-                            .map((p) => {
-                              let lieuRepas: string | undefined;
-                              let label = "Non";
-                              let couleur = "bg-red-100 text-red-800";
-                              let commentaire = "-";
-
-                              if (p.estInvite) {
-                                const inv = invites.find(
-                                  i => `invite-${i.id}` === p.user_id && i.date_repas === date && i.type_repas === type
-                                );
-                                if (!inv) return null;
-                                lieuRepas = inv.lieu_repas;
-                                label = "Oui";
-                                couleur = "bg-green-100 text-green-800";
-                                commentaire = "-";
-                              } else {
-                                const repas = repasFiltres.find(
-                                  r => r.user_id === p.user_id && r.date_repas === date && r.type_repas === type
-                                );
-                                if (repas) {
-                                  const choix = repas.choix_repas?.toLowerCase() || "";
-                                  
-                                  // ✨ Gestion affichage option spéciale
-                                  if (choix.startsWith("special:")) {
-                                    const parts = choix.split(":");
-                                    if (parts.length >= 3) {
-                                      const residence = parts[1]; // "12" ou "36"
-                                      const specialLabel = parts.slice(2).join(":"); // Le label
-                                      lieuRepas = residence;
-                                      label = specialLabel + " ⭐";
-                                      couleur = "bg-purple-100 text-purple-800";
-                                    }
-                                  } else if (choix === "12" || choix === "36") {
-                                    lieuRepas = choix;
-                                    label = "Oui";
-                                    couleur = "bg-green-100 text-green-800";
-                                  } else if (choix.includes("pn")) {
-                                    lieuRepas = p.residence;
-                                    label = choix.includes("chaud") ? "Pique-nique chaud" : "Pique-nique froid";
-                                    couleur = "bg-yellow-100 text-yellow-800";
-                                  } else if (choix.includes("plateau")) {
-                                    lieuRepas = p.residence;
-                                    label = "Plateau repas";
-                                    couleur = "bg-blue-100 text-blue-800";
-                                  }
-                                  commentaire = repas.commentaire ?? "-";
-                                } else {
-                                  lieuRepas = p.residence;
-                                  label = "Non";
-                                  couleur = "bg-red-100 text-red-800";
-                                  commentaire = "-";
-                                }
-                              }
-
-                              if (lieuRepas !== openLieu) return null;
-
-                              return (
-                                <tr key={p.user_id + date + type} className="border-b">
-                                  <td className="p-2 font-medium">
-                                    {p.nom} {p.prenom}
-                                    {p.estInvite && p.inviteParPrenom && (
-                                      <span className="text-xs text-green-600 ml-1">
-                                        (invitée par {p.inviteParPrenom})
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className={`p-2`}>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${couleur}`}>
-                                      {label}
-                                    </span>
-                                  </td>
-                                  <td className="p-2 text-gray-700">{commentaire}</td>
-                                </tr>
-                              );
-                            })}
-                        </tbody>
-                      </table>
-                    </div>
-                  ))}
-                </div>
-              ));
-            })()}
+            <DialogHeader><DialogTitle>Détails des repas - Résidence {openLieu}</DialogTitle></DialogHeader>
+            {daysInRange.map(date => (
+              <div key={date} className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">📅 {formatDateFR(date)}</h3>
+                {["dejeuner", "diner"].map(type => (
+                  <div key={type} className="mb-4">
+                    <h4 className="text-md font-medium text-gray-700 mb-2 capitalize">{type === "dejeuner" ? "☀️ Déjeuner" : "🌙 Dîner"}</h4>
+                    <table className="min-w-full border text-sm bg-white mb-4">
+                      <thead className="bg-gray-50">
+                        <tr><th className="p-2 text-left">Nom</th><th className="p-2 text-left">Repas</th><th className="p-2 text-left">Commentaire</th></tr>
+                      </thead>
+                      <tbody>
+                        {toutesPersonnes.filter(p => p.residence === openLieu).sort((a,b) => a.nom.localeCompare(b.nom)).map(p => {
+                          const repas = repasData.find(r => r.user_id === p.user_id && r.date_repas === date && r.type_repas === type);
+                          const inv = invites.find(i => `invite-${i.id}` === p.user_id && i.date_repas === date && i.type_repas === type);
+                          
+                          if (!repas && !inv && !p.estInvite) return null; // On n'affiche que ceux qui ont une action
+                          
+                          let label = repas?.choix_repas || (inv ? "Oui" : "Non");
+                          let color = label.includes("Non") ? "bg-red-100" : "bg-green-100";
+                          
+                          return (
+                            <tr key={p.user_id + date + type} className="border-b">
+                              <td className="p-2">{p.nom} {p.prenom} {p.estInvite && <span className="text-[10px] text-blue-500">(Invité)</span>}</td>
+                              <td className="p-2"><span className={`px-2 py-1 rounded-full ${color}`}>{label}</span></td>
+                              <td className="p-2">{repas?.commentaire || "-"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            ))}
           </DialogContent>
         </Dialog>
       </div>
