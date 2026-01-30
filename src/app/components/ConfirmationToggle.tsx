@@ -117,7 +117,7 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
           : "border-gray-400 bg-white text-gray-700"
       )}
     >
-      {checked ? <Check className="h-5 w-5" /> : <X className="h-5 w-5" />}
+      {checked ? <Check className="h-5 w-5" /> : <Check className="h-5 w-5" />}
     </Button>
   )
 }

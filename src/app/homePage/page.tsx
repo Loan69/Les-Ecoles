@@ -757,6 +757,8 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center bg-white px-4 pt-6">
+
+      {/* Chevrons pour version DESKTOP */}
       <button
         onClick={goToPreviousDay}
         className="hidden sm:flex items-center justify-center absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-[calc(50%+210px)] bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700 transition-transform duration-200 hover:scale-110 cursor-pointer"
@@ -786,14 +788,17 @@ export default function HomePage() {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
+          {/* LOGO Les Ecoles */}
           <Image src="/logo.png" alt="Logo" width={350} height={350} className="mb-3" />
-
+          
+          {/* Date du jour */}
           <div className="flex justify-center items-center mb-5 space-x-4">
             <h2 className="text-2xl font-semibold text-center text-blue-800">
               {formatDate(currentDate)}
             </h2>
           </div>
 
+          {/* Bouton de présence */}
           <div className="flex flex-col items-center mt-4 space-y-2 mb-5">
             <PresenceButton
               date={formatDateKeyLocal(currentDate)}
@@ -829,8 +834,9 @@ export default function HomePage() {
               </button>
             ))}
           </div>
-
-          <section className="w-full max-w-md bg-white rounded-xl shadow-lg p-5 overflow-hidden relative">
+            
+          {/* Section Rappel et évènements */}
+          <section className="w-full max-w-md bg-white rounded-xl shadow-lg p-5 overflow-hidden relative mb-10">
             {/* Rappels */}
             {reminders.length > 0 && (
               <div className="w-full mb-5 bg-yellow-50 border border-yellow-300 rounded-lg p-4 shadow-sm">
@@ -920,7 +926,9 @@ export default function HomePage() {
                 ))
               )}
             </div>
+          </section>
 
+          <section className="w-full max-w-md bg-white rounded-xl shadow-lg p-5 overflow-hidden relative">
             {/* Présence repas */}
             <h2 className="text-xl font-semibold text-center text-blue-800 mb-4">
               Présence aux repas
