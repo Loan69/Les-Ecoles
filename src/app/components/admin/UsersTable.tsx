@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { Trash2 } from 'lucide-react'
 
 type UserRow = {
   id: string
@@ -16,8 +17,9 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
 
-  // Ton UID pour afficher la colonne dernière connexion
   const SUPER_ADMIN_UID = '17e3e1c7-3219-46e4-8aad-324f93b7b5de'
   const showLastLogin = currentUserId === SUPER_ADMIN_UID
 
@@ -42,7 +44,7 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
 
   async function toggleAdmin(u: UserRow, setTo: boolean) {
     if (u.role !== 'résidente') return
-    if (u.id === currentUserId && !setTo) return // protection client
+    if (u.id === currentUserId && !setTo) return
 
     const prev = users
     setUsers(users.map(x => x.id === u.id ? { ...x, is_admin: setTo } : x))
@@ -60,6 +62,46 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
       if (e instanceof Error) setError(e.message)
       else setError(String(e))
       setUsers(prev)
+    } finally {
+      setSuccess("Rôle de l'utilisateur modifié avec succès")
+    }
+  }
+
+  async function deleteUser(u: UserRow) {
+    if (u.id === currentUserId) {
+      setError("Vous ne pouvez pas supprimer votre propre compte")
+      return
+    }
+
+    const confirmMsg = `Êtes-vous sûr(e) de vouloir supprimer ${u.name || u.email} ?\n\nCette action est irréversible et supprimera :\n- Le compte utilisateur\n- Toutes les données associées`
+    
+    if (!confirm(confirmMsg)) return
+
+    setDeletingUserId(u.id)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/admin/users/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: u.id }),
+      })
+
+      const json = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(json.error || 'Suppression échouée')
+      }
+
+      // Retirer l'utilisateur de la liste
+      setUsers(users.filter(x => x.id !== u.id))
+      
+    } catch (e) {
+      if (e instanceof Error) setError(e.message)
+      else setError(String(e))
+    } finally {
+      setSuccess("Utilisateur supprimé avec succès")
+      setDeletingUserId(null)
     }
   }
 
@@ -94,7 +136,17 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
 
   return (
     <div className="bg-white shadow-sm rounded-lg p-4">
-      {error && <div className="text-red-600 mb-4">{error}</div>}
+      {/* Affichage des résultats des actions */}
+      {success && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-green-600 text-sm">{success}</p>
+        </div>
+      )}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-600 text-sm">{error}</p>
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
@@ -109,7 +161,7 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
                   Dernière connexion
                 </th>
               )}
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -120,8 +172,10 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
             ) : (
               users.map(u => {
                 const isSelf = u.id === currentUserId
+                const isDeleting = deletingUserId === u.id
+                
                 return (
-                  <tr key={u.id}>
+                  <tr key={u.id} className={isDeleting ? 'opacity-50' : ''}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {u.name} {isSelf && <span className="text-xs text-gray-400">(vous)</span>}
                     </td>
@@ -134,23 +188,39 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
                       </td>
                     )}
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {u.role === 'résidente' && !isSelf && (
-                        u.is_admin ? (
+                      <div className="flex items-center justify-end gap-2">
+                        {u.role === 'résidente' && !isSelf && (
+                          u.is_admin ? (
+                            <button
+                              onClick={() => toggleAdmin(u, false)}
+                              disabled={isDeleting}
+                              className="inline-flex items-center px-3 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50"
+                            >
+                              Révoquer
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => toggleAdmin(u, true)}
+                              disabled={isDeleting}
+                              className="inline-flex items-center px-3 py-1 rounded-md bg-green-50 text-green-700 hover:bg-green-100 cursor-pointer disabled:opacity-50"
+                            >
+                              Promouvoir
+                            </button>
+                          )
+                        )}
+                        
+                        {u.role === 'résidente' && !isSelf && (
                           <button
-                            onClick={() => toggleAdmin(u, false)}
-                            className="inline-flex items-center px-3 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer"
+                            onClick={() => deleteUser(u)}
+                            disabled={isDeleting}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50"
+                            title="Supprimer cette utilisatrice"
                           >
-                            Révoquer
+                            <Trash2 size={14} />
+                            {isDeleting ? 'Suppression...' : 'Supprimer'}
                           </button>
-                        ) : (
-                          <button
-                            onClick={() => toggleAdmin(u, true)}
-                            className="inline-flex items-center px-3 py-1 rounded-md bg-green-50 text-green-700 hover:bg-green-100 cursor-pointer"
-                          >
-                            Promouvoir
-                          </button>
-                        )
-                      )}
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
