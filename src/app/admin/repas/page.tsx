@@ -285,7 +285,7 @@ export default function AdminRepasView() {
 
             {/* VUE JOUR J */}
               <section>
-                <h2 className="text-2xl font-semibold text-amber-900 mb-6 flex items-center gap-2"><HouseHeart /> Aujourd'hui, {formatDateFR(startDate)}</h2>
+                <h2 className="text-2xl font-semibold text-amber-900 mb-6 flex items-center gap-2"><HouseHeart /> Aujourd&apos;hui, {formatDateFR(startDate)}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {residences.map(res => {
                     const s = getDailySummary(startDate)[res.value];
