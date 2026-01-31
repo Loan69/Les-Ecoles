@@ -19,6 +19,7 @@ export default function SignInPage() {
     const [resetLoading, setResetLoading] = useState(false);
     const router = useRouter();
 
+    // Par défaut on arrive sur la date du jour
     useEffect(() => {
         localStorage.setItem("dateSelectionnee", formatDateKeyLocal(new Date()))
       }, []);
