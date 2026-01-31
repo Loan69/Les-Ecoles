@@ -873,7 +873,7 @@ export default function HomePage() {
                             </p>
                             <p className="text-xs text-gray-600 mt-1">
                               Évènement prévu le {eventDateFormatted}
-                              {evt.heures && `${evt.heures}`}
+                              {evt.heures && ` ${evt.heures}`}
                               {evt.lieu && ` • Résidence ${evt.lieu}`}
                             </p>
                             {evt.description && (
