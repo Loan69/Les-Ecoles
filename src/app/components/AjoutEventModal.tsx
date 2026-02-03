@@ -244,7 +244,7 @@ export default function ModalAjoutEvenement({
                   }}
                   className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Accessible à tous</option>
+                  <option value="">Non</option>
                   <option value="12">Staff Résidence 12 uniquement</option>
                   <option value="36">Staff Résidence 36 uniquement</option>
                   <option value="all">Tout le staff</option>

@@ -585,7 +585,15 @@ export default function HomePage() {
         .eq("user_id", user.id)
         .maybeSingle();
       if (profilError) console.error("Erreur profil :", profilError);
-      if (profilData) setProfil(profilData);
+      if (profilData) {
+        setProfil(profilData);
+        setSelectedResidenceValue(profilData.residence)
+        if (profilData.residence === "12") {
+          setSelectedResidenceLabel("Résidence 12");
+        } else {
+          setSelectedResidenceLabel("Résidence 36");
+        }
+      }
 
       const { data: eventsData, error: eventsError } = await supabase
         .from("evenements")
@@ -777,6 +785,7 @@ export default function HomePage() {
         <LogoutButton />
       </div>
 
+      {/* Animation du swipe sur MOBILE */}
       <AnimatePresence custom={direction} mode="wait">
         <motion.div
           className="w-full flex flex-col items-center"
@@ -807,7 +816,8 @@ export default function HomePage() {
               isAdmin={profil?.is_admin}
             />
           </div>
-
+          
+          {/* Intercalaire */}
           <div className="relative flex justify-center mb-4 z-10">
             <div
               className="absolute top-0 h-12 w-20 bg-yellow-400 rounded-t-xl transition-all duration-300"

@@ -10,6 +10,7 @@ import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InviteRepas } from "@/types/InviteRepas";
 import { Residence } from "@/types/Residence";
+import { formatDateKeyLocal } from "@/lib/utilDate";
 
 // --- Définition des Types Stricts ---
 
@@ -77,8 +78,10 @@ export default function AdminRepasView() {
   // --- Initialisation ---
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
+    const endDateDef = new Date(today)
+    endDateDef.setDate(endDateDef.getDate() + 7) // Par défaut la date de fin est 7 jours après la date du jour
     setStartDate(localStorage.getItem("startDate") || today);
-    setEndDate(localStorage.getItem("endDate") || today);
+    setEndDate(formatDateKeyLocal(endDateDef));
   }, []);
 
   // --- Fetch avec sécurité Loading + J+1 ---
@@ -296,8 +299,8 @@ export default function AdminRepasView() {
                           <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-3 text-sm font-medium">
                             <p className="text-orange-600">☀️ Midi: <b className="text-orange-900 text-lg ml-1">{s.dejeuner}</b></p>
                             <p className="text-blue-600">🌙 Soir: <b className="text-blue-900 text-lg ml-1">{s.diner}</b></p>
-                            <p className="text-emerald-600">🍱 Plat.: <b className="text-emerald-900 text-lg ml-1">{s.plateau}</b></p>
                             <p className="text-purple-600">🎒 PN (demain): <b className="text-purple-900 text-lg ml-1">{s.piqueNique}</b></p>
+                            <p className="text-emerald-600">🍱 Plat.: <b className="text-emerald-900 text-lg ml-1">{s.plateau}</b></p>
                           </div>
                         </div>
                         <button onClick={() => setOpenLieu(res.value)} className="p-4 bg-orange-50 rounded-full hover:bg-orange-100 transition-transform hover:scale-110"><Search className="text-orange-600" /></button>
@@ -360,13 +363,13 @@ export default function AdminRepasView() {
                                     <span className="text-[10px] text-blue-600 font-bold uppercase">Soir</span>
                                     <span className="text-lg font-black text-blue-900">{s.diner}</span>
                                   </div>
-                                  <div className="bg-emerald-50/50 p-2 rounded-xl flex flex-col items-center">
-                                    <span className="text-[10px] text-emerald-600 font-bold uppercase">Plateau</span>
-                                    <span className="text-lg font-black text-emerald-900">{s.plateau}</span>
-                                  </div>
                                   <div className="bg-purple-50/50 p-2 rounded-xl flex flex-col items-center">
                                     <span className="text-[10px] text-purple-600 font-bold uppercase">P.N.</span>
                                     <span className="text-lg font-black text-purple-900">{s.piqueNique}</span>
+                                  </div>
+                                  <div className="bg-emerald-50/50 p-2 rounded-xl flex flex-col items-center">
+                                    <span className="text-[10px] text-emerald-600 font-bold uppercase">Plateau</span>
+                                    <span className="text-lg font-black text-emerald-900">{s.plateau}</span>
                                   </div>
                                 </div>
                               </div>
