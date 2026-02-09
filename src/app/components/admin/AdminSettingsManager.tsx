@@ -90,7 +90,7 @@ export default function AdminSettingsManager() {
                 />)}
               {s.key === 'verrouillage_weekend' && (
               <p className="text-xs text-gray-500 mt-2">
-                Si activé, les repas du samedi et dimanche seront verrouillés dès le vendredi à l'heure de verrouillage normale
+                Si activé, les repas du samedi et dimanche seront verrouillés dès le vendredi à l&apos;heure de verrouillage normale
               </p>
             )}
             </div>
