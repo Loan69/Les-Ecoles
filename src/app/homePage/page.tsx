@@ -67,7 +67,7 @@ export default function HomePage() {
   const [residences, setResidences] = useState<Residence[]>([]);
   const [selectedResidenceValue, setSelectedResidenceValue] = useState<string | null>("12");
   const [selectedResidenceLabel, setSelectedResidenceLabel] = useState<string | null>("Résidence 12");
-  const [settings, setSettings] = useState<{ verrouillage_repas?: string; verrouillage_foyer?: string }>({});
+  const [settings, setSettings] = useState<{ verrouillage_repas?: string; verrouillage_foyer?: string; verrouillage_weekend?: string }>({});
   const [reminders, setReminders] = useState<CalendarEvent[]>([]);
   const [lockedValues, setLockedValues] = useState<string[]>([]);
 
@@ -355,7 +355,7 @@ export default function HomePage() {
         repas: mealType,
         choix: selectedOption.value,
         date: formatDateKeyLocal(currentDate),
-        // NOUVEAU : On envoie l'ID de l'option si c'est un repas spécial
+        // On envoie l'ID de l'option si c'est un repas spécial
         option_id: selectedOption.isSpecial ? selectedOption.id : null,
       }),
     });
@@ -520,7 +520,10 @@ export default function HomePage() {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const { data, error } = await supabase.from("app_settings").select("key, value");
+      const { data, error } = await supabase
+        .from("app_settings")
+        .select("key, value");
+
       if (error) {
         console.error("Erreur récupération paramètres :", error);
         return;
@@ -532,6 +535,7 @@ export default function HomePage() {
     fetchSettings();
   }, [supabase]);
 
+  // Gestion du verrouillage des otpions de repas
   useEffect(() => {
     if (!settings.verrouillage_repas) return;
 
@@ -553,9 +557,60 @@ export default function HomePage() {
     const isPastDay = selectedDay < parisToday;
     const isToday = selectedDay === parisToday;
 
-    if (isPastDay || (isToday && afterLock)) {
+    // Verrouillage anticipé du weekend
+    const weekendLockEnabled = settings.verrouillage_weekend === 'true';
+    const currentDayOfWeek = parisNow.getDay(); // 0 = dimanche, 5 = vendredi, 6 = samedi
+    const selectedDate = parseDateKeyLocal(selectedDay);
+    const selectedDayOfWeek = selectedDate.getDay();
+    
+    // Vérifier si on est vendredi après l'heure de lock
+    const isFridayAfterLock = currentDayOfWeek === 5 && afterLock;
+    
+    // Vérifier si le jour sélectionné est samedi (6) ou dimanche (0)
+    const isSelectedDayWeekend = selectedDayOfWeek === 0 || selectedDayOfWeek === 6;
+    
+    // Calculer si le weekend sélectionné est le prochain weekend
+    const isUpcomingWeekend = () => {
+      if (!isSelectedDayWeekend) return false;
+      
+      // Si on est vendredi, vérifier que c'est le weekend qui arrive
+      if (currentDayOfWeek === 5) {
+        const fridayDate = new Date(parisNow);
+        fridayDate.setHours(0, 0, 0, 0);
+        
+        const saturdayDate = new Date(fridayDate);
+        saturdayDate.setDate(fridayDate.getDate() + 1);
+        
+        const sundayDate = new Date(fridayDate);
+        sundayDate.setDate(fridayDate.getDate() + 2);
+        
+        const selectedDateOnly = new Date(selectedDate);
+        selectedDateOnly.setHours(0, 0, 0, 0);
+        
+        return (
+          selectedDateOnly.getTime() === saturdayDate.getTime() ||
+          selectedDateOnly.getTime() === sundayDate.getTime()
+        );
+      }
+      
+      return false;
+    };
+
+    // Verrouillage anticipé du weekend si activé
+    const isWeekendLocked = weekendLockEnabled && isFridayAfterLock && isUpcomingWeekend();
+
+    if (isPastDay || (isToday && afterLock) || isWeekendLocked) {
       setLocked(true);
-      setConfirmationMsg(`Les présences aux repas ne sont plus modifiables après ${settings.verrouillage_repas}.`);
+      
+      if (isWeekendLocked) {
+        setConfirmationMsg(
+          `Les présences aux repas du weekend sont verrouillées dès le vendredi ${settings.verrouillage_repas}.`
+        );
+      } else {
+        setConfirmationMsg(
+          `Les présences aux repas ne sont plus modifiables après ${settings.verrouillage_repas}.`
+        );
+      }
     } else {
       setLocked(false);
       setConfirmationMsg("");
@@ -974,6 +1029,7 @@ export default function HomePage() {
                   selectClassName="w-full max-w-[180px] md:max-w-[220px] h-10"
                 />
 
+                {/* Bouton Commentaire */}
                 <button
                   onClick={() => {
                     if (dejeunerSelection.selectedValue !== "non") {
@@ -1021,6 +1077,7 @@ export default function HomePage() {
                   selectClassName="w-full max-w-[180px] md:max-w-[220px] h-10"
                 />
 
+                {/* Bouton Commentaire */}
                 <button
                   onClick={() => {
                     if (dinerSelection.selectedValue !== "non") {

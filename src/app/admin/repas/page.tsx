@@ -276,7 +276,7 @@ export default function AdminRepasView() {
           </div>
 
           {/* Filtre CALENDRIER */}
-          <div className="flex justify-center items-center mb-8 gap-3">
+          <div className="flex justify-center items-center gap-3">
             <CalendarDays className="text-amber-600" />
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-amber-300 rounded-lg px-3 py-1 text-black" />
             <span>→</span>
@@ -285,31 +285,6 @@ export default function AdminRepasView() {
 
           {/* Onglet Récap par RESIDENCE */}
           <TabsContent value="sum" className="space-y-12">
-
-            {/* VUE JOUR J */}
-              <section>
-                <h2 className="text-2xl font-semibold text-amber-900 mb-6 flex items-center gap-2"><HouseHeart /> Aujourd&apos;hui, {formatDateFR(startDate)}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {residences.map(res => {
-                    const s = getDailySummary(startDate)[res.value];
-                    return (
-                      <div key={res.value} className="bg-white border-2 border-orange-100 rounded-3xl p-6 shadow-sm flex justify-between items-center">
-                        <div>
-                          <h3 className="text-xl font-bold text-orange-800">{res.label}</h3>
-                          <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-3 text-sm font-medium">
-                            <p className="text-orange-600">☀️ Midi: <b className="text-orange-900 text-lg ml-1">{s.dejeuner}</b></p>
-                            <p className="text-blue-600">🌙 Soir: <b className="text-blue-900 text-lg ml-1">{s.diner}</b></p>
-                            <p className="text-purple-600">🎒 PN (demain): <b className="text-purple-900 text-lg ml-1">{s.piqueNique}</b></p>
-                            <p className="text-emerald-600">🍱 Plat.: <b className="text-emerald-900 text-lg ml-1">{s.plateau}</b></p>
-                          </div>
-                        </div>
-                        <button onClick={() => setOpenLieu(res.value)} className="p-4 bg-orange-50 rounded-full hover:bg-orange-100 transition-transform hover:scale-110"><Search className="text-orange-600" /></button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-
            {/* RÉSUMÉ DE LA SEMAINE */}
             <section className="mt-12">
               <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
@@ -351,6 +326,13 @@ export default function AdminRepasView() {
                                 <div className="flex items-center gap-2 mb-3">
                                   <div className="w-1 h-4 bg-orange-400 rounded-full"></div>
                                   <p className="font-bold text-gray-700 text-sm uppercase">{res.label}</p>
+                                  {estAujourdhui && 
+                                    <button 
+                                      onClick={() => setOpenLieu(res.value)}
+                                      className="px-3 bg-orange-50 rounded-full hover:bg-orange-100 transition-transform hover:scale-110">
+                                        <Search className="text-orange-600" />
+                                    </button>
+                                  }
                                 </div>
 
                                 {/* Grille 2x2 pour les repas */}
@@ -364,7 +346,9 @@ export default function AdminRepasView() {
                                     <span className="text-lg font-black text-blue-900">{s.diner}</span>
                                   </div>
                                   <div className="bg-purple-50/50 p-2 rounded-xl flex flex-col items-center">
-                                    <span className="text-[10px] text-purple-600 font-bold uppercase">P.N.</span>
+                                    <span className="text-[10px] text-purple-600 font-bold uppercase">
+                                      P.N <span className="text-[7px]">(du lendemain)</span>
+                                    </span>
                                     <span className="text-lg font-black text-purple-900">{s.piqueNique}</span>
                                   </div>
                                   <div className="bg-emerald-50/50 p-2 rounded-xl flex flex-col items-center">
@@ -392,6 +376,47 @@ export default function AdminRepasView() {
               </div>
             </section>
           </TabsContent>
+
+          {/* Popup Détails */}
+          <Dialog open={!!openLieu} onOpenChange={() => setOpenLieu(null)}>
+            <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader><DialogTitle>Détails des repas - Résidence {openLieu}</DialogTitle></DialogHeader>
+              {daysInRange.map(date => (
+                <div key={date} className="mb-8">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">📅 {formatDateFR(date)}</h3>
+                  {["dejeuner", "diner"].map(type => (
+                    <div key={type} className="mb-4">
+                      <h4 className="text-md font-medium text-gray-700 mb-2 capitalize">{type === "dejeuner" ? "☀️ Déjeuner" : "🌙 Dîner"}</h4>
+                      <table className="min-w-full border text-sm bg-white mb-4">
+                        <thead className="bg-gray-50">
+                          <tr><th className="p-2 text-left">Nom</th><th className="p-2 text-left">Repas</th><th className="p-2 text-left">Commentaire</th></tr>
+                        </thead>
+                        <tbody>
+                          {toutesPersonnes.filter(p => p.residence === openLieu).sort((a,b) => a.nom.localeCompare(b.nom)).map(p => {
+                            const repas = repasData.find(r => r.user_id === p.user_id && r.date_repas === date && r.type_repas === type);
+                            const inv = invites.find(i => `invite-${i.id}` === p.user_id && i.date_repas === date && i.type_repas === type);
+                            
+                            if (!repas && !inv && !p.estInvite) return null; // On n'affiche que ceux qui ont une action
+                            
+                            const label = repas?.choix_repas || (inv ? "Oui" : "Non");
+                            const color = label.includes("Non") ? "bg-red-100" : "bg-green-100";
+                            
+                            return (
+                              <tr key={p.user_id + date + type} className="border-b">
+                                <td className="p-2">{p.nom} {p.prenom} {p.estInvite && <span className="text-[10px] text-blue-500">(Invité)</span>}</td>
+                                <td className="p-2"><span className={`px-2 py-1 rounded-full ${color}`}>{label}</span></td>
+                                <td className="p-2">{repas?.commentaire || "-"}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </DialogContent>
+          </Dialog>
           
           {/* Onglet COMPTABILITE */}
           <TabsContent value="compta">
@@ -424,47 +449,6 @@ export default function AdminRepasView() {
             </div>
           </TabsContent>
         </Tabs>
-
-        {/* Popup Détails */}
-        <Dialog open={!!openLieu} onOpenChange={() => setOpenLieu(null)}>
-          <DialogContent className="max-w-5xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Détails des repas - Résidence {openLieu}</DialogTitle></DialogHeader>
-            {daysInRange.map(date => (
-              <div key={date} className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">📅 {formatDateFR(date)}</h3>
-                {["dejeuner", "diner"].map(type => (
-                  <div key={type} className="mb-4">
-                    <h4 className="text-md font-medium text-gray-700 mb-2 capitalize">{type === "dejeuner" ? "☀️ Déjeuner" : "🌙 Dîner"}</h4>
-                    <table className="min-w-full border text-sm bg-white mb-4">
-                      <thead className="bg-gray-50">
-                        <tr><th className="p-2 text-left">Nom</th><th className="p-2 text-left">Repas</th><th className="p-2 text-left">Commentaire</th></tr>
-                      </thead>
-                      <tbody>
-                        {toutesPersonnes.filter(p => p.residence === openLieu).sort((a,b) => a.nom.localeCompare(b.nom)).map(p => {
-                          const repas = repasData.find(r => r.user_id === p.user_id && r.date_repas === date && r.type_repas === type);
-                          const inv = invites.find(i => `invite-${i.id}` === p.user_id && i.date_repas === date && i.type_repas === type);
-                          
-                          if (!repas && !inv && !p.estInvite) return null; // On n'affiche que ceux qui ont une action
-                          
-                          const label = repas?.choix_repas || (inv ? "Oui" : "Non");
-                          const color = label.includes("Non") ? "bg-red-100" : "bg-green-100";
-                          
-                          return (
-                            <tr key={p.user_id + date + type} className="border-b">
-                              <td className="p-2">{p.nom} {p.prenom} {p.estInvite && <span className="text-[10px] text-blue-500">(Invité)</span>}</td>
-                              <td className="p-2"><span className={`px-2 py-1 rounded-full ${color}`}>{label}</span></td>
-                              <td className="p-2">{repas?.commentaire || "-"}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 type Setting = {
   key: string
   value: string
+  label: string
 }
 
 export default function AdminSettingsManager() {
@@ -22,7 +23,7 @@ export default function AdminSettingsManager() {
         const loadSettings = async () => {
         const { data, error } = await supabase
             .from('app_settings')
-            .select('key, value')
+            .select('key, value, label')
         if (error) console.error(error)
         else setSettings(data || [])
         setLoading(false)
@@ -66,18 +67,32 @@ export default function AdminSettingsManager() {
             {settings.map((s) => (
             <div key={s.key} className="p-4 border rounded-lg shadow-sm bg-white">
                 <label className="block text-sm font-medium text-gray-600 mb-1">
-                {s.key === 'verrouillage_repas'
-                    ? 'Heure limite pour indiquer sa présence au repas'
-                    : s.key === 'verrouillage_foyer'
-                    ? 'Heure limite pour modifier la présence au foyer'
-                    : s.key}
+                {s.label}
                 </label>
+                {s.key === "verrouillage_weekend" ? (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={s.value === 'true'}
+                      onChange={(e) => updateSettingValue(s.key, e.target.checked ? 'true' : 'false')}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">
+                      Activer le verrouillage anticipé
+                    </span>
+                  </label>
+                ) : (
                 <input
-                type="time"
-                value={s.value}
-                onChange={(e) => updateSettingValue(s.key, e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                  type="time"
+                  value={s.value}
+                  onChange={(e) => updateSettingValue(s.key, e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />)}
+              {s.key === 'verrouillage_weekend' && (
+              <p className="text-xs text-gray-500 mt-2">
+                Si activé, les repas du samedi et dimanche seront verrouillés dès le vendredi à l'heure de verrouillage normale
+              </p>
+            )}
             </div>
             ))}
         </div>
