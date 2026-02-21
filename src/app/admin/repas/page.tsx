@@ -37,7 +37,6 @@ interface ExtendedPersonne extends Partial<Personne> {
   estInvite: boolean;
   inviteParPrenom?: string;
   inviteParNom?: string;
-  date_repas: string;
 }
 
 interface UserCompta extends Personne {
@@ -128,7 +127,6 @@ export default function AdminRepasView() {
     const list: ExtendedPersonne[] = residentes.map((r) => ({
       ...r,
       estInvite: false,
-      date_repas: "",
     }));
 
     invites.forEach((i) => {
@@ -141,7 +139,6 @@ export default function AdminRepasView() {
         estInvite: true,
         inviteParPrenom: parent?.prenom || "",
         inviteParNom: parent?.nom || "",
-        date_repas: i.date_repas,
       });
     });
     return list;
@@ -170,7 +167,7 @@ export default function AdminRepasView() {
             opt ? opt.count++ : summary[residence].specialOptions.push({ label, count: 1 });
           }
         } else {
-          const lieu = (choix === "12" || choix === "36") ? choix : (choix.includes("plateau") ? p.residence : null);
+          const lieu = (choix === "12" || choix === "36" || choix === "corail") ? choix : (choix.includes("plateau") ? p.residence : null);
           if (lieu && summary[lieu]) {
             if (choix.includes("plateau")) summary[lieu].plateau++;
             else if (r.type_repas === "dejeuner") summary[lieu].dejeuner++;
@@ -414,7 +411,7 @@ export default function AdminRepasView() {
                             
                             const label = repas?.choix_repas || (inv ? "Oui" : "Non");
                             const color = label.includes("Non") ? "bg-red-100" : "bg-green-100";
-                            
+
                             return (
                               <tr key={p.user_id + date + type} className="border-b">
                                 <td className="p-2">{p.nom} {p.prenom} {p.estInvite && <span className="text-[10px] text-blue-500">(Invité)</span>}</td>
