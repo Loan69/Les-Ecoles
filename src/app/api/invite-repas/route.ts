@@ -29,8 +29,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Champs manquants" }, { status: 400 });
   }
 
-  let inviteId: number;
-
   // Création d'un invité s'il n'existe pas déjà
   const {data : newinvite, error : errorInsert } = await supabase
     .from("invites")
@@ -42,7 +40,7 @@ export async function POST(req: Request) {
     console.error("Erreur lors de l'insertion dans invites :", errorInsert);
     return NextResponse.json({ error: errorInsert.message }, { status: 500 });
   }
-  inviteId = newinvite.id
+  const inviteId = newinvite.id
   
   // Ensuite Insertion dans la table invites_repas
   const { error } = await supabase.from("invites_repas").insert([
