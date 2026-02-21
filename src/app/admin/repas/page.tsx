@@ -37,6 +37,7 @@ interface ExtendedPersonne extends Partial<Personne> {
   estInvite: boolean;
   inviteParPrenom?: string;
   inviteParNom?: string;
+  date_repas: string;
 }
 
 interface UserCompta extends Personne {
@@ -78,10 +79,14 @@ export default function AdminRepasView() {
   // --- Initialisation ---
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
-    const endDateDef = new Date(today)
-    endDateDef.setDate(endDateDef.getDate() + 7) // Par défaut la date de fin est 7 jours après la date du jour
-    setStartDate(localStorage.getItem("startDate") || today);
-    setEndDate(formatDateKeyLocal(endDateDef));
+    const savedStart = localStorage.getItem("startDate") || today;
+    
+    const startDateObj = new Date(savedStart);
+    const endDateObj = new Date(savedStart);
+    endDateObj.setDate(startDateObj.getDate() + 7);
+
+    setStartDate(savedStart);
+    setEndDate(formatDateKeyLocal(endDateObj));
   }, []);
 
   // --- Fetch avec sécurité Loading + J+1 ---
@@ -122,7 +127,8 @@ export default function AdminRepasView() {
   const toutesPersonnes = useMemo<ExtendedPersonne[]>(() => {
     const list: ExtendedPersonne[] = residentes.map((r) => ({
       ...r,
-      estInvite: false
+      estInvite: false,
+      date_repas: "",
     }));
 
     invites.forEach((i) => {
@@ -135,6 +141,7 @@ export default function AdminRepasView() {
         estInvite: true,
         inviteParPrenom: parent?.prenom || "",
         inviteParNom: parent?.nom || "",
+        date_repas: i.date_repas,
       });
     });
     return list;
@@ -389,14 +396,21 @@ export default function AdminRepasView() {
                       <h4 className="text-md font-medium text-gray-700 mb-2 capitalize">{type === "dejeuner" ? "☀️ Déjeuner" : "🌙 Dîner"}</h4>
                       <table className="min-w-full border text-sm bg-white mb-4">
                         <thead className="bg-gray-50">
-                          <tr><th className="p-2 text-left">Nom</th><th className="p-2 text-left">Repas</th><th className="p-2 text-left">Commentaire</th></tr>
+                          <tr>
+                            <th className="p-2 text-left">Nom</th>
+                            <th className="p-2 text-left">Repas</th>
+                            <th className="p-2 text-left">Commentaire</th>
+                          </tr>
                         </thead>
                         <tbody>
-                          {toutesPersonnes.filter(p => p.residence === openLieu).sort((a,b) => a.nom.localeCompare(b.nom)).map(p => {
+                          {toutesPersonnes
+                            .filter(p => p.residence === openLieu) // Filtre du lieu du repas
+                            .sort((a,b) => a.nom.localeCompare(b.nom)) // Classer par ordre alphabétique du nom de famille
+                            .map(p => {
                             const repas = repasData.find(r => r.user_id === p.user_id && r.date_repas === date && r.type_repas === type);
                             const inv = invites.find(i => `invite-${i.id}` === p.user_id && i.date_repas === date && i.type_repas === type);
                             
-                            if (!repas && !inv && !p.estInvite) return null; // On n'affiche que ceux qui ont une action
+                            if (!repas && !inv) return null; // On n'affiche que ceux qui ont une action
                             
                             const label = repas?.choix_repas || (inv ? "Oui" : "Non");
                             const color = label.includes("Non") ? "bg-red-100" : "bg-green-100";

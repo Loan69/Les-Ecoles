@@ -29,7 +29,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Champs manquants" }, { status: 400 });
   }
 
-  // Insertion directe
+  let inviteId: number;
+
+  // Création d'un invité s'il n'existe pas déjà
+  const {data : newinvite, error : errorInsert } = await supabase
+    .from("invites")
+    .upsert([{ nom, prenom }], {onConflict: "nom, prenom"})
+    .select("id") // On récupère l'id nouvellement créé
+    .single()
+  
+  if(errorInsert) {
+    console.error("Erreur lors de l'insertion dans invites :", errorInsert);
+    return NextResponse.json({ error: errorInsert.message }, { status: 500 });
+  }
+  inviteId = newinvite.id
+  
+  // Ensuite Insertion dans la table invites_repas
   const { error } = await supabase.from("invites_repas").insert([
     {
       nom,
@@ -38,13 +53,15 @@ export async function POST(req: Request) {
       type_repas: repas,
       lieu_repas: lieuRepas,
       invite_par: userId,
+      id_invite: inviteId,
     },
   ]);
 
   if (error) {
-    console.error("Erreur Supabase :", error);
+    console.error("Erreur lors de l'insertion dans invites_repas :", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  
 
   return NextResponse.json({ success: true });
 }

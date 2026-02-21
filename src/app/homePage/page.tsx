@@ -535,7 +535,7 @@ export default function HomePage() {
     fetchSettings();
   }, [supabase]);
 
-  // Gestion du verrouillage des otpions de repas
+  // Gestion du verrouillage des options de repas
   useEffect(() => {
     if (!settings.verrouillage_repas) return;
 
@@ -592,12 +592,35 @@ export default function HomePage() {
           selectedDateOnly.getTime() === sundayDate.getTime()
         );
       }
+
+      // Samedi ou dimanche → le weekend en cours reste verrouillé
+      if (currentDayOfWeek === 6 || currentDayOfWeek === 0) {
+          // On vérifie que le jour sélectionné appartient au même weekend
+          const selectedDateOnly = new Date(selectedDate);
+          selectedDateOnly.setHours(0, 0, 0, 0);
+          // Trouver le samedi de la semaine courante
+          const saturdayDate = new Date(parisNow);
+          saturdayDate.setHours(0, 0, 0, 0);
+          saturdayDate.setDate(parisNow.getDate() - (currentDayOfWeek === 6 ? 0 : 1));
+          const sundayDate = new Date(saturdayDate);
+          sundayDate.setDate(saturdayDate.getDate() + 1);
+          return (
+              selectedDateOnly.getTime() === saturdayDate.getTime() ||
+              selectedDateOnly.getTime() === sundayDate.getTime()
+          );
+      }
       
       return false;
     };
 
+    // vendredi après lock, ou samedi/dimanche (le verrou reste actif)
+    const isWeekendLockActive = 
+        (currentDayOfWeek === 5 && afterLock) ||  // vendredi après l'heure
+        currentDayOfWeek === 6 ||                  // samedi
+        currentDayOfWeek === 0;                    // dimanche
+
     // Verrouillage anticipé du weekend si activé
-    const isWeekendLocked = weekendLockEnabled && isFridayAfterLock && isUpcomingWeekend();
+    const isWeekendLocked = weekendLockEnabled && isWeekendLockActive && isUpcomingWeekend();
 
     if (isPastDay || (isToday && afterLock) || isWeekendLocked) {
       setLocked(true);

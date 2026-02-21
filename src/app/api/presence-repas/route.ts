@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       repas,
       date,
       choix,
-      option_id, // NOUVEAU : ID de l'option sélectionnée (pour les repas spéciaux)
+      option_id, // ID de l'option sélectionnée (pour les repas spéciaux)
     }: { 
       repas: RepasType; 
       date?: string; 
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
         .from("presences")
         .update({ 
           choix_repas: choix,
-          option_id: option_id || null, // NOUVEAU : mise à jour de l'option_id
+          option_id: option_id || null, // mise à jour de l'option_id
         })
         .eq("id_repas", existing.id_repas);
 
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
         type_repas: repas,
         date_repas: dateToday,
         choix_repas: choix,
-        option_id: option_id || null, // NOUVEAU : insertion de l'option_id
+        option_id: option_id || null, // insertion de l'option_id
       })
       .select("id_repas")
       .single();
