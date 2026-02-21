@@ -48,6 +48,7 @@ export default function AdminFoyerView() {
       const { data: residencesData, error: resError } = await supabase
         .from("residences")
         .select("label, value")
+        .neq("value", "corail")
         .order("label", { ascending: true });
 
       if (resError) {
@@ -61,7 +62,8 @@ export default function AdminFoyerView() {
       // 2️⃣ Charger les habitantes (résidentes + invitées)
       const { data: residentesData } = await supabase
         .from("residentes")
-        .select("user_id, nom, prenom, residence");
+        .select("user_id, nom, prenom, residence")
+        .neq("nom", "Admin");
 
       const { data: inviteesData } = await supabase
         .from("invitees")

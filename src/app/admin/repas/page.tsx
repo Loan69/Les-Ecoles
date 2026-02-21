@@ -101,7 +101,7 @@ export default function AdminRepasView() {
         const [{ data: rData }, { data: resData }, { data: invData }, { data: residData }] =
           await Promise.all([
             supabase.from("presences").select("*").gte("date_repas", startDate).lte("date_repas", extraDayForPN),
-            supabase.from("residentes").select("*"),
+            supabase.from("residentes").select("*").neq("nom", "Admin"),
             supabase.from("invites_repas").select("*").gte("date_repas", startDate).lte("date_repas", endDate),
             supabase.from("residences").select("*"),
           ]);

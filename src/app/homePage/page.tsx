@@ -439,7 +439,7 @@ export default function HomePage() {
 
   useEffect(() => {
     const fetchResidences = async () => {
-      const { data, error } = await supabase.from("residences").select("value, label").neq("value", "corail");;
+      const { data, error } = await supabase.from("residences").select("value, label").neq("value", "corail");
       if (!error && data) {
         const formatted = data.map((item) => ({
           value: item.value,
