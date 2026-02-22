@@ -563,9 +563,6 @@ export default function HomePage() {
     const selectedDate = parseDateKeyLocal(selectedDay);
     const selectedDayOfWeek = selectedDate.getDay();
     
-    // Vérifier si on est vendredi après l'heure de lock
-    const isFridayAfterLock = currentDayOfWeek === 5 && afterLock;
-    
     // Vérifier si le jour sélectionné est samedi (6) ou dimanche (0)
     const isSelectedDayWeekend = selectedDayOfWeek === 0 || selectedDayOfWeek === 6;
     
