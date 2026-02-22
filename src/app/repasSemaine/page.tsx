@@ -590,7 +590,7 @@ export default function SemaineRepas() {
                     >
                         <span className={`text-sm font-bold ${isToday ? "text-white" : "text-blue-900"}`}>
                         {formatDayLabel(day)}
-                        {isToday && <span className="ml-2 text-xs font-normal opacity-80">Aujourd'hui</span>}
+                        {isToday && <span className="ml-2 text-xs font-normal opacity-80">Aujourd&apos;hui</span>}
                         </span>
                         <div className="flex items-center gap-2">
                         {hasSpecial && !locked && (
