@@ -101,7 +101,7 @@ export default function AdminRepasView() {
         const [{ data: rData }, { data: resData }, { data: invData }, { data: residData }] =
           await Promise.all([
             supabase.from("presences").select("*").gte("date_repas", startDate).lte("date_repas", extraDayForPN),
-            supabase.from("residentes").select("*").neq("nom", "Admin"),
+            supabase.from("residentes").select("*"), //.neq("nom", "Admin"),
             supabase.from("invites_repas").select("*").gte("date_repas", startDate).lte("date_repas", endDate),
             supabase.from("residences").select("*"),
           ]);
@@ -359,6 +359,17 @@ export default function AdminRepasView() {
                                     <span className="text-[10px] text-emerald-600 font-bold uppercase">Plateau</span>
                                     <span className="text-lg font-black text-emerald-900">{s.plateau}</span>
                                   </div>
+                                  {s.specialOptions.length > 0 && (
+                                    <div className="col-span-2 mt-1 bg-amber-50/50 rounded-xl p-2 flex flex-col gap-1">
+                                        <span className="text-[10px] text-amber-600 font-bold uppercase mb-1">Options spéciales</span>
+                                        {s.specialOptions.map((opt, idx) => (
+                                            <div key={idx} className="flex justify-between items-center">
+                                                <span className="text-sm text-amber-900 italic">{opt.label}</span>
+                                                <span className="text-sm font-black text-amber-900">{opt.count}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -369,7 +380,15 @@ export default function AdminRepasView() {
                         <div className="px-5 py-3 bg-gray-50/50 rounded-b-[22px] border-t border-gray-100 text-center">
                           <p className="text-xs text-gray-500 font-medium">
                             Total Jour : <span className="text-orange-800 font-bold">
-                              {residences.reduce((acc, r) => acc + daily[r.value].dejeuner + daily[r.value].diner + daily[r.value].plateau + daily[r.value].piqueNique, 0)}
+                              {residences.reduce((acc, r) => {
+                                const specialTotal = daily[r.value].specialOptions.reduce((sum, opt) => sum + opt.count, 0);
+                                return acc
+                                  + daily[r.value].dejeuner 
+                                  + daily[r.value].diner 
+                                  + daily[r.value].plateau 
+                                  + daily[r.value].piqueNique
+                                  + specialTotal
+                                  }, 0)}
                             </span>
                           </p>
                         </div>
