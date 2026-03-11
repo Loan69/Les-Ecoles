@@ -95,13 +95,12 @@ export default function AdminRepasView() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // IMPORTANT : On va jusqu'au lendemain de la date de fin pour les PN
         const extraDayForPN = getNextDayStr(endDate);
 
         const [{ data: rData }, { data: resData }, { data: invData }, { data: residData }] =
           await Promise.all([
             supabase.from("presences").select("*").gte("date_repas", startDate).lte("date_repas", extraDayForPN),
-            supabase.from("residentes").select("*"), //.neq("nom", "Admin"),
+            supabase.from("residentes").select("*"),
             supabase.from("invites_repas").select("*").gte("date_repas", startDate).lte("date_repas", endDate),
             supabase.from("residences").select("*"),
           ]);
@@ -113,7 +112,7 @@ export default function AdminRepasView() {
       } catch (error) {
         console.error("Erreur:", error);
       } finally {
-        setLoading(false); // S'assure que le spinner s'arrête toujours
+        setLoading(false);
       }
     };
 
@@ -144,7 +143,6 @@ export default function AdminRepasView() {
     return list;
   }, [residentes, invites]);
 
-  // FONCTION DE RÉSUMÉ : La logique PN Lendemain est ici
   const getDailySummary = (currentDate: string): DailySummaryMap => {
     const summary: DailySummaryMap = {};
     residences.forEach(r => {
@@ -158,7 +156,6 @@ export default function AdminRepasView() {
       if (!p) return;
       const choix = (r.choix_repas || "").toLowerCase();
 
-      // CAS 1 : Repas du jour même (Midi, Soir, Plateau, Spécial)
       if (r.date_repas === currentDate) {
         if (choix.startsWith("special:")) {
           const [_, residence, label] = choix.split(":");
@@ -176,16 +173,14 @@ export default function AdminRepasView() {
         }
       }
 
-      // CAS 2 : Pique-niques du LENDEMAIN à préparer AUJOURD'HUI
       if (r.date_repas === tomorrowStr && choix.includes("pn")) {
-        const lieu = p.residence; // Les PN sont préparés dans la résidence de la personne
+        const lieu = p.residence;
         if (lieu && summary[lieu]) {
           summary[lieu].piqueNique++;
         }
       }
     });
 
-    // Invités (Jour même)
     invites.filter(i => i.date_repas === currentDate).forEach(i => {
       if (summary[i.lieu_repas]) {
         if (i.type_repas === "dejeuner") summary[i.lieu_repas].dejeuner++;
@@ -217,6 +212,28 @@ export default function AdminRepasView() {
     });
     return compta;
   }, [residences, residentes, repasData, invites, endDate]);
+
+  // --- Totaux par résidence pour le récap comptabilité ---
+  const totauxParResidence = useMemo(() => {
+    return residences.map(r => {
+      const personnes = comptaByResidence[r.value] || [];
+      const totalDejeuners = personnes.reduce((acc, p) => acc + p.dejeuner, 0);
+      const totalDiners = personnes.reduce((acc, p) => acc + p.diner, 0);
+      return {
+        label: r.label,
+        value: r.value,
+        totalDejeuners,
+        totalDiners,
+        totalRepas: totalDejeuners + totalDiners,
+      };
+    });
+  }, [residences, comptaByResidence]);
+
+  const grandTotal = useMemo(() => ({
+    dejeuners: totauxParResidence.reduce((acc, r) => acc + r.totalDejeuners, 0),
+    diners: totauxParResidence.reduce((acc, r) => acc + r.totalDiners, 0),
+    repas: totauxParResidence.reduce((acc, r) => acc + r.totalRepas, 0),
+  }), [totauxParResidence]);
 
   const daysInRange = useMemo(() => {
     if (!startDate) return [];
@@ -312,7 +329,6 @@ export default function AdminRepasView() {
                             : 'bg-white border-gray-100 shadow-sm'}
                         `}
                       >
-                        {/* Header du jour */}
                         <div className={`
                           p-4 rounded-t-[22px] border-b text-center
                           ${estAujourdhui ? 'bg-orange-100/50' : 'bg-gray-50/50'}
@@ -339,7 +355,6 @@ export default function AdminRepasView() {
                                   }
                                 </div>
 
-                                {/* Grille 2x2 pour les repas */}
                                 <div className="grid grid-cols-2 gap-2">
                                   <div className="bg-orange-50/50 p-2 rounded-xl flex flex-col items-center">
                                     <span className="text-[10px] text-orange-600 font-bold uppercase">Midi</span>
@@ -376,7 +391,6 @@ export default function AdminRepasView() {
                           })}
                         </div>
 
-                        {/* Total du jour en pied de carte */}
                         <div className="px-5 py-3 bg-gray-50/50 rounded-b-[22px] border-t border-gray-100 text-center">
                           <p className="text-xs text-gray-500 font-medium">
                             Total Jour : <span className="text-orange-800 font-bold">
@@ -420,13 +434,13 @@ export default function AdminRepasView() {
                         </thead>
                         <tbody>
                           {toutesPersonnes
-                            .filter(p => p.residence === openLieu) // Filtre du lieu du repas
-                            .sort((a,b) => a.nom.localeCompare(b.nom)) // Classer par ordre alphabétique du nom de famille
+                            .filter(p => p.residence === openLieu)
+                            .sort((a,b) => a.nom.localeCompare(b.nom))
                             .map(p => {
                             const repas = repasData.find(r => r.user_id === p.user_id && r.date_repas === date && r.type_repas === type);
                             const inv = invites.find(i => `invite-${i.id}` === p.user_id && i.date_repas === date && i.type_repas === type);
                             
-                            if (!repas && !inv) return null; // On n'affiche que ceux qui ont une action
+                            if (!repas && !inv) return null;
                             
                             const label = repas?.choix_repas || (inv ? "Oui" : "Non");
                             const color = label.includes("Non") ? "bg-red-100" : "bg-green-100";
@@ -451,6 +465,64 @@ export default function AdminRepasView() {
           {/* Onglet COMPTABILITE */}
           <TabsContent value="compta">
             <div className="space-y-10">
+
+              {/* --- SECTION RÉCAP TOTAUX PAR RÉSIDENCE --- */}
+              <div className="mt-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-5 flex items-center gap-2">
+                  <Scale className="text-amber-600" />
+                  Récapitulatif de la période
+                </h2>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                  {totauxParResidence.map((r) => (
+                    <div
+                      key={r.value}
+                      className="relative overflow-hidden rounded-2xl bg-white border border-amber-100 shadow-sm p-5"
+                    >
+                      {/* Accent décoratif */}
+                      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-amber-400 to-orange-500 rounded-l-2xl" />
+
+                      <div className="pl-3">
+                        <p className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-3">{r.label}</p>
+                        <div className="flex items-end justify-between">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-orange-400 inline-block"></span>
+                              <span className="text-sm text-gray-500">Déjeuners</span>
+                              <span className="text-sm font-bold text-orange-800 ml-auto">{r.totalDejeuners}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>
+                              <span className="text-sm text-gray-500">Dîners</span>
+                              <span className="text-sm font-bold text-blue-800 ml-auto">{r.totalDiners}</span>
+                            </div>
+                          </div>
+                          <div className="text-right ml-6">
+                            <p className="text-2xl font-black text-amber-800 leading-none">{r.totalRepas}</p>
+                            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide mt-1">repas total</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Bandeau Grand Total */}
+                <div className="rounded-2xl bg-gradient-to-r from-amber-600 to-orange-500 p-5 flex items-center justify-between shadow-md">
+                  <div>
+                    <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Toutes résidences</p>
+                    <p className="text-white text-lg font-semibold">
+                      {grandTotal.dejeuners} déjeuners · {grandTotal.diners} dîners
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-black text-white leading-none">{grandTotal.repas}</p>
+                    <p className="text-white/70 text-xs font-bold uppercase tracking-wide mt-1">repas au total</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* --- DÉTAIL PAR RÉSIDENCE --- */}
               {residences.map((r) => (
                 <div key={r.value} className="bg-white shadow-sm border border-gray-200 rounded-xl p-6">
                   <h3 className="text-xl font-semibold text-amber-800 mb-4">Comptabilité - {r.label}</h3>
