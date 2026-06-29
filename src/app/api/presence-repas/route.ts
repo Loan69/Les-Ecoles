@@ -1,34 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createSupabaseServer } from "@/lib/supabaseServer";
 
 type RepasType = "dejeuner" | "diner";
 
 export async function POST(req: NextRequest) {
   try {
-    // 🧩 cookies() est une Promise en Next 15+
-    const cookieStore = await cookies();
+    const supabase = await createSupabaseServer();
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!, // ⚠️ service role key côté serveur uniquement
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set() {},
-          remove() {},
-        },
-      }
-    );
-
-    // 🔹 Récupération de l'utilisateur connecté
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
     }
@@ -37,10 +16,10 @@ export async function POST(req: NextRequest) {
       repas,
       date,
       choix,
-      option_id, // ID de l'option sélectionnée (pour les repas spéciaux)
-    }: { 
-      repas: RepasType; 
-      date?: string; 
+      option_id,
+    }: {
+      repas: RepasType;
+      date?: string;
       choix: string;
       option_id?: number | null;
     } = await req.json();
@@ -48,7 +27,6 @@ export async function POST(req: NextRequest) {
     const userId = user.id;
     const dateToday = date || new Date().toISOString().split("T")[0];
 
-    // --- 🔍 Vérifie si un repas existe déjà ---
     const { data: existing, error: selectError } = await supabase
       .from("presences")
       .select("id_repas, choix_repas, option_id")
@@ -58,15 +36,11 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (selectError) {
-      console.error("Erreur select repas:", selectError.message);
-      return NextResponse.json({
-        success: false,
-        message: "Erreur lors de la vérification du repas.",
-      });
+      return NextResponse.json({ success: false, message: "Erreur lors de la vérification du repas." });
     }
 
-    // --- ❌ Suppression si "non" ---
-    if (choix === "non" || choix === "1") {
+    // Suppression si choix "non"
+    if (choix === "non") {
       if (existing) {
         const { error: deleteError } = await supabase
           .from("presences")
@@ -74,11 +48,7 @@ export async function POST(req: NextRequest) {
           .eq("id_repas", existing.id_repas);
 
         if (deleteError) {
-          console.error("Erreur delete repas:", deleteError.message);
-          return NextResponse.json({
-            success: false,
-            message: "Erreur lors de la suppression du repas.",
-          });
+          return NextResponse.json({ success: false, message: "Erreur lors de la suppression du repas." });
         }
 
         return NextResponse.json({
@@ -101,22 +71,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // --- 🔄 Mise à jour si déjà existant ---
+    // Mise à jour si déjà existant
     if (existing) {
       const { error: updateError } = await supabase
         .from("presences")
-        .update({ 
-          choix_repas: choix,
-          option_id: option_id || null, // mise à jour de l'option_id
-        })
+        .update({ choix_repas: choix, option_id: option_id || null })
         .eq("id_repas", existing.id_repas);
 
       if (updateError) {
-        console.error("Erreur update repas:", updateError.message);
-        return NextResponse.json({
-          success: false,
-          message: "Erreur lors de la mise à jour du repas.",
-        });
+        return NextResponse.json({ success: false, message: "Erreur lors de la mise à jour du repas." });
       }
 
       return NextResponse.json({
@@ -129,7 +92,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // --- ➕ Insertion sinon ---
+    // Insertion
     const { data: insertedData, error: insertError } = await supabase
       .from("presences")
       .insert({
@@ -137,17 +100,13 @@ export async function POST(req: NextRequest) {
         type_repas: repas,
         date_repas: dateToday,
         choix_repas: choix,
-        option_id: option_id || null, // insertion de l'option_id
+        option_id: option_id || null,
       })
       .select("id_repas")
       .single();
 
     if (insertError) {
-      console.error("Erreur insert repas:", insertError.message);
-      return NextResponse.json({
-        success: false,
-        message: "Erreur lors de l'ajout du repas.",
-      });
+      return NextResponse.json({ success: false, message: "Erreur lors de l'ajout du repas." });
     }
 
     return NextResponse.json({
@@ -160,7 +119,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Erreur serveur:", message);
     return NextResponse.json({ success: false, message });
   }
 }

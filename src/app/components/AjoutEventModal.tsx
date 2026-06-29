@@ -6,6 +6,7 @@ import DynamicSelectGroup from "./DynamicSelectGroup";
 import DynamicMultiSelectGroup from "./DynamicMultiSelectGroup";
 import DateSelector from "./DatesSelector";
 import { CalendarEvent } from "@/types/CalendarEvent";
+import { toast } from "sonner";
 
 type ModalProps = {
   open: boolean;
@@ -111,7 +112,7 @@ export default function ModalAjoutEvenement({
     e.preventDefault();
     
     if (!form.category || !form.titre || !form.dates_event?.length || !form.lieu?.length) {
-      alert("Merci de remplir tous les champs requis (au moins une résidence doit être sélectionnée).");
+      toast.error("Merci de remplir tous les champs requis (au moins une résidence doit être sélectionnée).");
       return;
     }
     

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -116,16 +117,16 @@ export default function MealOptionsManager() {
 
   // ✅ Sauvegarde
   const save = async () => {
-    if (!startDate) return alert('Veuillez sélectionner une date de début')
-    if (!options.length) return alert('Ajoutez au moins une option')
+    if (!startDate) { toast.error('Veuillez sélectionner une date de début'); return; }
+    if (!options.length) { toast.error('Ajoutez au moins une option'); return; }
 
-    // chaque option doit avoir une "résidence" (value) sélectionnée
     const missingResidence = options.some(
         (opt) => !opt.is_default && (!opt.value || opt.value.trim() === '')
     )
 
     if (missingResidence) {
-        return alert('Veuillez sélectionner une résidence pour chaque nouvelle option')
+        toast.error('Veuillez sélectionner une résidence pour chaque nouvelle option')
+        return
     }
 
     // Calcul de la valeur end_date
@@ -172,7 +173,7 @@ export default function MealOptionsManager() {
 
     if (error) {
         console.error('Erreur sauvegarde special_meal_options:', error);
-        alert('Erreur lors de la sauvegarde');
+        toast.error('Erreur lors de la sauvegarde');
     } else {
         // ✅ Reset complet du formulaire
         setStartDate('');
@@ -188,10 +189,20 @@ export default function MealOptionsManager() {
     }
   }
 
-  const handleDeleteRule = async (id: number) => {
-    if (!confirm('Supprimer cette règle ?')) return
-    const { error } = await supabase.from('special_meal_options').delete().eq('id', id)
-    if (!error) loadRules()
+  const handleDeleteRule = (id: number) => {
+    toast("Supprimer cette règle ?", {
+      action: {
+        label: "Supprimer",
+        onClick: async () => {
+          const { error } = await supabase.from('special_meal_options').delete().eq('id', id)
+          if (!error) loadRules()
+        }
+      },
+      cancel: {
+        label: "Annuler",
+        onClick: () => {}
+      }
+    })
   }
 
   const handleEditRule = (rule: Rule) => {

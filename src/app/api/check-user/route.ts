@@ -1,10 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // clé Service Role
-);
+import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseAdmin } from "@/lib/supabaseServer";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,18 +9,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ exists: false });
     }
 
-    // on interroge directement auth.users côté serveur
-    const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+    const supabase = createSupabaseAdmin();
 
-    if (error) {
-      return NextResponse.json({ exists: false, error: error.message });
-    }
+    // Vérification dans les tables applicatives (pending_users inclus pour les inscriptions non confirmées)
+    const [{ data: residente }, { data: invitee }, { data: pending }] = await Promise.all([
+      supabase.from("residentes").select("email").eq("email", email).maybeSingle(),
+      supabase.from("invitees").select("email").eq("email", email).maybeSingle(),
+      supabase.from("pending_users").select("email").eq("email", email).maybeSingle(),
+    ]);
 
-    const exists = users.some((user) => user.email?.toLowerCase() === email.toLowerCase());
-
+    const exists = !!(residente || invitee || pending);
     return NextResponse.json({ exists });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ exists: false, error: 'Erreur serveur' });
+    return NextResponse.json({ exists: false, error: "Erreur serveur" });
   }
 }

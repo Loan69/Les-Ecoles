@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import { supabase } from '@/app/lib/supabaseClient';
+import { useSupabase } from '@/app/providers'
+import { toast } from 'sonner'
 
 type GuestRow = {
   id: number;
@@ -11,70 +12,55 @@ type GuestRow = {
 }
 
 export default function GuestsTable() {
+  const { supabase } = useSupabase()
   const [invites, setInvites] = useState<GuestRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [deletingGuestId ,setDeletingGuestId] = useState<number | null>(null)
+  const [deletingGuestId, setDeletingGuestId] = useState<number | null>(null)
 
-  // Chargement de la liste des invités
   async function fetchGuests() {
     setLoading(true)
-    const {data : guests, error } = await supabase
-            .from("invites")
-            .select("id, nom, prenom");
-        if(error) {
-            console.error("Erreur lors du chargement des invitées", error)
-        } else {
-            setInvites(guests)
-            setLoading(false)
-        }
+    const { data: guests, error } = await supabase
+      .from("invites")
+      .select("id, nom, prenom")
+    if (error) {
+      console.error("Erreur lors du chargement des invités", error)
+    } else {
+      setInvites(guests)
+      setLoading(false)
+    }
   }
+
   useEffect(() => {
-    fetchGuests();
+    fetchGuests()
   }, [])
 
-  // Supprimer un invité
-  async function deleteGuest(u: GuestRow) {
-
-    const confirmMsg = `Êtes-vous sûr(e) de vouloir supprimer ${u.prenom} ${u.nom} ?\n\nCette action est irréversible et supprimera toutes les données associées`
-    
-    if (!confirm(confirmMsg)) return
+  async function performDeleteGuest(u: GuestRow) {
+    setDeletingGuestId(u.id)
     setError(null)
-
     try {
-        setDeletingGuestId(u.id)
-        // Suppression de toutes les lignes de l'invité dans la table invites_repas
-        const { data, error: errorDeleteInvite_repas } = await supabase
+      const { error: errorDeleteInvite_repas } = await supabase
         .from("invites_repas")
         .delete()
         .eq("id_invite", u.id)
-        .select();
 
-        console.log("u.id =", u.id, typeof u.id)
-        console.log("Lignes supprimées :", data)
+      if (errorDeleteInvite_repas) {
+        setError("Erreur lors la suppression de l'invité")
+        return
+      }
 
-        if(errorDeleteInvite_repas) {
-            console.error("Erreur lors de la suppression dans invites_repas : ", errorDeleteInvite_repas);
-            setError("Erreur lors la suppression de l'invité")
-            return
-        }
+      const { error: errorDeleteInvite } = await supabase
+        .from("invites")
+        .delete()
+        .eq("id", u.id)
 
-        // Ensuite suppression dans la table invites
-        const { error: errorDeleteInvite } = await supabase
-            .from("invites")
-            .delete()
-            .eq("id", u.id)
-        
-        if(errorDeleteInvite) {
-            console.error("Erreur lors de la suppression dans invites", errorDeleteInvite)
-            setError("Erreur lors la suppression de l'invité")
-            return
-        } else {
-            // Retirer l'utilisateur de la liste
-            setInvites(invites.filter(x => x.id !== u.id))
-        }
-      
+      if (errorDeleteInvite) {
+        setError("Erreur lors la suppression de l'invité")
+        return
+      } else {
+        setInvites(invites.filter(x => x.id !== u.id))
+      }
     } catch (e) {
       if (e instanceof Error) setError(e.message)
       else setError(String(e))
@@ -84,10 +70,23 @@ export default function GuestsTable() {
     }
   }
 
+  function deleteGuest(u: GuestRow) {
+    toast("Supprimer cet invité ?", {
+      description: `${u.prenom} ${u.nom} — Action irréversible.`,
+      action: {
+        label: "Supprimer",
+        onClick: () => performDeleteGuest(u)
+      },
+      cancel: {
+        label: "Annuler",
+        onClick: () => {}
+      }
+    })
+  }
+
   return (
     <div className="bg-white shadow-sm rounded-lg p-4">
-      
-      {/* Affichage des résultats des actions */} 
+
       {success && !error && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
           <p className="text-green-600 text-sm">{success}</p>
@@ -114,30 +113,29 @@ export default function GuestsTable() {
             ) : invites.length === 0 ? (
               <tr><td colSpan={3} className="px-6 py-4">Aucun invité trouvé.</td></tr>
             ) : (
-              invites.sort((a, b) => a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom)) // Tri par nom puis par prénom
+              invites.sort((a, b) => a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom))
                 .map(u => {
-                const isDeleting = deletingGuestId === u.id
-                
-                return (
-                  <tr key={u.id} className={isDeleting ? 'opacity-50' : ''}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {u.nom}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.prenom || '—'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                  const isDeleting = deletingGuestId === u.id
+                  return (
+                    <tr key={u.id} className={isDeleting ? 'opacity-50' : ''}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {u.nom}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.prenom || '—'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                         <button
-                        onClick={() => deleteGuest(u)}
-                        disabled={isDeleting}
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50"
-                        title="Supprimer cette utilisatrice"
+                          onClick={() => deleteGuest(u)}
+                          disabled={isDeleting}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50"
+                          title="Supprimer cet invité"
                         >
-                        <Trash2 size={14} />
-                        {isDeleting ? 'Suppression...' : 'Supprimer'}
+                          <Trash2 size={14} />
+                          {isDeleting ? 'Suppression...' : 'Supprimer'}
                         </button>
-                    </td>
-                  </tr>
-                )
-              })
+                      </td>
+                    </tr>
+                  )
+                })
             )}
           </tbody>
         </table>

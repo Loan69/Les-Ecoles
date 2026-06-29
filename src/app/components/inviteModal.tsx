@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 import { User } from "@supabase/supabase-js";
 import { useSupabase } from "../providers";
 import DynamicSelectGroup from './DynamicSelectGroup';
+import { toast } from 'sonner';
 
 type GuestRow = {
   id: number;
@@ -78,7 +79,7 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onCl
 
     const handleConfirm = async () => {
         if (!nom || !prenom || !date || !repas) {
-            alert("Merci de remplir tous les champs");
+            toast.error("Merci de remplir tous les champs");
             return;
         }
 
@@ -100,7 +101,7 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onCl
 
             if (!res.ok) throw new Error(data.error || "Erreur inconnue");
 
-            alert("Invité ajouté !");
+            toast.success("Invité ajouté !");
             // Reset
             setSelectedInviteId('');
             setNom('');
@@ -111,7 +112,7 @@ export default function InviteModal({ isOpen, onClose }: { isOpen: boolean, onCl
             onClose();
         } catch (err) {
             console.error(err);
-            alert("Erreur lors de l'ajout de l'invité");
+            toast.error("Erreur lors de l'ajout de l'invité");
         }
     };
 
