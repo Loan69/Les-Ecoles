@@ -56,13 +56,11 @@ L'inscription se fait en deux temps :
 
 C'est l'écran central de l'application. Il affiche **une journée à la fois**, et l'on navigue d'un jour à l'autre par **glissement (swipe)** sur mobile ou par des **flèches** sur ordinateur. La date consultée est mémorisée et partagée avec les autres écrans.
 
-On y trouve, de haut en bas :
+C'est désormais une **page de consultation** (les actions se font dans les écrans dédiés : repas dans l'onglet *Repas*, absences dans *Présence foyer*). On y trouve, de haut en bas :
 - la **date du jour** ;
+- une carte **« Ma journée »** en **lecture seule** : statut de **présence au foyer** du soir (au foyer / sortie) et **repas du jour** (déjeuner / dîner) ;
 - un **sélecteur de résidence** (12 / 36) pour filtrer les événements affichés ;
-- les **rappels** des événements à venir et les **événements** prévus ce jour-là ;
-- la **présence aux repas** (déjeuner et dîner).
-
-*(La présence au foyer a quitté l'accueil pour son propre écran, voir 4.2.)*
+- les **rappels** des événements à venir et les **événements** prévus ce jour-là.
 
 ### 4.2. La présence au foyer (la nuit)
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import LogoutButton from "../components/logoutButton";
 import Image from "next/image";
-import { Bell, ChevronLeft, ChevronRight } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Home, Moon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { Residente } from "@/types/Residente";
@@ -15,6 +15,8 @@ import { User } from "@supabase/supabase-js";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import VisionConfirmation from "../components/VisionConfirmation";
 import ConfirmationToggle from "../components/ConfirmationToggle";
+import { Rule } from "@/types/Rule";
+import { getLatestRulesByService } from "@/lib/rulesUtils";
 
 // ============================================================
 // COMPOSANT PRINCIPAL
@@ -36,6 +38,11 @@ export default function HomePage() {
   const [selectedResidenceValue, setSelectedResidenceValue] = useState<string | null>("12");
   const [selectedResidenceLabel, setSelectedResidenceLabel] = useState<string | null>("Résidence 12");
   const [reminders, setReminders] = useState<CalendarEvent[]>([]);
+
+  // --- Résumé « ma journée » (lecture seule) ---
+  const [isAbsent, setIsAbsent] = useState(false);
+  const [dejeunerLabel, setDejeunerLabel] = useState<string | null>(null);
+  const [dinerLabel, setDinerLabel] = useState<string | null>(null);
 
   // États pour le swipe
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -155,6 +162,32 @@ export default function HomePage() {
         .contains("dates_event", [dateIso]);
       if (eventsError) console.error("Erreur événements :", eventsError);
       if (eventsData) setEvents(eventsData);
+
+      // --- Résumé « ma journée » : présence foyer + repas du jour (lecture seule) ---
+      const [{ data: absData }, { data: dayPresences }, { data: defaultOpts }, { data: specialRulesData }] =
+        await Promise.all([
+          supabase.from("absences_sejour").select("id").eq("user_id", user.id).lte("date_debut", dateIso).gte("date_fin", dateIso).limit(1),
+          supabase.from("presences").select("type_repas, choix_repas, option_id").eq("user_id", user.id).eq("date_repas", dateIso),
+          supabase.from("select_options_repas").select("value, label, category").eq("is_active", true).is("parent_value", null),
+          supabase.from("special_meal_options").select("*").or(`start_date.lte.${dateIso},indefinite.eq.true`).filter("end_date", "gte", dateIso),
+        ]);
+
+      setIsAbsent((absData?.length ?? 0) > 0);
+
+      const rules = (specialRulesData as Rule[]) || [];
+      const resolveMeal = (type: "dejeuner" | "diner"): string | null => {
+        const p = dayPresences?.find((x) => x.type_repas === type);
+        if (!p || (p.choix_repas || "").toLowerCase() === "non") return null;
+        if (p.option_id) {
+          const rule = getLatestRulesByService(rules, type) as Rule | null;
+          const opt = rule?.options?.find((o) => o.id === p.option_id);
+          if (opt) return opt.label || opt.value;
+        }
+        const def = (defaultOpts || []).find((o) => o.category === type && o.value === p.choix_repas);
+        return def?.label || p.choix_repas;
+      };
+      setDejeunerLabel(resolveMeal("dejeuner"));
+      setDinerLabel(resolveMeal("diner"));
 
       setIsReady(true);
     };
@@ -339,13 +372,39 @@ export default function HomePage() {
           onTouchEnd={handleTouchEnd}
         >
           {/* LOGO Les Ecoles */}
-          <Image src="/logo.png" alt="Logo" width={350} height={350} className="mb-3" />
+          <Image src="/logo.png" alt="Logo" width={180} height={180} className="mb-2" />
 
           {/* Date du jour */}
-          <div className="flex justify-center items-center mb-5 space-x-4">
-            <h2 className="text-2xl font-semibold text-center text-blue-800">
+          <div className="flex justify-center items-center mb-4 space-x-4">
+            <h2 className="text-xl font-semibold text-center text-blue-800">
               {formatDate(currentDate)}
             </h2>
+          </div>
+
+          {/* Carte « Ma journée » (lecture seule) */}
+          <div className="w-full max-w-md bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-5">
+            <div className="grid grid-cols-3 gap-2 text-center divide-x divide-gray-100">
+              <div className="px-1">
+                <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Ce soir</p>
+                {isAbsent ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-50 rounded-full px-2 py-1">
+                    <Moon className="w-3 h-3" /> Sortie
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 rounded-full px-2 py-1">
+                    <Home className="w-3 h-3" /> Au foyer
+                  </span>
+                )}
+              </div>
+              <div className="px-1">
+                <p className="text-[10px] uppercase font-bold text-orange-400 mb-1">Déjeuner</p>
+                <p className="text-sm font-semibold text-blue-900 truncate">{dejeunerLabel ?? "Non"}</p>
+              </div>
+              <div className="px-1">
+                <p className="text-[10px] uppercase font-bold text-blue-400 mb-1">Dîner</p>
+                <p className="text-sm font-semibold text-blue-900 truncate">{dinerLabel ?? "Non"}</p>
+              </div>
+            </div>
           </div>
 
           {/* Intercalaire */}
