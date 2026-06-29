@@ -1,28 +1,13 @@
 import { redirect } from "next/navigation";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createSupabaseServer } from "@/lib/supabaseServer";
 import UsersTable from "@/app/components/admin/UsersTable";
 import GuestsTable from "@/app/components/admin/GuestsTable"
-import MealOptionsManager from "@/app/components/admin/MealOptionsManager";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import AdminSettingsManager from "@/app/components/admin/AdminSettingsManager";
-import { Cog, CookingPot, UserRoundPen, Users } from "lucide-react";
+import { Cog, UserRoundPen, Users } from "lucide-react";
 
 export default async function AdminUsersPage() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set() {},
-        remove() {},
-      },
-    }
-  );
+  const supabase = await createSupabaseServer();
 
   const { data, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
@@ -83,20 +68,6 @@ export default async function AdminUsersPage() {
             </TabsTrigger>
 
             <TabsTrigger
-              value="meals"
-              className="
-                flex items-center justify-center gap-2
-                cursor-pointer text-sm sm:text-base font-medium
-                data-[state=active]:bg-blue-600 data-[state=active]:text-white 
-                px-3 sm:px-4 py-2 sm:py-3 rounded-full 
-                transition-all duration-200 hover:bg-blue-100 hover:text-blue-700 
-                whitespace-nowrap min-w-[8rem] sm:min-w-[10rem]
-              "
-            >
-              <CookingPot className="w-4 h-4 sm:w-5 sm:h-5" /> Repas
-            </TabsTrigger>
-
-            <TabsTrigger
               value="settings"
               className="
                 flex items-center justify-center gap-2
@@ -120,10 +91,6 @@ export default async function AdminUsersPage() {
 
           <TabsContent value="guests">
             <GuestsTable  />
-          </TabsContent>
-
-          <TabsContent value="meals">
-            <MealOptionsManager />
           </TabsContent>
 
           <TabsContent value="settings">
