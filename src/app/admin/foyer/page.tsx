@@ -1,105 +1,127 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/app/lib/supabaseClient";
-import { motion, AnimatePresence } from "framer-motion";
-import { Home, Moon, Search, Calendar, Building } from "lucide-react";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { useSupabase } from "@/app/providers";
+import { CalendarDays, Search, Home, Moon, Plus } from "lucide-react";
+import { toast } from "sonner";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { Residence } from "@/types/Residence";
+import { Absence } from "@/types/Absence";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
+import AbsenceAdminModal, { FoyerPersonne, MarquagePayload } from "@/app/components/admin/AbsenceAdminModal";
 
-type Personne = {
-  user_id: string;
-  nom: string;
-  prenom: string;
-  residence?: string | number;
-  type: "Résidente" | "Invitée";
-};
+function formatJourCourt(dateKey: string): string {
+  return parseDateKeyLocal(dateKey)
+    .toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
+function formatJourLong(dateKey: string): string {
+  return parseDateKeyLocal(dateKey)
+    .toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
+    .replace(/^./, (c) => c.toUpperCase());
+}
 
 export default function AdminFoyerView() {
-  const [presentes, setPresentes] = useState<Personne[]>([]);
-  const [sorties, setSorties] = useState<Personne[]>([]);
+  const { supabase } = useSupabase();
+  const [people, setPeople] = useState<FoyerPersonne[]>([]);
   const [residences, setResidences] = useState<Residence[]>([]);
+  const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [currentDate, setCurrentDate] = useState(new Date());
 
-  // --- Date persistée dans le localStorage ---
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  // Popup détail (jour + résidence) et modale d'ajout
+  const [openDetail, setOpenDetail] = useState<{ date: string; residence: string } | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  // --- Période par défaut : aujourd'hui → +7 jours ---
   useEffect(() => {
-    const storedDate = localStorage.getItem("dateSelectionnee");
-    if (storedDate) {
-      setCurrentDate(parseDateKeyLocal(storedDate));
-    } else {
-      setCurrentDate(new Date());
-    }
+    const today = formatDateKeyLocal(new Date());
+    const saved = localStorage.getItem("startDate") || today;
+    const end = new Date(parseDateKeyLocal(saved));
+    end.setDate(end.getDate() + 7);
+    setStartDate(saved);
+    setEndDate(formatDateKeyLocal(end));
   }, []);
 
-  // --- Sauvegarde de la date sélectionnée ---
+  // --- Chargement des données ---
+  const fetchData = useCallback(async () => {
+    if (!startDate || !endDate) return;
+    setLoading(true);
+
+    const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }] =
+      await Promise.all([
+        supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
+        supabase.from("residentes").select("user_id, nom, prenom, residence").neq("nom", "Admin"),
+        supabase.from("invitees").select("user_id, nom, prenom, residence"),
+      ]);
+
+    setResidences(residencesData || []);
+    setPeople([
+      ...(residentesData?.map((r) => ({ ...r, type: "Résidente" as const })) || []),
+      ...(inviteesData?.map((i) => ({ ...i, type: "Invitée" as const })) || []),
+    ]);
+
+    const res = await fetch(`/api/admin/absences?start=${startDate}&end=${endDate}`);
+    const result = await res.json();
+    if (res.ok) {
+      setAbsences(result.absences ?? []);
+    } else {
+      console.error(result.error);
+      toast.error("Impossible de charger les absences.");
+    }
+
+    setLoading(false);
+  }, [startDate, endDate, supabase]);
+
   useEffect(() => {
-    localStorage.setItem("dateSelectionnee", formatDateKeyLocal(currentDate));
-    },[currentDate]);
-
-  // --- Récupération des données ---
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-
-      // 1️⃣ Charger les résidences
-      const { data: residencesData, error: resError } = await supabase
-        .from("residences")
-        .select("label, value")
-        .neq("value", "corail")
-        .order("label", { ascending: true });
-
-      if (resError) {
-        console.error("Erreur chargement résidences :", resError);
-        setLoading(false);
-        return;
-      }
-
-      setResidences(residencesData || []);
-
-      // 2️⃣ Charger les habitantes (résidentes + invitées)
-      const { data: residentesData } = await supabase
-        .from("residentes")
-        .select("user_id, nom, prenom, residence")
-        .neq("nom", "Admin");
-
-      const { data: inviteesData } = await supabase
-        .from("invitees")
-        .select("user_id, nom, prenom, residence");
-
-      const toutesPersonnes: Personne[] = [
-        ...(residentesData?.map((r) => ({ ...r, type: "Résidente" as const })) || []),
-        ...(inviteesData?.map((i) => ({ ...i, type: "Invitée" as const })) || []),
-      ];
-
-      // 3️⃣ Charger les absentes du jour
-      const res = await fetch("/api/get-presence-foyer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date : formatDateKeyLocal(currentDate) }),
-      });
-
-      const { absenteIds } = await res.json();
-
-      const sorties = toutesPersonnes.filter((p) => absenteIds.includes(p.user_id));
-      const presentes = toutesPersonnes.filter((p) => !absenteIds.includes(p.user_id));
-
-      setPresentes(presentes);
-      setSorties(sorties);
-      setLoading(false);
-    };
-
     fetchData();
-  }, [currentDate]);
+    if (startDate) localStorage.setItem("startDate", startDate);
+  }, [fetchData, startDate]);
 
-  const filterBySearch = (list: Personne[]) =>
-    list.filter(
-      (p) =>
-        p.nom.toLowerCase().includes(search.toLowerCase()) ||
-        p.prenom.toLowerCase().includes(search.toLowerCase())
-    );
+  // --- Jours de la période (bornes incluses) ---
+  const daysInRange = useMemo(() => {
+    if (!startDate || !endDate || endDate < startDate) return [];
+    const days: string[] = [];
+    const cursor = parseDateKeyLocal(startDate);
+    const end = parseDateKeyLocal(endDate);
+    while (cursor <= end) {
+      days.push(formatDateKeyLocal(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return days;
+  }, [startDate, endDate]);
+
+  // Renvoie l'ensemble des user_id absents à une date donnée.
+  const absentIdsOn = useCallback(
+    (dateKey: string) =>
+      new Set(
+        absences
+          .filter((a) => a.date_debut <= dateKey && a.date_fin >= dateKey)
+          .map((a) => a.user_id)
+      ),
+    [absences]
+  );
+
+  // --- Marquage (création absence ou forçage présence) ---
+  const handleSubmit = async (payload: MarquagePayload) => {
+    const res = await fetch("/api/admin/absences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (!res.ok) {
+      toast.error(result.error || "Erreur lors de l'enregistrement.");
+      return;
+    }
+    toast.success(payload.mode === "absent" ? "Absence enregistrée." : "Présence rétablie.");
+    await fetchData();
+  };
 
   if (loading) {
     return (
@@ -109,135 +131,176 @@ export default function AdminFoyerView() {
     );
   }
 
-  const getParResidence = (resValue: string | number) => ({
-    presentes: presentes.filter((p) => p.residence?.toString() === resValue.toString()),
-    sorties: sorties.filter((p) => p.residence?.toString() === resValue.toString()),
-  });
-
-  // --- Palette de couleurs dynamiques ---
-  const colorClasses = [
-    { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-800", icon: "text-purple-600" },
-    { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-800", icon: "text-indigo-600" },
-    { bg: "bg-pink-50", border: "border-pink-200", text: "text-pink-800", icon: "text-pink-600" },
-    { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-800", icon: "text-blue-600" },
-  ];
+  const detailPeople = openDetail
+    ? people
+        .filter((p) => p.residence?.toString() === openDetail.residence)
+        .filter(
+          (p) =>
+            !search ||
+            p.nom.toLowerCase().includes(search.toLowerCase()) ||
+            p.prenom.toLowerCase().includes(search.toLowerCase())
+        )
+        .sort((a, b) => a.nom.localeCompare(b.nom))
+    : [];
+  const detailAbsentIds = openDetail ? absentIdsOn(openDetail.date) : new Set<string>();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white py-10 px-6 transition-all">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white py-10 px-6">
       <div className="max-w-6xl mx-auto">
-        {/* --- Header --- */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-800 mb-2">
-            Vue d&apos;ensemble des présences par résidence
-          </h1>
-          <p className="text-gray-600">
-            Consultez qui est au foyer ou sortie pour chaque résidence — à la date choisie.
-          </p>
+          <h1 className="text-3xl font-bold text-blue-800 mb-2">Présences au foyer</h1>
+          <p className="text-gray-600">Qui est au foyer ou sortie, par résidence, sur la période choisie.</p>
         </div>
 
-        {/* --- Filtres --- */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
-          {/* Recherche */}
-          <div className="relative w-full md:w-1/2">
-            <Search className="absolute left-3 top-2.5 text-black w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Rechercher une habitante..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
-            />
-          </div>
-
-          {/* Sélecteur de date */}
-          <div className="relative flex items-center border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm">
-            <Calendar className="text-gray-500 w-5 h-5 mr-2" />
+        {/* Période + ajout */}
+        <div className="flex flex-col md:flex-row items-center justify-center gap-3 mb-10">
+          <div className="flex items-center gap-3">
+            <CalendarDays className="text-blue-600" />
             <input
               type="date"
-              value={formatDateKeyLocal(currentDate)}
-              onChange={(e) => setCurrentDate(parseDateKeyLocal(e.target.value))}
-              className="bg-transparent outline-none text-gray-700 cursor-pointer"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="border border-blue-300 rounded-lg px-3 py-1 text-black"
+            />
+            <span>→</span>
+            <input
+              type="date"
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="border border-blue-300 rounded-lg px-3 py-1 text-black"
             />
           </div>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-1 bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Ajouter une absence
+          </button>
         </div>
 
-        {/* --- Tuiles par résidence --- */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={formatDateKeyLocal(currentDate)}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.4 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-8"
-          >
-            {residences.map((res, index) => {
-              const { presentes: pRes, sorties: sRes } = getParResidence(res.value);
-              const toutes = [...pRes, ...sRes];
-              const filtered = filterBySearch(toutes);
-              const color = colorClasses[index % colorClasses.length];
-
-              return (
-                <div
-                  key={res.value}
-                  className={`rounded-2xl p-6 shadow-sm border ${color.bg} ${color.border}`}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Building className={`w-5 h-5 ${color.icon}`} />
-                      <h2 className={`text-xl font-semibold ${color.text}`}>
-                        {res.label}
-                      </h2>
+        {/* Cartes par jour */}
+        {daysInRange.length === 0 ? (
+          <p className="text-center text-gray-500 italic">Période invalide.</p>
+        ) : (
+          <div className="overflow-x-auto pb-6">
+            <div className="flex gap-6 min-w-max">
+              {daysInRange.map((date) => {
+                const absentIds = absentIdsOn(date);
+                const estAujourdhui = date === formatDateKeyLocal(new Date());
+                return (
+                  <div
+                    key={date}
+                    className={`w-64 rounded-3xl border-2 transition-all ${
+                      estAujourdhui
+                        ? "bg-blue-50 border-blue-300 shadow-md ring-2 ring-blue-200 ring-offset-2"
+                        : "bg-white border-gray-100 shadow-sm"
+                    }`}
+                  >
+                    <div className={`p-4 rounded-t-[22px] border-b text-center ${estAujourdhui ? "bg-blue-100/50" : "bg-gray-50/50"}`}>
+                      <p className="text-sm font-bold text-blue-900 uppercase tracking-wider">{formatJourCourt(date)}</p>
                     </div>
-                    <span className={`text-sm font-medium ${color.text}`}>
-                      {toutes.length} {toutes.length > 1 ? "personnes" : "personne"}
-                    </span>
-                  </div>
 
-                  {filtered.length > 0 ? (
-                    <ul className="space-y-2">
-                      {filtered
-                        .sort((a, b) => a.nom.localeCompare(b.nom))
-                        .map((p) => {
-                        const isPresente = pRes.some((x) => x.user_id === p.user_id);
+                    <div className="p-5 space-y-5">
+                      {residences.map((res) => {
+                        const total = people.filter((p) => p.residence?.toString() === res.value);
+                        const absentes = total.filter((p) => absentIds.has(p.user_id)).length;
+                        const presentes = total.length - absentes;
                         return (
-                          <motion.li
-                            key={p.user_id}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className="bg-white rounded-xl px-4 py-2 shadow-sm flex justify-between items-center"
-                          >
-                            <div>
-                              <span className="font-medium text-gray-800">
-                                {p.nom} {p.prenom}
-                              </span>
-                              <span className="ml-2 text-xs text-gray-500 italic">
-                                ({p.type})
-                              </span>
+                          <div key={res.value}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-1 h-4 bg-blue-400 rounded-full" />
+                              <p className="font-bold text-gray-700 text-sm uppercase">{res.label}</p>
+                              <button
+                                onClick={() => {
+                                  setSearch("");
+                                  setOpenDetail({ date, residence: res.value });
+                                }}
+                                className="ml-auto px-2 bg-blue-50 rounded-full hover:bg-blue-100 transition-transform hover:scale-110 cursor-pointer"
+                                title="Voir le détail"
+                              >
+                                <Search className="text-blue-600 w-4 h-4" />
+                              </button>
                             </div>
-                            {isPresente ? (
-                              <span className="text-xs text-green-700 bg-green-100 px-2 py-1 rounded-full flex items-center gap-1">
-                                <Home className="w-3 h-3" /> au foyer
-                              </span>
-                            ) : (
-                              <span className="text-xs text-red-700 bg-red-100 px-2 py-1 rounded-full flex items-center gap-1">
-                                <Moon className="w-3 h-3" /> sortie
-                              </span>
-                            )}
-                          </motion.li>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="bg-green-50 p-2 rounded-xl flex flex-col items-center">
+                                <span className="text-[10px] text-green-700 font-bold uppercase">Au foyer</span>
+                                <span className="text-lg font-black text-green-800">{presentes}</span>
+                              </div>
+                              <div className="bg-red-50 p-2 rounded-xl flex flex-col items-center">
+                                <span className="text-[10px] text-red-700 font-bold uppercase">Sorties</span>
+                                <span className="text-lg font-black text-red-800">{absentes}</span>
+                              </div>
+                            </div>
+                          </div>
                         );
                       })}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-500 italic">Aucune habitante trouvée.</p>
-                  )}
-                </div>
-              );
-            })}
-          </motion.div>
-        </AnimatePresence>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Popup détail jour + résidence */}
+      <Dialog open={!!openDetail} onOpenChange={() => setOpenDetail(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {openDetail && `${formatJourLong(openDetail.date)} — Résidence ${openDetail.residence}`}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Rechercher une habitante…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 outline-none"
+            />
+          </div>
+
+          {detailPeople.length === 0 ? (
+            <p className="text-gray-500 italic text-sm">Aucune habitante.</p>
+          ) : (
+            <ul className="space-y-2">
+              {detailPeople.map((p) => {
+                const absente = detailAbsentIds.has(p.user_id);
+                return (
+                  <li key={p.user_id} className="flex items-center justify-between bg-white border border-gray-100 rounded-xl px-4 py-2 shadow-sm">
+                    <span className="text-sm text-gray-800">
+                      {p.nom} {p.prenom}
+                      {p.type === "Invitée" && <span className="ml-1 text-[10px] text-blue-500">(invitée)</span>}
+                    </span>
+                    {absente ? (
+                      <span className="text-xs text-red-700 bg-red-100 px-2 py-1 rounded-full flex items-center gap-1">
+                        <Moon className="w-3 h-3" /> sortie
+                      </span>
+                    ) : (
+                      <span className="text-xs text-green-700 bg-green-100 px-2 py-1 rounded-full flex items-center gap-1">
+                        <Home className="w-3 h-3" /> au foyer
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AbsenceAdminModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        people={people}
+        residences={residences}
+        onSubmit={handleSubmit}
+        defaultResidence={openDetail?.residence}
+      />
     </div>
   );
 }
