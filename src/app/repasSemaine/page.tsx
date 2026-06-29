@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Save, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, CheckCircle, AlertCircle, Loader2, ChevronDown, UserPlus, ClipboardList, Settings } from "lucide-react";
+import { useRouter } from "next/navigation";
+import InviteModal from "../components/inviteModal";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import { Rule } from "@/types/Rule";
 import { getLatestRulesByService } from "@/lib/rulesUtils";
+import { computeLockState } from "@/lib/lockUtils";
 
 // ============================================================
 // TYPES
@@ -48,8 +51,10 @@ function getMondayOfWeek(date: Date): Date {
     return d;
 }
 
+// 8 jours : du lundi au lundi suivant inclus (le dernier lundi est partagé avec
+// la semaine suivante, pour pouvoir anticiper).
 function getWeekDays(monday: Date): Date[] {
-    return Array.from({ length: 7 }, (_, i) => {
+    return Array.from({ length: 8 }, (_, i) => {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
         return d;
@@ -66,50 +71,11 @@ function formatDayLabel(date: Date): string {
 }
 
 function formatWeekRange(monday: Date): string {
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
+    const lastDay = new Date(monday);
+    lastDay.setDate(monday.getDate() + 7);
     const from = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
-    const to = sunday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+    const to = lastDay.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
     return `${from} – ${to}`;
-}
-
-function getDayLockState(
-    date: Date,
-    settings: Record<string, string>
-    ): { locked: boolean; lockedValues: string[] } {
-    const now = new Date();
-    const parisNow = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-    const [lockHour, lockMinute] = (settings.verrouillage_repas || "21:00").split(":").map(Number);
-
-    const afterLock =
-        parisNow.getHours() > lockHour ||
-        (parisNow.getHours() === lockHour && parisNow.getMinutes() >= lockMinute);
-
-    const dateStr = formatDateKeyLocal(date);
-    const todayStr = formatDateKeyLocal(parisNow);
-    const tomorrowDate = new Date(parisNow);
-    tomorrowDate.setDate(parisNow.getDate() + 1);
-    const tomorrowStr = formatDateKeyLocal(tomorrowDate);
-
-    if (dateStr < todayStr) return { locked: true, lockedValues: [] };
-    if (dateStr === todayStr && afterLock) return { locked: true, lockedValues: [] };
-
-    const weekendLockEnabled = settings.verrouillage_weekend === "true";
-    const currentDay = parisNow.getDay();
-    const selectedDay = date.getDay();
-    const isWeekend = selectedDay === 0 || selectedDay === 6;
-
-    if (weekendLockEnabled && isWeekend) {
-        const isWeekendLockActive =
-        (currentDay === 5 && afterLock) || currentDay === 6 || currentDay === 0;
-        if (isWeekendLockActive) return { locked: true, lockedValues: [] };
-    }
-
-    if (dateStr === tomorrowStr && afterLock) {
-        return { locked: false, lockedValues: ["pn_chaud", "pn_froid"] };
-    }
-
-    return { locked: false, lockedValues: [] };
 }
 
 // ============================================================
@@ -183,7 +149,6 @@ export default function SemaineRepas() {
         return getMondayOfWeek(new Date());
     });
 
-    const [weekDays, setWeekDays] = useState<Date[]>([]);
     const [defaultDejeunerOptions, setDefaultDejeunerOptions] = useState<MealOption[]>([]);
     const [defaultDinerOptions, setDefaultDinerOptions] = useState<MealOption[]>([]);
     const [weekMealOptions, setWeekMealOptions] = useState<WeekMealOptions>({});
@@ -191,7 +156,19 @@ export default function SemaineRepas() {
     const [savedSelections, setSavedSelections] = useState<WeekSelections>({});
     const [saving, setSaving] = useState(false);
     const [saveResult, setSaveResult] = useState<"success" | "error" | null>(null);
-    const [loading, setLoading] = useState(false);
+
+    // Drapeaux d'orchestration du chargement (anti-flicker) : on n'affiche la
+    // grille qu'une fois TOUT prêt (auth → options par défaut → options/jour → sélections).
+    const [authReady, setAuthReady] = useState(false);
+    const [defaultsLoaded, setDefaultsLoaded] = useState(false);
+    const [ready, setReady] = useState(false);
+
+    const weekDays = useMemo(() => getWeekDays(currentMonday), [currentMonday]);
+
+    // Hub : invitation + espace intendance replié
+    const router = useRouter();
+    const [isInviteOpen, setIsInviteOpen] = useState(false);
+    const [adminPanelOpen, setAdminPanelOpen] = useState(false);
 
     // ============================================================
     // INIT USER + SETTINGS
@@ -209,6 +186,7 @@ export default function SemaineRepas() {
             .maybeSingle();
             setIsAdmin(profil?.is_admin || false);
         }
+        setAuthReady(true);
         };
         fetchUser();
     }, [supabase]);
@@ -225,8 +203,9 @@ export default function SemaineRepas() {
         fetchSettings();
     }, [supabase]);
 
+    // À chaque changement de semaine, on masque le contenu le temps de tout recharger
     useEffect(() => {
-        setWeekDays(getWeekDays(currentMonday));
+        setReady(false);
     }, [currentMonday]);
 
     // ============================================================
@@ -234,6 +213,7 @@ export default function SemaineRepas() {
     // ============================================================
 
     useEffect(() => {
+        if (!authReady) return;
         const loadDefaultOptions = async () => {
         const fetchOptions = async (type: "dejeuner" | "diner"): Promise<MealOption[]> => {
             const { data } = await supabase
@@ -259,9 +239,10 @@ export default function SemaineRepas() {
         ]);
         setDefaultDejeunerOptions(dej);
         setDefaultDinerOptions(din);
+        setDefaultsLoaded(true);
         };
         loadDefaultOptions();
-    }, [supabase, isAdmin]);
+    }, [supabase, isAdmin, authReady]);
 
     // ============================================================
     // ✅ CHARGEMENT DES OPTIONS PAR JOUR (avec règles spéciales)
@@ -269,10 +250,10 @@ export default function SemaineRepas() {
 
     useEffect(() => {
         const loadWeekMealOptions = async () => {
-        if (weekDays.length === 0 || defaultDejeunerOptions.length === 0) return;
+        if (!defaultsLoaded || weekDays.length === 0) return;
 
         const startDate = formatDateKeyLocal(weekDays[0]);
-        const endDate = formatDateKeyLocal(weekDays[6]);
+        const endDate = formatDateKeyLocal(weekDays[weekDays.length - 1]);
 
         const { data: rulesData } = await supabase
             .from("special_meal_options")
@@ -330,19 +311,23 @@ export default function SemaineRepas() {
         };
 
         loadWeekMealOptions();
-    }, [weekDays, defaultDejeunerOptions, defaultDinerOptions, supabase, isAdmin]);
+    }, [weekDays, defaultDejeunerOptions, defaultDinerOptions, supabase, isAdmin, defaultsLoaded]);
 
     // ============================================================
     // CHARGEMENT DES PRÉSENCES DE LA SEMAINE
     // ============================================================
 
     useEffect(() => {
+        if (!authReady || weekDays.length === 0) return;
+        const firstKey = formatDateKeyLocal(weekDays[0]);
+        // On attend que les options de CETTE semaine soient prêtes (évite un rendu transitoire).
+        if (!weekMealOptions[firstKey]) return;
+
         const loadWeekSelections = async () => {
-        if (!user || weekDays.length === 0 || Object.keys(weekMealOptions).length === 0) return;
-        setLoading(true);
+        if (!user) { setReady(true); return; }
 
         const startDate = formatDateKeyLocal(weekDays[0]);
-        const endDate = formatDateKeyLocal(weekDays[6]);
+        const endDate = formatDateKeyLocal(weekDays[weekDays.length - 1]);
 
         const { data: presences } = await supabase
             .from("presences")
@@ -379,11 +364,11 @@ export default function SemaineRepas() {
 
         setSavedSelections(selections);
         setPendingSelections(JSON.parse(JSON.stringify(selections)));
-        setLoading(false);
+        setReady(true);
         };
 
         loadWeekSelections();
-    }, [user, weekDays, weekMealOptions, supabase]);
+    }, [user, weekDays, weekMealOptions, supabase, authReady]);
 
     // ============================================================
     // NAVIGATION SEMAINE
@@ -442,7 +427,7 @@ export default function SemaineRepas() {
         try {
         for (const day of weekDays) {
             const dateStr = formatDateKeyLocal(day);
-            const { locked } = getDayLockState(day, settings);
+            const { locked } = computeLockState(day, settings);
             if (locked) continue;
 
             const pending = pendingSelections[dateStr];
@@ -491,7 +476,7 @@ export default function SemaineRepas() {
 
     const pendingCount = weekDays.filter((day) => {
         const dateStr = formatDateKeyLocal(day);
-        const { locked } = getDayLockState(day, settings);
+        const { locked } = computeLockState(day, settings);
         if (locked) return false;
         const p = pendingSelections[dateStr];
         const s = savedSelections[dateStr];
@@ -548,15 +533,15 @@ export default function SemaineRepas() {
             </div>
 
             {/* Grille des jours */}
-            {loading ? (
+            {!ready ? (
             <div className="flex justify-center items-center py-20">
                 <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
             </div>
             ) : (
             <div className="space-y-3">
-                {weekDays.map((day, idx) => {
+                {weekDays.map((day) => {
                 const dateStr = formatDateKeyLocal(day);
-                const { locked, lockedValues } = getDayLockState(day, settings);
+                const { locked, lockedValues } = computeLockState(day, settings);
                 const dayOpts = weekMealOptions[dateStr];
                 const pending = pendingSelections[dateStr];
                 const saved = savedSelections[dateStr];
@@ -573,11 +558,8 @@ export default function SemaineRepas() {
                 const hasSpecial = dayOpts?.dejeuner[0]?.isSpecial || dayOpts?.diner[0]?.isSpecial;
 
                 return (
-                    <motion.div
+                    <div
                     key={dateStr}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.04 }}
                     className={`bg-white rounded-2xl shadow-sm border-2 overflow-hidden transition-all
                         ${isToday ? "border-blue-400 shadow-blue-100 shadow-md" : "border-transparent"}
                         ${isPast ? "opacity-60" : ""}
@@ -633,7 +615,7 @@ export default function SemaineRepas() {
                         />
                         </div>
                     </div>
-                    </motion.div>
+                    </div>
                 );
                 })}
             </div>
@@ -692,6 +674,52 @@ export default function SemaineRepas() {
                 <p className="text-xs text-gray-400">Aucune modification en attente</p>
             )}
             </div>
+
+            {/* Inviter quelqu'un */}
+            <div className="mt-8 flex justify-center">
+            <button
+                onClick={() => setIsInviteOpen(true)}
+                className="flex items-center gap-2 bg-white border-2 border-blue-200 text-blue-700 rounded-2xl px-6 py-3 text-sm font-semibold shadow-sm hover:bg-blue-50 transition cursor-pointer"
+            >
+                <UserPlus className="w-4 h-4" /> Inviter quelqu&apos;un
+            </button>
+            </div>
+
+            {/* Espace intendance (admin) */}
+            {isAdmin && (
+            <div className="mt-8">
+                <button
+                onClick={() => setAdminPanelOpen((o) => !o)}
+                className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-5 py-3 text-sm font-bold text-blue-900 hover:bg-blue-50 transition cursor-pointer"
+                >
+                <span className="flex items-center gap-2"><Settings className="w-4 h-4" /> Espace intendance</span>
+                <ChevronDown className={`w-5 h-5 transition-transform ${adminPanelOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {adminPanelOpen && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="mt-3 grid gap-2 overflow-hidden"
+                >
+                    <button
+                    onClick={() => router.push("/admin/repas")}
+                    className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer"
+                    >
+                    <ClipboardList className="w-4 h-4" /> Voir les inscriptions
+                    </button>
+                    <button
+                    onClick={() => router.push("/admin/parametrage-repas")}
+                    className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer"
+                    >
+                    <Settings className="w-4 h-4" /> Paramétrer les repas
+                    </button>
+                </motion.div>
+                )}
+            </div>
+            )}
+
+            <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} />
 
         </div>
         </main>

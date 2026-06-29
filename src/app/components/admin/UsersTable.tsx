@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 type UserRow = {
   id: string
@@ -19,9 +20,9 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
 
-  const SUPER_ADMIN_UID = '17e3e1c7-3219-46e4-8aad-324f93b7b5de'
-  const showLastLogin = currentUserId === SUPER_ADMIN_UID
+  const showLastLogin = isSuperAdmin
 
   async function fetchUsers() {
     setLoading(true)
@@ -30,6 +31,7 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed')
       setUsers(json.users)
+      setIsSuperAdmin(json.isSuperAdmin ?? false)
     } catch (e) {
       if (e instanceof Error) setError(e.message)
       else setError(String(e))
@@ -67,35 +69,18 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
     }
   }
 
-  async function deleteUser(u: UserRow) {
-    if (u.id === currentUserId) {
-      setError("Vous ne pouvez pas supprimer votre propre compte")
-      return
-    }
-
-    const confirmMsg = `Êtes-vous sûr(e) de vouloir supprimer ${u.name || u.email} ?\n\nCette action est irréversible et supprimera :\n- Le compte utilisateur\n- Toutes les données associées`
-    
-    if (!confirm(confirmMsg)) return
-
+  async function performDeleteUser(u: UserRow) {
     setDeletingUserId(u.id)
     setError(null)
-
     try {
       const res = await fetch('/api/admin/users/delete', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: u.id }),
       })
-
       const json = await res.json()
-      
-      if (!res.ok) {
-        throw new Error(json.error || 'Suppression échouée')
-      }
-
-      // Retirer l'utilisateur de la liste
+      if (!res.ok) throw new Error(json.error || 'Suppression échouée')
       setUsers(users.filter(x => x.id !== u.id))
-      
     } catch (e) {
       if (e instanceof Error) setError(e.message)
       else setError(String(e))
@@ -105,14 +90,33 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
     }
   }
 
+  function deleteUser(u: UserRow) {
+    if (u.id === currentUserId) {
+      setError("Vous ne pouvez pas supprimer votre propre compte")
+      return
+    }
+
+    toast("Supprimer cette utilisatrice ?", {
+      description: `${u.name || u.email} — Cette action est irréversible.`,
+      action: {
+        label: "Supprimer",
+        onClick: () => performDeleteUser(u)
+      },
+      cancel: {
+        label: "Annuler",
+        onClick: () => {}
+      }
+    })
+  }
+
   function formatLastLogin(dateStr: string | null | undefined): string {
     if (!dateStr) return '—'
-    
+
     const date = new Date(dateStr)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    
+
     if (diffDays === 0) {
       const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
       if (diffHours === 0) {
@@ -121,22 +125,21 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
       }
       return diffHours === 1 ? "Il y a 1h" : `Il y a ${diffHours}h`
     }
-    
+
     if (diffDays === 1) return "Hier"
     if (diffDays < 7) return `Il y a ${diffDays}j`
     if (diffDays < 30) return `Il y a ${Math.floor(diffDays / 7)} sem.`
     if (diffDays < 365) return `Il y a ${Math.floor(diffDays / 30)} mois`
-    
-    return date.toLocaleDateString('fr-FR', { 
-      day: 'numeric', 
-      month: 'short', 
-      year: 'numeric' 
+
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
     })
   }
 
   return (
     <div className="bg-white shadow-sm rounded-lg p-4">
-      {/* Affichage des résultats des actions */}
       {success && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
           <p className="text-green-600 text-sm">{success}</p>
@@ -173,7 +176,7 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
               users.map(u => {
                 const isSelf = u.id === currentUserId
                 const isDeleting = deletingUserId === u.id
-                
+
                 return (
                   <tr key={u.id} className={isDeleting ? 'opacity-50' : ''}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -208,7 +211,7 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
                             </button>
                           )
                         )}
-                        
+
                         {u.role === 'résidente' && !isSelf && (
                           <button
                             onClick={() => deleteUser(u)}
