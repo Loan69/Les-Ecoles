@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Calendar, Home, PersonStanding, Settings, Utensils } from 'lucide-react';
+import { BedDouble, Calendar, Home, PersonStanding, Settings, Utensils } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSupabase } from "@/app/providers";
 
@@ -39,6 +39,7 @@ export default function BottomNav() {
     { path: '/calendrier', icon: <Calendar size={22} />, label: 'Calendrier' },
     { path: '/repasSemaine', icon: <Utensils size={22} />, label: 'Repas de la semaine'},
     { path: '/homePage', icon: <Home size={22} />, label: 'Accueil' },
+    { path: '/presenceFoyer', icon: <BedDouble size={22} />, label: 'Présence foyer' },
     { path: '/profil', icon: <PersonStanding size={22} />, label: 'Profil' },
   ];
 
