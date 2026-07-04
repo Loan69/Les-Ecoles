@@ -4,14 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Residence } from "@/types/Residence";
-
-export interface FoyerPersonne {
-  user_id: string;
-  nom: string;
-  prenom: string;
-  residence?: string | number;
-  type: "Résidente" | "Invitée";
-}
+import { PersonneDetail, sortAdminPeople } from "@/lib/adminPeople";
 
 export interface MarquagePayload {
   mode: "absent" | "present";
@@ -24,7 +17,7 @@ export interface MarquagePayload {
 interface AbsenceAdminModalProps {
   isOpen: boolean;
   onClose: () => void;
-  people: FoyerPersonne[];
+  people: PersonneDetail[];
   residences: Residence[];
   onSubmit: (payload: MarquagePayload) => Promise<void> | void;
   // Pré-remplissage éventuel (depuis le détail d'un jour)
@@ -61,9 +54,7 @@ export default function AbsenceAdminModal({
   // Liste filtrée des personnes de la résidence choisie
   const filteredPeople = useMemo(() => {
     if (!residence) return [];
-    return people
-      .filter((p) => p.residence?.toString() === residence)
-      .sort((a, b) => a.nom.localeCompare(b.nom));
+    return sortAdminPeople(people.filter((p) => p.residence?.toString() === residence));
   }, [people, residence]);
 
   const handleSubmit = async () => {
@@ -142,8 +133,8 @@ export default function AbsenceAdminModal({
                 >
                   <option value="">{residence ? "— Choisir —" : "Choisir d'abord une résidence"}</option>
                   {filteredPeople.map((p) => (
-                    <option key={p.user_id} value={p.user_id}>
-                      {p.nom} {p.prenom} {p.type === "Invitée" ? "(invitée)" : ""}
+                    <option key={p.id} value={p.id}>
+                      {p.nom} {p.prenom} {p.isInvite ? "(invitée)" : ""}
                     </option>
                   ))}
                 </select>

@@ -2,20 +2,17 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useSupabase } from "@/app/providers";
-import { CalendarDays, Search, Home, Moon, Plus } from "lucide-react";
+import { CalendarDays, Home, Moon, Plus, Table2 } from "lucide-react";
 import { toast } from "sonner";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { Residence } from "@/types/Residence";
 import { Absence } from "@/types/Absence";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
-import AbsenceAdminModal, { FoyerPersonne, MarquagePayload } from "@/app/components/admin/AbsenceAdminModal";
-
-function formatJourCourt(dateKey: string): string {
-  return parseDateKeyLocal(dateKey)
-    .toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })
-    .replace(/^./, (c) => c.toUpperCase());
-}
+import { PersonneDetail } from "@/lib/adminPeople";
+import AbsenceAdminModal, { MarquagePayload } from "@/app/components/admin/AbsenceAdminModal";
+import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
+import DetailListModal from "@/app/components/admin/DetailListModal";
 
 function formatJourLong(dateKey: string): string {
   return parseDateKeyLocal(dateKey)
@@ -23,9 +20,15 @@ function formatJourLong(dateKey: string): string {
     .replace(/^./, (c) => c.toUpperCase());
 }
 
+function formatColDay(dateKey: string): string {
+  return parseDateKeyLocal(dateKey)
+    .toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
 export default function AdminFoyerView() {
   const { supabase } = useSupabase();
-  const [people, setPeople] = useState<FoyerPersonne[]>([]);
+  const [people, setPeople] = useState<PersonneDetail[]>([]);
   const [residences, setResidences] = useState<Residence[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,10 +36,9 @@ export default function AdminFoyerView() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  // Popup détail (jour + résidence) et modale d'ajout
-  const [openDetail, setOpenDetail] = useState<{ date: string; residence: string } | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false); // ajout absence
+  const [tableOpen, setTableOpen] = useState(false); // tableau de détail (loupe unique)
+  const [listModal, setListModal] = useState<{ title: string; people: PersonneDetail[] } | null>(null);
 
   // --- Période par défaut : aujourd'hui → +7 jours ---
   useEffect(() => {
@@ -53,17 +55,38 @@ export default function AdminFoyerView() {
     if (!startDate || !endDate) return;
     setLoading(true);
 
-    const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }] =
+    const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }] =
       await Promise.all([
         supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
-        supabase.from("residentes").select("user_id, nom, prenom, residence").neq("nom", "Admin"),
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre").neq("nom", "Admin"),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
+        supabase.from("select_options_residence").select("value, label"),
       ]);
+
+    // Code chambre/étage → libellé lisible (ex. "grand_palais" → "Grand Palais")
+    const optionLabels: Record<string, string> = {};
+    (optionsData || []).forEach((o) => {
+      if (o.value) optionLabels[o.value] = o.label;
+    });
 
     setResidences(residencesData || []);
     setPeople([
-      ...(residentesData?.map((r) => ({ ...r, type: "Résidente" as const })) || []),
-      ...(inviteesData?.map((i) => ({ ...i, type: "Invitée" as const })) || []),
+      ...(residentesData?.map((r) => ({
+        id: r.user_id,
+        nom: r.nom,
+        prenom: r.prenom,
+        residence: r.residence != null ? String(r.residence) : undefined,
+        etage: r.etage,
+        chambre: r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre,
+        isInvite: false,
+      })) || []),
+      ...(inviteesData?.map((i) => ({
+        id: i.user_id,
+        nom: i.nom,
+        prenom: i.prenom,
+        residence: i.residence != null ? String(i.residence) : undefined,
+        isInvite: true,
+      })) || []),
     ]);
 
     const res = await fetch(`/api/admin/absences?start=${startDate}&end=${endDate}`);
@@ -96,14 +119,9 @@ export default function AdminFoyerView() {
     return days;
   }, [startDate, endDate]);
 
-  // Renvoie l'ensemble des user_id absents à une date donnée.
-  const absentIdsOn = useCallback(
-    (dateKey: string) =>
-      new Set(
-        absences
-          .filter((a) => a.date_debut <= dateKey && a.date_fin >= dateKey)
-          .map((a) => a.user_id)
-      ),
+  const isAbsentOn = useCallback(
+    (personId: string, dateKey: string) =>
+      absences.some((a) => a.user_id === personId && a.date_debut <= dateKey && a.date_fin >= dateKey),
     [absences]
   );
 
@@ -131,29 +149,18 @@ export default function AdminFoyerView() {
     );
   }
 
-  const detailPeople = openDetail
-    ? people
-        .filter((p) => p.residence?.toString() === openDetail.residence)
-        .filter(
-          (p) =>
-            !search ||
-            p.nom.toLowerCase().includes(search.toLowerCase()) ||
-            p.prenom.toLowerCase().includes(search.toLowerCase())
-        )
-        .sort((a, b) => a.nom.localeCompare(b.nom))
-    : [];
-  const detailAbsentIds = openDetail ? absentIdsOn(openDetail.date) : new Set<string>();
+  const tableColumns: DetailColumn[] = daysInRange.map((d) => ({ key: d, label: formatColDay(d) }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white py-10 px-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white py-10 px-4 sm:px-6">
+      <div className="max-w-5xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-blue-800 mb-2">Présences au foyer</h1>
-          <p className="text-gray-600">Qui est au foyer ou sortie, par résidence, sur la période choisie.</p>
+          <p className="text-gray-600">Qui est au foyer ou sortie, par résidence, jour par jour.</p>
         </div>
 
-        {/* Période + ajout */}
-        <div className="flex flex-col md:flex-row items-center justify-center gap-3 mb-10">
+        {/* Période + actions */}
+        <div className="flex flex-col md:flex-row items-center justify-center gap-3 mb-8">
           <div className="flex items-center gap-3">
             <CalendarDays className="text-blue-600" />
             <input
@@ -171,127 +178,117 @@ export default function AdminFoyerView() {
               className="border border-blue-300 rounded-lg px-3 py-1 text-black"
             />
           </div>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-1 bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Ajouter une absence
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setTableOpen(true)}
+              className="flex items-center gap-1 border border-blue-700 text-blue-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-50 cursor-pointer"
+            >
+              <Table2 className="w-4 h-4" /> Voir le détail
+            </button>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-1 bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Ajouter une absence
+            </button>
+          </div>
         </div>
 
-        {/* Cartes par jour */}
+        {/* Jours empilés verticalement */}
         {daysInRange.length === 0 ? (
           <p className="text-center text-gray-500 italic">Période invalide.</p>
         ) : (
-          <div className="overflow-x-auto pb-6">
-            <div className="flex gap-6 min-w-max">
-              {daysInRange.map((date) => {
-                const absentIds = absentIdsOn(date);
-                const estAujourdhui = date === formatDateKeyLocal(new Date());
-                return (
-                  <div
-                    key={date}
-                    className={`w-64 rounded-3xl border-2 transition-all ${
-                      estAujourdhui
-                        ? "bg-blue-50 border-blue-300 shadow-md ring-2 ring-blue-200 ring-offset-2"
-                        : "bg-white border-gray-100 shadow-sm"
-                    }`}
-                  >
-                    <div className={`p-4 rounded-t-[22px] border-b text-center ${estAujourdhui ? "bg-blue-100/50" : "bg-gray-50/50"}`}>
-                      <p className="text-sm font-bold text-blue-900 uppercase tracking-wider">{formatJourCourt(date)}</p>
-                    </div>
-
-                    <div className="p-5 space-y-5">
-                      {residences.map((res) => {
-                        const total = people.filter((p) => p.residence?.toString() === res.value);
-                        const absentes = total.filter((p) => absentIds.has(p.user_id)).length;
-                        const presentes = total.length - absentes;
-                        return (
-                          <div key={res.value}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="w-1 h-4 bg-blue-400 rounded-full" />
-                              <p className="font-bold text-gray-700 text-sm uppercase">{res.label}</p>
-                              <button
-                                onClick={() => {
-                                  setSearch("");
-                                  setOpenDetail({ date, residence: res.value });
-                                }}
-                                className="ml-auto px-2 bg-blue-50 rounded-full hover:bg-blue-100 transition-transform hover:scale-110 cursor-pointer"
-                                title="Voir le détail"
-                              >
-                                <Search className="text-blue-600 w-4 h-4" />
-                              </button>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="bg-green-50 p-2 rounded-xl flex flex-col items-center">
-                                <span className="text-[10px] text-green-700 font-bold uppercase">Au foyer</span>
-                                <span className="text-lg font-black text-green-800">{presentes}</span>
-                              </div>
-                              <div className="bg-red-50 p-2 rounded-xl flex flex-col items-center">
-                                <span className="text-[10px] text-red-700 font-bold uppercase">Sorties</span>
-                                <span className="text-lg font-black text-red-800">{absentes}</span>
-                              </div>
-                            </div>
+          <div className="space-y-3">
+            {daysInRange.map((date) => {
+              const estAujourdhui = date === formatDateKeyLocal(new Date());
+              return (
+                <div
+                  key={date}
+                  className={`rounded-2xl border-2 p-4 ${
+                    estAujourdhui ? "bg-blue-50 border-blue-300" : "bg-white border-gray-100 shadow-sm"
+                  }`}
+                >
+                  <p className="text-sm font-bold text-blue-900 uppercase tracking-wide mb-3">{formatJourLong(date)}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {residences.map((res) => {
+                      const inRes = people.filter((p) => p.residence === res.value);
+                      const absent = inRes.filter((p) => isAbsentOn(p.id, date));
+                      const present = inRes.filter((p) => !isAbsentOn(p.id, date));
+                      return (
+                        <div key={res.value} className="border border-gray-100 rounded-xl p-3">
+                          <p className="text-sm font-bold text-gray-700 uppercase mb-2">{res.label}</p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() =>
+                                setListModal({
+                                  title: `Au foyer — ${res.label} · ${formatJourLong(date)}`,
+                                  people: present,
+                                })
+                              }
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-green-50 hover:bg-green-100 text-green-800 rounded-xl py-2 transition cursor-pointer"
+                              title="Voir la liste"
+                            >
+                              <Home className="w-4 h-4" />
+                              <span className="text-lg font-black">{present.length}</span>
+                              <span className="text-xs font-medium">au foyer</span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                setListModal({
+                                  title: `Sorties — ${res.label} · ${formatJourLong(date)}`,
+                                  people: absent,
+                                })
+                              }
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-800 rounded-xl py-2 transition cursor-pointer"
+                              title="Voir la liste"
+                            >
+                              <Moon className="w-4 h-4" />
+                              <span className="text-lg font-black">{absent.length}</span>
+                              <span className="text-xs font-medium">sorties</span>
+                            </button>
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Popup détail jour + résidence */}
-      <Dialog open={!!openDetail} onOpenChange={() => setOpenDetail(null)}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+      {/* Tableau de détail (loupe unique) */}
+      <Dialog open={tableOpen} onOpenChange={() => setTableOpen(false)}>
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {openDetail && `${formatJourLong(openDetail.date)} — Résidence ${openDetail.residence}`}
-            </DialogTitle>
+            <DialogTitle>Détail des présences — période</DialogTitle>
           </DialogHeader>
-
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Rechercher une habitante…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 outline-none"
-            />
-          </div>
-
-          {detailPeople.length === 0 ? (
-            <p className="text-gray-500 italic text-sm">Aucune habitante.</p>
-          ) : (
-            <ul className="space-y-2">
-              {detailPeople.map((p) => {
-                const absente = detailAbsentIds.has(p.user_id);
-                return (
-                  <li key={p.user_id} className="flex items-center justify-between bg-white border border-gray-100 rounded-xl px-4 py-2 shadow-sm">
-                    <span className="text-sm text-gray-800">
-                      {p.nom} {p.prenom}
-                      {p.type === "Invitée" && <span className="ml-1 text-[10px] text-blue-500">(invitée)</span>}
-                    </span>
-                    {absente ? (
-                      <span className="text-xs text-red-700 bg-red-100 px-2 py-1 rounded-full flex items-center gap-1">
-                        <Moon className="w-3 h-3" /> sortie
-                      </span>
-                    ) : (
-                      <span className="text-xs text-green-700 bg-green-100 px-2 py-1 rounded-full flex items-center gap-1">
-                        <Home className="w-3 h-3" /> au foyer
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <p className="text-xs text-gray-500 mb-3">
+            <span className="font-bold text-green-600">P</span> = au foyer ·{" "}
+            <span className="font-bold text-red-600">A</span> = sortie
+          </p>
+          <DetailTable
+            people={people}
+            columns={tableColumns}
+            renderCell={(p, dayKey) =>
+              isAbsentOn(p.id, dayKey) ? (
+                <span className="font-bold text-red-600" title="Sortie">A</span>
+              ) : (
+                <span className="font-bold text-green-600" title="Au foyer">P</span>
+              )
+            }
+          />
         </DialogContent>
       </Dialog>
+
+      {/* Liste derrière un nombre */}
+      <DetailListModal
+        open={!!listModal}
+        onClose={() => setListModal(null)}
+        title={listModal?.title ?? ""}
+        people={listModal?.people ?? []}
+      />
 
       <AbsenceAdminModal
         isOpen={modalOpen}
@@ -299,7 +296,6 @@ export default function AdminFoyerView() {
         people={people}
         residences={residences}
         onSubmit={handleSubmit}
-        defaultResidence={openDetail?.residence}
       />
     </div>
   );
