@@ -54,13 +54,15 @@ L'inscription se fait en deux temps :
 
 ### 4.1. L'écran d'accueil (la journée en cours)
 
-C'est l'écran central de l'application. Il affiche **une journée à la fois**, et l'on navigue d'un jour à l'autre par **glissement (swipe)** sur mobile ou par des **flèches** sur ordinateur. La date consultée est mémorisée et partagée avec les autres écrans.
+C'est l'écran central de l'application, pensé comme un **récap du jour** : une **page de consultation** (les actions se font dans les écrans dédiés — repas dans l'onglet *Repas*, absences dans *Présence foyer*). Il affiche **une journée à la fois** ; on navigue d'un jour à l'autre par des **chevrons ‹ ›** (mobile **et** ordinateur), et un **icône calendrier** à côté de la date ouvre le calendrier pour choisir une autre date. La date consultée est mémorisée et partagée avec les autres écrans.
 
-C'est désormais une **page de consultation** (les actions se font dans les écrans dédiés : repas dans l'onglet *Repas*, absences dans *Présence foyer*). On y trouve, de haut en bas :
-- la **date du jour** ;
-- une carte **« Ma journée »** en **lecture seule** : statut de **présence au foyer** du soir (au foyer / sortie) et **repas du jour** (déjeuner / dîner) ;
-- un **sélecteur de résidence** (12 / 36) pour filtrer les événements affichés ;
-- les **rappels** des événements à venir et les **événements** prévus ce jour-là.
+On y trouve, de haut en bas :
+- en haut à droite, l'accès **Profil** et **Déconnexion** ; au centre, le **logo** ;
+- la **date du jour** avec les chevrons et l'icône calendrier ;
+- une carte **Présence au foyer** (lecture seule : au foyer / sortie ce soir) ;
+- un **sélecteur de résidence** (12 / 36) — onglets de **couleur propre** (12 bleu, 36 rose) — pour filtrer les événements ;
+- une carte **Événements** : rappels compacts des événements à venir + événements du jour ;
+- une carte **Repas du jour** (lecture seule : déjeuner / dîner choisis).
 
 ### 4.2. La présence au foyer (la nuit)
 
