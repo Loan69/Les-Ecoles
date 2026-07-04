@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import LogoutButton from "../components/logoutButton";
+import ProfileButton from "../components/profileButton";
 import Image from "next/image";
-import { Bell, ChevronLeft, ChevronRight, Home, Moon } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Home, Moon, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { Residente } from "@/types/Residente";
@@ -19,7 +19,7 @@ import { Rule } from "@/types/Rule";
 import { getLatestRulesByService } from "@/lib/rulesUtils";
 
 // ============================================================
-// COMPOSANT PRINCIPAL
+// COMPOSANT PRINCIPAL — Accueil (page de consultation, lecture seule)
 // ============================================================
 
 export default function HomePage() {
@@ -31,7 +31,6 @@ export default function HomePage() {
   const [profil, setProfil] = useState<Residente | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isInitialized, setIsInitialized] = useState(false);
-  const [direction, setDirection] = useState<-1 | 0 | 1>(0);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isReady, setIsReady] = useState(false);
   const [residences, setResidences] = useState<Residence[]>([]);
@@ -43,11 +42,6 @@ export default function HomePage() {
   const [isAbsent, setIsAbsent] = useState(false);
   const [dejeunerLabel, setDejeunerLabel] = useState<string | null>(null);
   const [dinerLabel, setDinerLabel] = useState<string | null>(null);
-
-  // États pour le swipe
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [dragOffset, setDragOffset] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
 
   // ============================================================
   // UTILITAIRES
@@ -88,11 +82,7 @@ export default function HomePage() {
     const fetchResidences = async () => {
       const { data, error } = await supabase.from("residences").select("value, label").neq("value", "corail");
       if (!error && data) {
-        const formatted = data.map((item) => ({
-          value: item.value,
-          label: item.label,
-        }));
-        setResidences(formatted);
+        setResidences(data.map((item) => ({ value: item.value, label: item.label })));
       }
     };
     fetchResidences();
@@ -116,7 +106,6 @@ export default function HomePage() {
   }, [currentDate, isInitialized]);
 
   const goToPreviousDay = () => {
-    setDirection(-1);
     setCurrentDate((prev) => {
       const newDate = new Date(prev);
       newDate.setDate(prev.getDate() - 1);
@@ -125,7 +114,6 @@ export default function HomePage() {
   };
 
   const goToNextDay = () => {
-    setDirection(1);
     setCurrentDate((prev) => {
       const newDate = new Date(prev);
       newDate.setDate(prev.getDate() + 1);
@@ -136,7 +124,6 @@ export default function HomePage() {
   useEffect(() => {
     const fetchAllData = async () => {
       if (!user) return;
-      setIsReady(false);
 
       const dateIso = formatDateKeyLocal(currentDate);
 
@@ -148,12 +135,8 @@ export default function HomePage() {
       if (profilError) console.error("Erreur profil :", profilError);
       if (profilData) {
         setProfil(profilData);
-        setSelectedResidenceValue(profilData.residence)
-        if (profilData.residence === "12") {
-          setSelectedResidenceLabel("Résidence 12");
-        } else {
-          setSelectedResidenceLabel("Résidence 36");
-        }
+        setSelectedResidenceValue(profilData.residence);
+        setSelectedResidenceLabel(profilData.residence === "12" ? "Résidence 12" : "Résidence 36");
       }
 
       const { data: eventsData, error: eventsError } = await supabase
@@ -256,40 +239,6 @@ export default function HomePage() {
     fetchReminders();
   }, [supabase, currentDate, isInitialized]);
 
-  // Swipe
-  const minSwipeDistance = 80;
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartX(e.touches[0].clientX);
-    setIsDragging(true);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartX === null) return;
-    const currentX = e.touches[0].clientX;
-    setDragOffset(currentX - touchStartX);
-  };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-    if (dragOffset > minSwipeDistance) {
-      setDragOffset(300);
-      setTimeout(() => {
-        goToPreviousDay();
-        setDragOffset(0);
-      }, 150);
-    } else if (dragOffset < -minSwipeDistance) {
-      setDragOffset(-300);
-      setTimeout(() => {
-        goToNextDay();
-        setDragOffset(0);
-      }, 150);
-    } else {
-      setDragOffset(0);
-    }
-    setTouchStartX(null);
-  };
-
   if (!isReady) {
     return (
       <main className="flex items-center justify-center min-h-screen bg-white">
@@ -300,36 +249,27 @@ export default function HomePage() {
 
   const filteredEvents = selectedResidenceValue
     ? events.filter((event) => {
-        // lieu est maintenant un tableau
         const lieux = event.lieu || [];
         if (!lieux.includes(selectedResidenceValue)) return false;
 
-        // Gestion visibilité admin
         if (event.reserve_admin) {
-          // Si pas admin, ne pas afficher
           if (!profil?.is_admin) return false;
-
-          // Si admin, vérifier la résidence
-          if (event.reserve_admin === "all") {
-            // Visible par tout le staff
-            return true;
-          } else if (event.reserve_admin === "12" || event.reserve_admin === "36") {
-            // Visible uniquement si on est sur la bonne résidence
+          if (event.reserve_admin === "all") return true;
+          if (event.reserve_admin === "12" || event.reserve_admin === "36") {
             return selectedResidenceValue === event.reserve_admin;
           }
         }
 
-        // Logique existante pour les non-admin
         if (!profil?.residence) return event.visible_invites === true;
 
         const residences: string[] = event.visibilite?.residence ?? [];
         const etages: string[] = event.visibilite?.etage ?? [];
         const chambres: string[] = event.visibilite?.chambre ?? [];
-        const isVisible =
+        return (
           residences.includes(profil.residence) ||
           etages.includes(profil.etage) ||
-          chambres.includes(profil.chambre);
-        return isVisible;
+          chambres.includes(profil.chambre)
+        );
       })
     : [];
 
@@ -338,197 +278,148 @@ export default function HomePage() {
   // ============================================================
 
   return (
-    <main className="min-h-screen flex flex-col items-center bg-white px-4 pt-6">
+    <main className="min-h-screen flex flex-col items-center bg-white px-4 pt-5 pb-8">
+      <div className="w-full max-w-md">
 
-      {/* Chevrons pour version DESKTOP */}
-      <button
-        onClick={goToPreviousDay}
-        className="hidden sm:flex items-center justify-center absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-[calc(50%+210px)] bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700 transition-transform duration-200 hover:scale-110 cursor-pointer"
-      >
-        <ChevronLeft className="w-6 h-6" />
-      </button>
+        {/* Profil / déconnexion en haut à droite */}
+        <div className="flex justify-end items-center gap-2 mb-3">
+          <ProfileButton />
+          <LogoutButton />
+        </div>
 
-      <button
-        onClick={goToNextDay}
-        className="hidden sm:flex items-center justify-center absolute top-1/2 left-1/2 -translate-y-1/2 translate-x-[calc(50%+165px)] bg-white shadow-md hover:shadow-lg rounded-full w-12 h-12 z-20 text-blue-700 transition-transform duration-200 hover:scale-110 cursor-pointer"
-      >
-        <ChevronRight className="w-6 h-6" />
-      </button>
+        {/* Logo */}
+        <div className="flex justify-center mb-3">
+          <Image src="/logo.png" alt="Logo" width={180} height={180} />
+        </div>
 
-      <div className="w-full max-w-md flex justify-end mb-4">
-        <LogoutButton />
-      </div>
+        {/* Date + navigation par chevrons + accès calendrier */}
+        <div className="flex items-center justify-center gap-1.5 mb-5 flex-wrap">
+          <button
+            onClick={goToPreviousDay}
+            className="p-2 rounded-full hover:bg-blue-50 text-blue-700 transition cursor-pointer"
+            title="Jour précédent"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <h2 className="text-base sm:text-lg font-semibold text-center text-blue-800">
+            {formatDate(currentDate)}
+          </h2>
+          <button
+            onClick={goToNextDay}
+            className="p-2 rounded-full hover:bg-blue-50 text-blue-700 transition cursor-pointer"
+            title="Jour suivant"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => router.push("/calendrier")}
+            className="p-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 transition cursor-pointer ml-1"
+            title="Choisir une autre date dans le calendrier"
+          >
+            <Calendar className="w-5 h-5" />
+          </button>
+        </div>
 
-      {/* Animation du swipe sur MOBILE */}
-      <AnimatePresence custom={direction} mode="wait">
-        <motion.div
-          className="w-full flex flex-col items-center"
-          style={{
-            x: dragOffset,
-            transition: isDragging ? "none" : "x 0.25s ease-out",
-          }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          {/* LOGO Les Ecoles */}
-          <Image src="/logo.png" alt="Logo" width={180} height={180} className="mb-2" />
-
-          {/* Date du jour */}
-          <div className="flex justify-center items-center mb-4 space-x-4">
-            <h2 className="text-xl font-semibold text-center text-blue-800">
-              {formatDate(currentDate)}
-            </h2>
+        {/* Carte PRÉSENCE au foyer (lecture seule) */}
+        <section className="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-4">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-blue-800 mb-3">Présence au foyer</h3>
+          <div className="flex justify-center">
+            {isAbsent ? (
+              <span className="inline-flex items-center gap-2 text-sm font-semibold text-red-700 bg-red-50 rounded-full px-4 py-1.5">
+                <Moon className="w-4 h-4" /> Sortie ce soir
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2 text-sm font-semibold text-green-700 bg-green-50 rounded-full px-4 py-1.5">
+                <Home className="w-4 h-4" /> Au foyer ce soir
+              </span>
+            )}
           </div>
+        </section>
 
-          {/* Carte « Ma journée » (lecture seule) */}
-          <div className="w-full max-w-md bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-5">
-            <div className="grid grid-cols-3 gap-2 text-center divide-x divide-gray-100">
-              <div className="px-1">
-                <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Ce soir</p>
-                {isAbsent ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-50 rounded-full px-2 py-1">
-                    <Moon className="w-3 h-3" /> Sortie
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 rounded-full px-2 py-1">
-                    <Home className="w-3 h-3" /> Au foyer
-                  </span>
-                )}
-              </div>
-              <div className="px-1">
-                <p className="text-[10px] uppercase font-bold text-orange-400 mb-1">Déjeuner</p>
-                <p className="text-sm font-semibold text-blue-900 truncate">{dejeunerLabel ?? "Non"}</p>
-              </div>
-              <div className="px-1">
-                <p className="text-[10px] uppercase font-bold text-blue-400 mb-1">Dîner</p>
-                <p className="text-sm font-semibold text-blue-900 truncate">{dinerLabel ?? "Non"}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Intercalaire */}
-          <div className="relative flex justify-center mb-4 z-10">
-            <div
-              className="absolute top-0 h-12 w-20 bg-yellow-400 rounded-t-xl transition-all duration-300"
-              style={{
-                left: selectedResidenceValue === "12" ? "0px" : "80px",
-              }}
-            />
-
-            {residences.map((res) => (
+        {/* Intercalaires résidence — esthétique d'origine, couleur par résidence (12 = bleu clair, 36 = rose) */}
+        <div className="flex justify-center mb-4">
+          {residences.map((res) => {
+            const active = selectedResidenceValue === res.value;
+            const activeColor = res.value === "12" ? "bg-blue-400 border-blue-400" : "bg-pink-400 border-pink-400";
+            return (
               <button
                 key={res.value}
                 onClick={() => {
                   setSelectedResidenceValue(res.value);
                   setSelectedResidenceLabel(res.label);
                 }}
-                className={`cursor-pointer relative flex items-center justify-center w-20 h-12 text-lg font-bold border rounded-t-xl transition-colors z-10
-                  ${
-                    selectedResidenceValue === res.value
-                      ? "text-white border-yellow-400 bg-yellow-400"
-                      : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"
-                  }`}
+                className={`cursor-pointer flex items-center justify-center w-20 h-12 text-lg font-bold border rounded-t-xl transition-colors ${
+                  active ? `text-white ${activeColor}` : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"
+                }`}
               >
                 {res.value}
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
-          {/* Section Rappel et évènements */}
-          <section className="w-full max-w-md bg-white rounded-xl shadow-lg p-5 overflow-hidden relative mb-10">
-            {/* Rappels */}
-            {reminders.length > 0 && (
-              <div className="w-full mb-5 bg-yellow-50 border border-yellow-300 rounded-lg p-4 shadow-sm">
-                <h3 className="text-lg font-semibold text-yellow-800 mb-2 flex items-center gap-2">
-                  <Bell className="w-5 h-5" />
-                  Rappels du jour
-                  <span className="text-xs font-normal text-yellow-600">
-                    ({reminders.length} événement{reminders.length > 1 ? "s" : ""} à venir)
-                  </span>
-                </h3>
-                <ul className="space-y-2">
-                  {reminders.map((evt) => {
-                    if (!evt.nextReminderDate || typeof evt.joursRestants !== "number") {
-                      return null;
-                    }
+        {/* Carte ÉVÉNEMENTS (rappels compacts + événements) */}
+        <section className="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-4">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-blue-800 mb-3">Événements</h3>
 
-                    const eventDateFormatted = evt.nextReminderDate.toLocaleDateString("fr-FR", {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    });
-
-                    return (
-                      <li
-                        key={`${evt.id}-${evt.nextReminderDate.getTime()}`}
-                        className="bg-white p-3 rounded-lg shadow-sm border border-yellow-200 hover:border-yellow-400 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <strong className="text-yellow-800 text-base">{evt.titre}</strong>
-                            <p className="text-sm text-yellow-700 mt-1 font-medium">
-                              📅 Dans {evt.joursRestants} jour{evt.joursRestants > 1 ? "s" : ""}
-                            </p>
-                            <p className="text-xs text-gray-600 mt-1">
-                              Évènement prévu le {eventDateFormatted}
-                              {evt.heures && ` ${evt.heures}`}
-                              {evt.lieu && ` • Résidence ${evt.lieu}`}
-                            </p>
-                            {evt.description && (
-                              <p className="text-gray-700 text-sm mt-2 line-clamp-2">
-                                {evt.description}
-                              </p>
-                            )}
-                            {evt.dates_event && evt.dates_event.length > 1 && (
-                              <p className="text-xs text-gray-500 mt-2 italic">
-                                Événement sur {evt.dates_event.length} dates
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex-shrink-0 bg-yellow-100 text-yellow-800 rounded-full px-3 py-1 text-xs font-semibold">
-                            J-{evt.joursRestants}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-
-            {/* Événements */}
-            <div className="mb-10">
-              {filteredEvents.length === 0 ? (
-                <p className="text-gray-500 italic text-sm mb-4">
-                  Aucun évènement prévu pour la {selectedResidenceLabel}.
-                </p>
-              ) : (
-                filteredEvents.map((e) => (
-                  <div key={e.id} className={`border rounded-lg px-4 py-3 mb-3 ${e.couleur}`}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-800">{e.titre}</span>
-                      <div className="flex items-center space-x-2">
-                        {e.demander_confirmation && profil?.is_admin && (
-                          <VisionConfirmation eventId={e.id} />
-                        )}
-                        {e.demander_confirmation && <ConfirmationToggle eventId={e.id} />}
-                      </div>
-                    </div>
-                    {e.heures && (
-                      <p className="text-xs text-gray-600 mt-1 italic">{e.heures}</p>
-                    )}
-                    {e.description && (
-                      <p className="text-xs text-gray-500 mt-1">{e.description}</p>
-                    )}
+          {/* Rappels du jour (compacts) */}
+          {reminders.length > 0 && (
+            <div className="mb-3 space-y-1.5">
+              {reminders.map((evt) => {
+                if (!evt.nextReminderDate || typeof evt.joursRestants !== "number") return null;
+                return (
+                  <div
+                    key={`${evt.id}-${evt.nextReminderDate.getTime()}`}
+                    className="flex items-center gap-2 text-xs bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-1.5"
+                  >
+                    <Bell className="w-3.5 h-3.5 text-yellow-600 flex-shrink-0" />
+                    <span className="font-bold text-yellow-800 bg-yellow-100 rounded px-1.5 py-0.5 flex-shrink-0">
+                      J-{evt.joursRestants}
+                    </span>
+                    <span className="text-yellow-800 font-medium truncate">{evt.titre}</span>
                   </div>
-                ))
-              )}
+                );
+              })}
             </div>
-          </section>
-        </motion.div>
-      </AnimatePresence>
+          )}
+
+          {/* Événements du jour */}
+          {filteredEvents.length === 0 ? (
+            <p className="text-gray-400 italic text-sm">
+              Aucun évènement prévu pour la {selectedResidenceLabel}.
+            </p>
+          ) : (
+            filteredEvents.map((e) => (
+              <div key={e.id} className={`border rounded-lg px-4 py-3 mb-2 ${e.couleur}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-800">{e.titre}</span>
+                  <div className="flex items-center space-x-2">
+                    {e.demander_confirmation && profil?.is_admin && <VisionConfirmation eventId={e.id} />}
+                    {e.demander_confirmation && <ConfirmationToggle eventId={e.id} />}
+                  </div>
+                </div>
+                {e.heures && <p className="text-xs text-gray-600 mt-1 italic">{e.heures}</p>}
+                {e.description && <p className="text-xs text-gray-500 mt-1">{e.description}</p>}
+              </div>
+            ))
+          )}
+        </section>
+
+        {/* Carte REPAS du jour (lecture seule) */}
+        <section className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-blue-800 mb-3">Repas du jour</h3>
+          <div className="grid grid-cols-2 gap-3 text-center">
+            <div className="bg-orange-50 rounded-xl p-3">
+              <p className="text-[10px] uppercase font-bold text-orange-500 mb-1">Déjeuner</p>
+              <p className="text-sm font-semibold text-blue-900 truncate">{dejeunerLabel ?? "Non"}</p>
+            </div>
+            <div className="bg-blue-50 rounded-xl p-3">
+              <p className="text-[10px] uppercase font-bold text-blue-500 mb-1">Dîner</p>
+              <p className="text-sm font-semibold text-blue-900 truncate">{dinerLabel ?? "Non"}</p>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

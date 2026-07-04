@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Save, CheckCircle, AlertCircle, Loader2, ChevronDown, UserPlus, ClipboardList, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import InviteModal from "../components/inviteModal";
+import LogoutButton from "../components/logoutButton";
+import ProfileButton from "../components/profileButton";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
@@ -495,6 +497,11 @@ export default function SemaineRepas() {
     return (
         <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4 py-8">
         <div className="max-w-2xl mx-auto">
+
+            <div className="flex justify-end items-center gap-2 mb-2">
+              <ProfileButton />
+              <LogoutButton />
+            </div>
 
             <div className="text-center mb-8">
             <h1 className="text-3xl font-black text-blue-900 tracking-tight">

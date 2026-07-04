@@ -6,6 +6,7 @@ import { CalendarEvent } from "@/types/CalendarEvent";
 import { User } from "@supabase/supabase-js";
 import { useSupabase } from "../providers";
 import LogoutButton from "../components/logoutButton";
+import ProfileButton from "../components/profileButton";
 
 export default function CalendrierPage() {
   const { supabase } = useSupabase();
@@ -145,7 +146,8 @@ export default function CalendrierPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center bg-white px-4 pt-6">
-      <div className="w-full max-w-md flex justify-end mb-4">
+      <div className="w-full max-w-md flex justify-end items-center gap-2 mb-4">
+        <ProfileButton />
         <LogoutButton />
       </div>
 
