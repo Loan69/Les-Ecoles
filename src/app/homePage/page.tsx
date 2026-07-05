@@ -265,6 +265,9 @@ export default function HomePage() {
         const residences: string[] = event.visibilite?.residence ?? [];
         const etages: string[] = event.visibilite?.etage ?? [];
         const chambres: string[] = event.visibilite?.chambre ?? [];
+        const exclusions: string[] = event.visibilite?.exclusions ?? [];
+        // Ciblage dynamique : exclue nommément
+        if (user?.id && exclusions.includes(user.id)) return false;
         return (
           residences.includes(profil.residence) ||
           etages.includes(profil.etage) ||

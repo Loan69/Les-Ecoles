@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import DynamicSelectGroup from "./DynamicSelectGroup";
 import DynamicMultiSelectGroup from "./DynamicMultiSelectGroup";
+import EventVisibilitySelector from "./EventVisibilitySelector";
 import DateSelector from "./DatesSelector";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { toast } from "sonner";
@@ -253,19 +254,12 @@ export default function ModalAjoutEvenement({
             </label>
           )}
 
-          {/* Multiselect visibilité */}
-          <DynamicMultiSelectGroup
+          {/* Visibilité : résidence / étage puis liste de noms cochables */}
+          <EventVisibilitySelector
             key={`visi-${open}`}
-            rootCategory="residence"
             disabled={!!form.reserve_admin}
-            onChange={(selected) => {
-              const transformed: { [category: string]: string[] } = {};
-              Object.entries(selected).forEach(([category, options]) => {
-                transformed[category] = options.map((opt) => opt.value);
-              });
-              handleSelectChange("visibilite", transformed);
-            }}
-            initialValues={form.visibilite}
+            value={form.visibilite ?? { residence: [], etage: [], exclusions: [] }}
+            onChange={(v) => handleSelectChange("visibilite", v)}
           />
 
           {/* Visible invitées */}
