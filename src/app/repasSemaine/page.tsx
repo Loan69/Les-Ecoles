@@ -1,734 +1,292 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Save, CheckCircle, AlertCircle, Loader2, ChevronDown, UserPlus, ClipboardList, Settings } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import InviteModal from "../components/inviteModal";
-import LogoutButton from "../components/logoutButton";
-import ProfileButton from "../components/profileButton";
+import { toast } from "sonner";
+import { ChevronLeft, ChevronRight, Lock, Moon, ChevronDown, UserPlus, ClipboardList, Settings } from "lucide-react";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
-import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
-import { Rule } from "@/types/Rule";
-import { getLatestRulesByService } from "@/lib/rulesUtils";
+import { ServiceOption, MealOptionCatalog, PresenceV2, Service } from "@/types/MealOption";
+import { Absence } from "@/types/Absence";
+import { CalendarEvent } from "@/types/CalendarEvent";
 import { computeLockState } from "@/lib/lockUtils";
+import { isAwayForMeal } from "@/lib/mealCompta";
+import { eventVisibleFor } from "@/lib/eventVisibility";
+import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
+import LoadingSpinner from "../components/LoadingSpinner";
+import LogoutButton from "../components/logoutButton";
+import ProfileButton from "../components/profileButton";
+import AdministratifButton from "../components/administratifButton";
+import InviteModal from "../components/inviteModal";
 
-// ============================================================
-// TYPES
-// ============================================================
+const SERVICES: { value: Service; label: string }[] = [
+  { value: "dejeuner", label: "Déjeuner" },
+  { value: "diner", label: "Dîner" },
+];
 
-interface MealOption {
-    id: number;
-    value: string;
-    label: string;
-    isSpecial: boolean;
+function getMonday(date: Date): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + (d.getDay() === 0 ? -6 : 1 - d.getDay()));
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+// 8 jours : lundi -> lundi suivant inclus
+function weekDates(monday: Date): string[] {
+  return Array.from({ length: 8 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return formatDateKeyLocal(d);
+  });
+}
+function dayLabel(key: string): string {
+  return parseDateKeyLocal(key).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }).replace(/^./, (c) => c.toUpperCase());
+}
+function weekLabel(monday: Date): string {
+  const last = new Date(monday);
+  last.setDate(monday.getDate() + 7);
+  const from = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  const to = last.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+  return `${from} – ${to}`;
 }
 
-interface DaySelection {
-    dejeuner: { id: number; value: string; label: string } | null;
-    diner: { id: number; value: string; label: string } | null;
-    dejeunerDbId: number | null;
-    dinerDbId: number | null;
-}
-
-interface DayMealOptions {
-    dejeuner: MealOption[];
-    diner: MealOption[];
-}
-
-type WeekSelections = Record<string, DaySelection>;
-type WeekMealOptions = Record<string, DayMealOptions>;
-
-// ============================================================
-// UTILITAIRES
-// ============================================================
-
-function getMondayOfWeek(date: Date): Date {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    d.setDate(d.getDate() + diff);
-    d.setHours(0, 0, 0, 0);
-    return d;
-}
-
-// 8 jours : du lundi au lundi suivant inclus (le dernier lundi est partagé avec
-// la semaine suivante, pour pouvoir anticiper).
-function getWeekDays(monday: Date): Date[] {
-    return Array.from({ length: 8 }, (_, i) => {
-        const d = new Date(monday);
-        d.setDate(monday.getDate() + i);
-        return d;
-    });
-}
-
-function formatDayLabel(date: Date): string {
-    const label = date.toLocaleDateString("fr-FR", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-    });
-    return label.charAt(0).toUpperCase() + label.slice(1);
-}
-
-function formatWeekRange(monday: Date): string {
-    const lastDay = new Date(monday);
-    lastDay.setDate(monday.getDate() + 7);
-    const from = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
-    const to = lastDay.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-    return `${from} – ${to}`;
-}
-
-// ============================================================
-// COMPOSANT SELECT REPAS
-// ============================================================
-
-function MealSelect({
-    options,
-    value,
-    onChange,
-    disabled,
-    placeholder,
-    colorClass,
-    }: {
-    options: MealOption[];
-    value: string;
-    onChange: (opt: MealOption | null) => void;
-    disabled: boolean;
-    placeholder: string;
-    colorClass: string;
-    }) {
-    return (
-        <div className="relative">
-        <select
-            value={value}
-            onChange={(e) => {
-            const opt = options.find((o) => String(o.id) === e.target.value) || null;
-            onChange(opt);
-            }}
-            disabled={disabled}
-            className={`w-full appearance-none rounded-xl border-2 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 transition-all
-            ${disabled
-                ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
-                : `bg-white ${colorClass} cursor-pointer`
-            }`}
-        >
-            <option value="">{placeholder}</option>
-            {options.map((opt) => (
-            <option key={opt.id} value={String(opt.id)}>
-                {opt.label}
-            </option>
-            ))}
-        </select>
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400"
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-        >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-        </div>
-    );
-}
-
-// ============================================================
-// COMPOSANT PRINCIPAL
-// ============================================================
+type Profil = { is_admin?: boolean; residence?: string; etage?: string; chambre?: string };
 
 export default function SemaineRepas() {
-    const { supabase } = useSupabase();
-    const [user, setUser] = useState<User | null>(null);
-    const [settings, setSettings] = useState<Record<string, string>>({});
-    const [isAdmin, setIsAdmin] = useState(false);
+  const router = useRouter();
+  const { supabase } = useSupabase();
 
-    // ✅ Initialisation depuis localStorage (currentDate partagée avec la homepage)
-    const [currentMonday, setCurrentMonday] = useState<Date>(() => {
-        if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("dateSelectionnee");
-        if (stored) return getMondayOfWeek(parseDateKeyLocal(stored));
-        }
-        return getMondayOfWeek(new Date());
+  const [user, setUser] = useState<User | null>(null);
+  const [profil, setProfil] = useState<Profil | null>(null);
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
+  const [presences, setPresences] = useState<PresenceV2[]>([]);
+  const [absences, setAbsences] = useState<Absence[]>([]);
+  const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>([]);
+  const [ready, setReady] = useState(false);
+
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+
+  const [currentMonday, setCurrentMonday] = useState<Date>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("dateSelectionnee");
+      if (stored) return getMonday(parseDateKeyLocal(stored));
+    }
+    return getMonday(new Date());
+  });
+
+  const days = useMemo(() => weekDates(currentMonday), [currentMonday]);
+  const isAdmin = profil?.is_admin ?? false;
+
+  // Semaine de référence (date sélectionnée dans l'appli)
+  const storedDate = typeof window !== "undefined" ? localStorage.getItem("dateSelectionnee") : null;
+  const refMonday = getMonday(storedDate ? parseDateKeyLocal(storedDate) : new Date());
+  const isRefWeek = formatDateKeyLocal(currentMonday) === formatDateKeyLocal(refMonday);
+
+  // Auth + profil + settings (une fois)
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        router.replace("/signin");
+        return;
+      }
+      setUser(data.user);
+      const { data: p } = await supabase.from("residentes").select("is_admin, residence, etage, chambre").eq("user_id", data.user.id).maybeSingle();
+      setProfil(p ? { is_admin: p.is_admin, residence: p.residence, etage: p.etage, chambre: p.chambre } : {});
+      const { data: settingsData } = await supabase.from("app_settings").select("key, value");
+      const map: Record<string, string> = {};
+      (settingsData ?? []).forEach((s) => (map[s.key] = s.value));
+      setSettings(map);
+    })();
+  }, [supabase, router]);
+
+  // Options ouvertes + inscriptions + absences + événements de la semaine
+  const loadWeek = useCallback(async () => {
+    if (!user) return;
+    setReady(false);
+    const start = days[0];
+    const end = days[days.length - 1];
+    const [{ data: soData }, { data: presData }, { data: absData }, { data: evData }] = await Promise.all([
+      supabase.from("meal_service_options").select("*, option:meal_options(*)").gte("date", start).lte("date", end).order("position"),
+      supabase.from("presences_v2").select("*").eq("user_id", user.id).gte("date", start).lte("date", end),
+      supabase.from("absences_sejour").select("*").eq("user_id", user.id).lte("date_debut", end).gte("date_fin", start),
+      supabase.from("evenements").select("*").overlaps("dates_event", days),
+    ]);
+    setServiceOptions((soData as ServiceOption[]) ?? []);
+    setPresences((presData as PresenceV2[]) ?? []);
+    setAbsences((absData as Absence[]) ?? []);
+    setWeekEvents((evData as CalendarEvent[]) ?? []);
+    setReady(true);
+  }, [user, days, supabase]);
+
+  useEffect(() => {
+    loadWeek();
+  }, [loadWeek]);
+
+  useEffect(() => {
+    localStorage.setItem("dateSelectionnee", formatDateKeyLocal(currentMonday));
+  }, [currentMonday]);
+
+  // --- Helpers ---
+  const dayLocked = (dateKey: string) => computeLockState(parseDateKeyLocal(dateKey), settings).locked;
+  const orderable = (dateKey: string, opt: MealOptionCatalog) => {
+    const cutoff = parseDateKeyLocal(dateKey);
+    cutoff.setDate(cutoff.getDate() - (opt.delai_commande || 0));
+    return !computeLockState(cutoff, settings).locked;
+  };
+  const selectionFor = (dateKey: string, service: Service) => presences.find((p) => p.date === dateKey && p.service === service)?.option_id ?? "";
+  const openOptions = (dateKey: string, service: Service): MealOptionCatalog[] =>
+    serviceOptions
+      .filter((so) => so.date === dateKey && so.service === service && so.option)
+      .map((so) => so.option as MealOptionCatalog)
+      .filter((o) => o.is_active && (isAdmin || !o.admin_only));
+
+  const eventViewer = { residence: profil?.residence, etage: profil?.etage, chambre: profil?.chambre, user_id: user?.id, is_admin: profil?.is_admin };
+  const eventsForDay = (dateKey: string) => weekEvents.filter((e) => e.dates_event?.includes(dateKey) && eventVisibleFor(e, eventViewer));
+
+  const setChoice = async (dateKey: string, service: Service, optionId: string) => {
+    const res = await fetch("/api/presences-v2", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: dateKey, service, option_id: optionId || null }),
     });
-
-    const [defaultDejeunerOptions, setDefaultDejeunerOptions] = useState<MealOption[]>([]);
-    const [defaultDinerOptions, setDefaultDinerOptions] = useState<MealOption[]>([]);
-    const [weekMealOptions, setWeekMealOptions] = useState<WeekMealOptions>({});
-    const [pendingSelections, setPendingSelections] = useState<WeekSelections>({});
-    const [savedSelections, setSavedSelections] = useState<WeekSelections>({});
-    const [saving, setSaving] = useState(false);
-    const [saveResult, setSaveResult] = useState<"success" | "error" | null>(null);
-
-    // Drapeaux d'orchestration du chargement (anti-flicker) : on n'affiche la
-    // grille qu'une fois TOUT prêt (auth → options par défaut → options/jour → sélections).
-    const [authReady, setAuthReady] = useState(false);
-    const [defaultsLoaded, setDefaultsLoaded] = useState(false);
-    const [ready, setReady] = useState(false);
-
-    const weekDays = useMemo(() => getWeekDays(currentMonday), [currentMonday]);
-
-    // Hub : invitation + espace intendance replié
-    const router = useRouter();
-    const [isInviteOpen, setIsInviteOpen] = useState(false);
-    const [adminPanelOpen, setAdminPanelOpen] = useState(false);
-
-    // ============================================================
-    // INIT USER + SETTINGS
-    // ============================================================
-
-    useEffect(() => {
-        const fetchUser = async () => {
-        const { data } = await supabase.auth.getUser();
-        setUser(data.user);
-        if (data.user) {
-            const { data: profil } = await supabase
-            .from("residentes")
-            .select("is_admin")
-            .eq("user_id", data.user.id)
-            .maybeSingle();
-            setIsAdmin(profil?.is_admin || false);
-        }
-        setAuthReady(true);
-        };
-        fetchUser();
-    }, [supabase]);
-
-    useEffect(() => {
-        const fetchSettings = async () => {
-        const { data } = await supabase.from("app_settings").select("key, value");
-        if (data) {
-            const map: Record<string, string> = {};
-            data.forEach((s) => (map[s.key] = s.value));
-            setSettings(map);
-        }
-        };
-        fetchSettings();
-    }, [supabase]);
-
-    // À chaque changement de semaine, on masque le contenu le temps de tout recharger
-    useEffect(() => {
-        setReady(false);
-    }, [currentMonday]);
-
-    // ============================================================
-    // CHARGEMENT DES OPTIONS PAR DÉFAUT
-    // ============================================================
-
-    useEffect(() => {
-        if (!authReady) return;
-        const loadDefaultOptions = async () => {
-        const fetchOptions = async (type: "dejeuner" | "diner"): Promise<MealOption[]> => {
-            const { data } = await supabase
-            .from("select_options_repas")
-            .select("*")
-            .eq("category", type)
-            .eq("is_active", true)
-            .is("parent_value", null)
-            .order("label");
-            return (data || [])
-            .filter((item) => isAdmin || !item.admin_only)
-            .map((item) => ({
-                id: item.id,
-                value: item.value,
-                label: item.label,
-                isSpecial: false,
-            }));
-        };
-
-        const [dej, din] = await Promise.all([
-            fetchOptions("dejeuner"),
-            fetchOptions("diner"),
-        ]);
-        setDefaultDejeunerOptions(dej);
-        setDefaultDinerOptions(din);
-        setDefaultsLoaded(true);
-        };
-        loadDefaultOptions();
-    }, [supabase, isAdmin, authReady]);
-
-    // ============================================================
-    // ✅ CHARGEMENT DES OPTIONS PAR JOUR (avec règles spéciales)
-    // ============================================================
-
-    useEffect(() => {
-        const loadWeekMealOptions = async () => {
-        if (!defaultsLoaded || weekDays.length === 0) return;
-
-        const startDate = formatDateKeyLocal(weekDays[0]);
-        const endDate = formatDateKeyLocal(weekDays[weekDays.length - 1]);
-
-        const { data: rulesData } = await supabase
-            .from("special_meal_options")
-            .select("*")
-            .or(`start_date.lte.${endDate},indefinite.eq.true`)
-            .filter("end_date", "gte", startDate);
-
-        const allRules = (rulesData as Rule[]) || [];
-
-        const optionsByDay: WeekMealOptions = {};
-
-        weekDays.forEach((day) => {
-            const dateStr = formatDateKeyLocal(day);
-
-            // Règles actives pour CE jour précis
-            const rulesForDay = allRules.filter((r) => {
-                if (r.indefinite) { 
-                    return true; 
-                } else if (r.end_date) {
-                    return r.start_date <= dateStr && r.end_date >= dateStr;
-                }
-            });
-
-            const buildOptions = (
-            mealType: "dejeuner" | "diner",
-            defaultOpts: MealOption[]
-            ): MealOption[] => {
-            const specialRule = getLatestRulesByService(rulesForDay, mealType) as Rule | null;
-
-            if (specialRule && specialRule.options) {
-                return specialRule.options
-                .filter((o) => {
-                    if (!(o.is_active ?? true)) return false;
-                    if (o.admin_only && !isAdmin) return false;
-                    return true;
-                })
-                .map((o) => ({
-                    id: o.id,
-                    value: o.value,
-                    label: o.label || o.value,
-                    isSpecial: true,
-                }));
-            }
-
-            return defaultOpts;
-            };
-
-            optionsByDay[dateStr] = {
-            dejeuner: buildOptions("dejeuner", defaultDejeunerOptions),
-            diner: buildOptions("diner", defaultDinerOptions),
-            };
-        });
-
-        setWeekMealOptions(optionsByDay);
-        };
-
-        loadWeekMealOptions();
-    }, [weekDays, defaultDejeunerOptions, defaultDinerOptions, supabase, isAdmin, defaultsLoaded]);
-
-    // ============================================================
-    // CHARGEMENT DES PRÉSENCES DE LA SEMAINE
-    // ============================================================
-
-    useEffect(() => {
-        if (!authReady || weekDays.length === 0) return;
-        const firstKey = formatDateKeyLocal(weekDays[0]);
-        // On attend que les options de CETTE semaine soient prêtes (évite un rendu transitoire).
-        if (!weekMealOptions[firstKey]) return;
-
-        const loadWeekSelections = async () => {
-        if (!user) { setReady(true); return; }
-
-        const startDate = formatDateKeyLocal(weekDays[0]);
-        const endDate = formatDateKeyLocal(weekDays[weekDays.length - 1]);
-
-        const { data: presences } = await supabase
-            .from("presences")
-            .select("id_repas, type_repas, date_repas, choix_repas, option_id")
-            .eq("user_id", user.id)
-            .gte("date_repas", startDate)
-            .lte("date_repas", endDate);
-
-        const selections: WeekSelections = {};
-
-        weekDays.forEach((day) => {
-            const dateStr = formatDateKeyLocal(day);
-            const dayOpts = weekMealOptions[dateStr];
-            if (!dayOpts) return;
-
-            const dejData = presences?.find((p) => p.date_repas === dateStr && p.type_repas === "dejeuner");
-            const dinData = presences?.find((p) => p.date_repas === dateStr && p.type_repas === "diner");
-
-            const findOption = (opts: MealOption[], data: typeof dejData) => {
-            if (!data) return null;
-            const opt = data.option_id
-                ? opts.find((o) => o.id === data.option_id)
-                : opts.find((o) => o.value === data.choix_repas);
-            return opt ? { id: opt.id, value: opt.value, label: opt.label } : null;
-            };
-
-            selections[dateStr] = {
-            dejeuner: findOption(dayOpts.dejeuner, dejData),
-            diner: findOption(dayOpts.diner, dinData),
-            dejeunerDbId: dejData?.id_repas || null,
-            dinerDbId: dinData?.id_repas || null,
-            };
-        });
-
-        setSavedSelections(selections);
-        setPendingSelections(JSON.parse(JSON.stringify(selections)));
-        setReady(true);
-        };
-
-        loadWeekSelections();
-    }, [user, weekDays, weekMealOptions, supabase, authReady]);
-
-    // ============================================================
-    // NAVIGATION SEMAINE
-    // ============================================================
-
-    const goToPreviousWeek = () => {
-        setCurrentMonday((prev) => {
-        const d = new Date(prev);
-        d.setDate(d.getDate() - 7);
-        return d;
-        });
-    };
-
-    const goToNextWeek = () => {
-        setCurrentMonday((prev) => {
-        const d = new Date(prev);
-        d.setDate(d.getDate() + 7);
-        return d;
-        });
-    };
-
-    // ✅ Revenir à la semaine de la date sélectionnée dans l'appli
-    const goToRefWeek = () => {
-        const stored = localStorage.getItem("dateSelectionnee");
-        const ref = stored ? parseDateKeyLocal(stored) : new Date();
-        setCurrentMonday(getMondayOfWeek(ref));
-    };
-
-    // ============================================================
-    // MODIFICATION LOCALE
-    // ============================================================
-
-    const handleChange = (
-        dateStr: string,
-        mealType: "dejeuner" | "diner",
-        opt: MealOption | null
-    ) => {
-        setPendingSelections((prev) => ({
-        ...prev,
-        [dateStr]: {
-            ...prev[dateStr],
-            [mealType]: opt ? { id: opt.id, value: opt.value, label: opt.label } : null,
-        },
-        }));
-    };
-
-    // ============================================================
-    // ENREGISTREMENT
-    // ============================================================
-
-    const handleSave = async () => {
-        if (!user) return;
-        setSaving(true);
-        setSaveResult(null);
-
-        try {
-        for (const day of weekDays) {
-            const dateStr = formatDateKeyLocal(day);
-            const { locked } = computeLockState(day, settings);
-            if (locked) continue;
-
-            const pending = pendingSelections[dateStr];
-            const saved = savedSelections[dateStr];
-            if (!pending) continue;
-
-            for (const mealType of ["dejeuner", "diner"] as const) {
-            const pendingOpt = pending[mealType];
-            const savedOpt = saved?.[mealType];
-
-            if (pendingOpt?.id === savedOpt?.id) continue;
-
-            const dayOpts = weekMealOptions[dateStr];
-            const fullOpt = dayOpts?.[mealType]?.find((o) => o.id === pendingOpt?.id);
-
-            const response = await fetch("/api/presence-repas", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                repas: mealType,
-                choix: pendingOpt?.value || "non",
-                date: dateStr,
-                option_id: fullOpt?.isSpecial ? fullOpt.id : null,
-                }),
-            });
-
-            if (!response.ok) throw new Error(`Erreur pour ${dateStr} ${mealType}`);
-            }
-        }
-
-        setSavedSelections(JSON.parse(JSON.stringify(pendingSelections)));
-        setSaveResult("success");
-        setTimeout(() => setSaveResult(null), 3000);
-        } catch (e) {
-        console.error(e);
-        setSaveResult("error");
-        setTimeout(() => setSaveResult(null), 4000);
-        } finally {
-        setSaving(false);
-        }
-    };
-
-    // ============================================================
-    // CALCUL MODIFICATIONS EN ATTENTE
-    // ============================================================
-
-    const pendingCount = weekDays.filter((day) => {
-        const dateStr = formatDateKeyLocal(day);
-        const { locked } = computeLockState(day, settings);
-        if (locked) return false;
-        const p = pendingSelections[dateStr];
-        const s = savedSelections[dateStr];
-        return p?.dejeuner?.id !== s?.dejeuner?.id || p?.diner?.id !== s?.diner?.id;
-    }).length;
-
-    // ✅ Semaine de référence = semaine de la date stockée dans l'appli
-    const storedDate = typeof window !== "undefined" ? localStorage.getItem("dateSelectionnee") : null;
-    const refMonday = getMondayOfWeek(storedDate ? parseDateKeyLocal(storedDate) : new Date());
-    const isRefWeek = formatDateKeyLocal(currentMonday) === formatDateKeyLocal(refMonday);
-
-    // ============================================================
-    // RENDU
-    // ============================================================
-
-    return (
-        <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4 py-8">
-        <div className="max-w-2xl mx-auto">
-
-            <div className="flex justify-end items-center gap-2 mb-2">
-              <ProfileButton />
-              <LogoutButton />
-            </div>
-
-            <div className="text-center mb-8">
-            <h1 className="text-3xl font-black text-blue-900 tracking-tight">
-                Repas de la semaine
-            </h1>
-            <p className="text-blue-500 text-sm mt-1">Planifiez vos repas et enregistrez en une fois</p>
-            </div>
-
-            {/* Navigation semaine */}
-            <div className="flex items-center justify-between mb-6 bg-white rounded-2xl shadow-sm px-4 py-3">
-            <button
-                onClick={goToPreviousWeek}
-                className="p-2 rounded-xl hover:bg-blue-50 text-blue-700 transition cursor-pointer"
-            >
-                <ChevronLeft className="w-5 h-5" />
-            </button>
-
-            <div className="text-center">
-                <p className="text-sm font-bold text-blue-900">{formatWeekRange(currentMonday)}</p>
-                {!isRefWeek && (
-                <button
-                    onClick={goToRefWeek}
-                    className="text-xs text-blue-400 hover:text-blue-600 underline mt-0.5 cursor-pointer"
-                >
-                    Revenir à la semaine sélectionnée
-                </button>
-                )}
-            </div>
-
-            <button
-                onClick={goToNextWeek}
-                className="p-2 rounded-xl hover:bg-blue-50 text-blue-700 transition cursor-pointer"
-            >
-                <ChevronRight className="w-5 h-5" />
-            </button>
-            </div>
-
-            {/* Grille des jours */}
-            {!ready ? (
-            <div className="flex justify-center items-center py-20">
-                <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
-            </div>
-            ) : (
-            <div className="space-y-3">
-                {weekDays.map((day) => {
-                const dateStr = formatDateKeyLocal(day);
-                const { locked, lockedValues } = computeLockState(day, settings);
-                const dayOpts = weekMealOptions[dateStr];
-                const pending = pendingSelections[dateStr];
-                const saved = savedSelections[dateStr];
-                const hasChange =
-                    !locked &&
-                    (pending?.dejeuner?.id !== saved?.dejeuner?.id ||
-                    pending?.diner?.id !== saved?.diner?.id);
-
-                const isToday = dateStr === formatDateKeyLocal(new Date());
-                const isPast = day < new Date() && !isToday;
-
-                const dejOptions = (dayOpts?.dejeuner || []).filter((o) => !lockedValues.includes(o.value));
-                const dinOptions = (dayOpts?.diner || []).filter((o) => !lockedValues.includes(o.value));
-                const hasSpecial = dayOpts?.dejeuner[0]?.isSpecial || dayOpts?.diner[0]?.isSpecial;
-
-                return (
-                    <div
-                    key={dateStr}
-                    className={`bg-white rounded-2xl shadow-sm border-2 overflow-hidden transition-all
-                        ${isToday ? "border-blue-400 shadow-blue-100 shadow-md" : "border-transparent"}
-                        ${isPast ? "opacity-60" : ""}
-                        ${hasChange ? "ring-2 ring-orange-300" : ""}
-                    `}
-                    >
-                    {/* Header */}
-                    <div className={`px-4 py-2 flex items-center justify-between
-                        ${isToday ? "bg-blue-600" : locked && !isPast ? "bg-gray-100" : "bg-blue-50"}`}
-                    >
-                        <span className={`text-sm font-bold ${isToday ? "text-white" : "text-blue-900"}`}>
-                        {formatDayLabel(day)}
-                        {isToday && <span className="ml-2 text-xs font-normal opacity-80">Aujourd&apos;hui</span>}
-                        </span>
-                        <div className="flex items-center gap-2">
-                        {hasSpecial && !locked && (
-                            <span className="text-[10px] text-purple-500 font-semibold bg-purple-50 px-2 py-0.5 rounded-full">
-                            ✨ Menu spécial
-                            </span>
-                        )}
-                        {locked && !isPast && (
-                            <span className="text-xs text-gray-400 font-medium">🔒 Verrouillé</span>
-                        )}
-                        {hasChange && (
-                            <span className="text-xs text-orange-500 font-semibold">● Modifié</span>
-                        )}
-                        </div>
-                    </div>
-
-                    {/* Sélects */}
-                    <div className="px-4 py-3 grid grid-cols-2 gap-3">
-                        <div>
-                        <p className="text-[10px] font-bold uppercase text-orange-500 mb-1 tracking-wide">Déjeuner</p>
-                        <MealSelect
-                            options={dejOptions}
-                            value={pending?.dejeuner ? String(pending.dejeuner.id) : ""}
-                            onChange={(opt) => handleChange(dateStr, "dejeuner", opt)}
-                            disabled={locked}
-                            placeholder="Non"
-                            colorClass="border-orange-200 text-orange-900 focus:ring-orange-200 focus:border-orange-400"
-                        />
-                        </div>
-
-                        <div>
-                        <p className="text-[10px] font-bold uppercase text-blue-500 mb-1 tracking-wide">Dîner</p>
-                        <MealSelect
-                            options={dinOptions}
-                            value={pending?.diner ? String(pending.diner.id) : ""}
-                            onChange={(opt) => handleChange(dateStr, "diner", opt)}
-                            disabled={locked}
-                            placeholder="Non"
-                            colorClass="border-blue-200 text-blue-900 focus:ring-blue-200 focus:border-blue-400"
-                        />
-                        </div>
-                    </div>
-                    </div>
-                );
-                })}
-            </div>
-            )}
-
-            {/* Bouton enregistrer */}
-            <div className="mt-8 flex flex-col items-center gap-3">
-
-            {saveResult === "success" && (
-                <motion.div
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 text-green-600 bg-green-50 border border-green-200 rounded-xl px-4 py-2 text-sm font-semibold"
-                >
-                <CheckCircle className="w-4 h-4" />
-                Repas enregistrés avec succès !
-                </motion.div>
-            )}
-
-            {saveResult === "error" && (
-                <motion.div
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2 text-sm font-semibold"
-                >
-                <AlertCircle className="w-4 h-4" />
-                Une erreur est survenue. Veuillez réessayer.
-                </motion.div>
-            )}
-
-            <button
-                onClick={handleSave}
-                disabled={saving || pendingCount === 0}
-                className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-base font-bold shadow-md transition-all
-                ${saving || pendingCount === 0
-                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    : "bg-blue-700 text-white hover:bg-blue-800 hover:shadow-lg cursor-pointer active:scale-95"
-                }`}
-            >
-                {saving ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> Enregistrement...</>
-                ) : (
-                <>
-                    <Save className="w-5 h-5" />
-                    Enregistrer
-                    {pendingCount > 0 && (
-                    <span className="bg-orange-400 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center ml-1">
-                        {pendingCount}
-                    </span>
-                    )}
-                </>
-                )}
-            </button>
-
-            {pendingCount === 0 && !saving && (
-                <p className="text-xs text-gray-400">Aucune modification en attente</p>
-            )}
-            </div>
-
-            {/* Inviter quelqu'un */}
-            <div className="mt-8 flex justify-center">
-            <button
-                onClick={() => setIsInviteOpen(true)}
-                className="flex items-center gap-2 bg-white border-2 border-blue-200 text-blue-700 rounded-2xl px-6 py-3 text-sm font-semibold shadow-sm hover:bg-blue-50 transition cursor-pointer"
-            >
-                <UserPlus className="w-4 h-4" /> Inviter quelqu&apos;un
-            </button>
-            </div>
-
-            {/* Espace intendance (admin) */}
-            {isAdmin && (
-            <div className="mt-8">
-                <button
-                onClick={() => setAdminPanelOpen((o) => !o)}
-                className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-5 py-3 text-sm font-bold text-blue-900 hover:bg-blue-50 transition cursor-pointer"
-                >
-                <span className="flex items-center gap-2"><Settings className="w-4 h-4" /> Espace intendance</span>
-                <ChevronDown className={`w-5 h-5 transition-transform ${adminPanelOpen ? "rotate-180" : ""}`} />
-                </button>
-
-                {adminPanelOpen && (
-                <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    className="mt-3 grid gap-2 overflow-hidden"
-                >
-                    <button
-                    onClick={() => router.push("/admin/repas")}
-                    className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer"
-                    >
-                    <ClipboardList className="w-4 h-4" /> Voir les inscriptions
-                    </button>
-                    <button
-                    onClick={() => router.push("/admin/parametrage-repas")}
-                    className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer"
-                    >
-                    <Settings className="w-4 h-4" /> Paramétrer les repas
-                    </button>
-                </motion.div>
-                )}
-            </div>
-            )}
-
-            <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} />
-
+    const j = await res.json();
+    if (!res.ok) { toast.error(j.error || "Erreur."); return; }
+    setPresences((prev) => {
+      const others = prev.filter((p) => !(p.date === dateKey && p.service === service));
+      if (!optionId) return others;
+      return [...others, { id: `local-${dateKey}-${service}`, user_id: user?.id ?? "", date: dateKey, service, option_id: optionId, commentaire: null }];
+    });
+  };
+
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4 py-8">
+      <div className="max-w-2xl mx-auto">
+        <div className="flex justify-end items-center gap-2 mb-2">
+          <AdministratifButton />
+          <ProfileButton />
+          <LogoutButton />
         </div>
-        </main>
-    );
+
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-black text-blue-900 tracking-tight">Repas de la semaine</h1>
+          <p className="text-blue-500 text-sm mt-1">Choisissez votre repas parmi les options proposées</p>
+        </div>
+
+        {/* Navigation semaine */}
+        <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-4">
+          <button onClick={() => setCurrentMonday((m) => { const d = new Date(m); d.setDate(d.getDate() - 7); return d; })} className="p-2 rounded-xl hover:bg-blue-50 text-blue-700 cursor-pointer">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="text-center">
+            <p className="text-sm font-bold text-blue-900">{weekLabel(currentMonday)}</p>
+            {!isRefWeek && (
+              <button onClick={() => setCurrentMonday(refMonday)} className="text-xs text-blue-400 hover:text-blue-600 underline mt-0.5 cursor-pointer">
+                Revenir à la semaine sélectionnée
+              </button>
+            )}
+          </div>
+          <button onClick={() => setCurrentMonday((m) => { const d = new Date(m); d.setDate(d.getDate() + 7); return d; })} className="p-2 rounded-xl hover:bg-blue-50 text-blue-700 cursor-pointer">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+
+        {!ready ? (
+          <div className="flex justify-center py-20"><LoadingSpinner /></div>
+        ) : (
+          <div className="space-y-3">
+            {days.map((dateKey) => {
+              const locked = dayLocked(dateKey);
+              const isToday = dateKey === formatDateKeyLocal(new Date());
+              const dayEvents = eventsForDay(dateKey);
+              return (
+                <div key={dateKey} className={`bg-white rounded-2xl shadow-sm border-2 ${isToday ? "border-blue-400" : "border-transparent"} overflow-hidden`}>
+                  <div className={`px-4 py-2 flex items-center justify-between ${isToday ? "bg-blue-600" : locked ? "bg-gray-100" : "bg-blue-50"}`}>
+                    <span className={`text-sm font-bold ${isToday ? "text-white" : "text-blue-900"}`}>
+                      {dayLabel(dateKey)}
+                      {isToday && <span className="ml-2 text-xs font-normal opacity-80">Aujourd&apos;hui</span>}
+                    </span>
+                    {locked && <span className="text-xs text-gray-500 font-medium flex items-center gap-1"><Lock className="w-3 h-3" /> Verrouillé</span>}
+                  </div>
+
+                  {dayEvents.length > 0 && (
+                    <div className="px-4 pt-2 space-y-1">
+                      {dayEvents.map((e) => (
+                        <div key={e.id} className={`text-xs rounded-md px-2 py-1 border ${e.couleur || "border-gray-200 bg-gray-50"}`}>
+                          <span className="font-medium text-gray-800">📌 {e.titre}</span>
+                          {e.heures && <span className="text-gray-500"> · {e.heures}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="px-4 py-3 grid grid-cols-2 gap-3">
+                    {SERVICES.map((s) => {
+                      const opts = openOptions(dateKey, s.value);
+                      const current = selectionFor(dateKey, s.value);
+                      const selectable = opts.filter((o) => orderable(dateKey, o) || o.id === current);
+                      const away = isAwayForMeal(absences, user?.id ?? "", dateKey, s.value);
+                      return (
+                        <div key={s.value}>
+                          <p className={`text-[10px] font-bold uppercase mb-1 tracking-wide ${s.value === "dejeuner" ? "text-orange-500" : "text-blue-500"}`}>{s.label}</p>
+                          {away ? (
+                            <p className="text-xs text-red-500 italic py-2 flex items-center gap-1"><Moon className="w-3 h-3" /> Absente — Non</p>
+                          ) : opts.length === 0 ? (
+                            <p className="text-xs text-gray-400 italic py-2">Service fermé</p>
+                          ) : (
+                            <select
+                              value={current}
+                              disabled={locked}
+                              onChange={(e) => setChoice(dateKey, s.value, e.target.value)}
+                              className={`w-full rounded-xl border-2 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 ${locked ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed" : "bg-white border-blue-200 text-blue-900 cursor-pointer"}`}
+                            >
+                              <option value="">Non</option>
+                              {selectable.map((o) => (<option key={o.id} value={o.id}>{o.label}</option>))}
+                            </select>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Inviter quelqu'un */}
+        <div className="mt-8 flex justify-center">
+          <button onClick={() => setIsInviteOpen(true)} className="flex items-center gap-2 bg-white border-2 border-blue-200 text-blue-700 rounded-2xl px-6 py-3 text-sm font-semibold shadow-sm hover:bg-blue-50 transition cursor-pointer">
+            <UserPlus className="w-4 h-4" /> Inviter quelqu&apos;un
+          </button>
+        </div>
+
+        {/* Espace intendance (admin) */}
+        {isAdmin && (
+          <div className="mt-8">
+            <button onClick={() => setAdminPanelOpen((o) => !o)} className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-5 py-3 text-sm font-bold text-blue-900 hover:bg-blue-50 transition cursor-pointer">
+              <span className="flex items-center gap-2"><Settings className="w-4 h-4" /> Espace intendance</span>
+              <ChevronDown className={`w-5 h-5 transition-transform ${adminPanelOpen ? "rotate-180" : ""}`} />
+            </button>
+            {adminPanelOpen && (
+              <div className="mt-3 grid gap-2">
+                <button onClick={() => router.push("/admin/repas-v2")} className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer">
+                  <ClipboardList className="w-4 h-4" /> Voir les inscriptions & la compta
+                </button>
+                <button onClick={() => router.push("/admin/repas-options")} className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer">
+                  <Settings className="w-4 h-4" /> Paramétrer les repas
+                </button>
+                <button onClick={() => router.push("/admin/repas")} className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 px-5 py-1 transition cursor-pointer">
+                  <ClipboardList className="w-3.5 h-3.5" /> Compta (historique — avant bascule)
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} />
+      </div>
+    </main>
+  );
 }

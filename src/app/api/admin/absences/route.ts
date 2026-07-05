@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/supabaseServer";
+import { requireAdmin } from "@/lib/apiAuth";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -15,24 +15,6 @@ function validateDates(date_debut?: string, date_fin?: string): string | null {
   if (!DATE_RE.test(date_debut) || !DATE_RE.test(date_fin)) return "Format de date invalide.";
   if (date_fin < date_debut) return "La date de fin doit être après la date de début.";
   return null;
-}
-
-// Vérifie que l'appelant est admin ; renvoie le client + null, ou null + réponse d'erreur.
-async function requireAdmin() {
-  const supabase = await createSupabaseServer();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
-    return { supabase: null, error: NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 }) };
-  }
-  const { data: adminCheck } = await supabase
-    .from("residentes")
-    .select("is_admin")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!adminCheck?.is_admin) {
-    return { supabase: null, error: NextResponse.json({ error: "Accès non autorisé" }, { status: 403 }) };
-  }
-  return { supabase, error: null };
 }
 
 // --- Absences chevauchant une période [start, end] ---

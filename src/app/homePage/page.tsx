@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
+import AdministratifButton from "../components/administratifButton";
 import Image from "next/image";
 import { Bell, ChevronLeft, ChevronRight, Home, Moon, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -15,8 +16,6 @@ import { User } from "@supabase/supabase-js";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import VisionConfirmation from "../components/VisionConfirmation";
 import ConfirmationToggle from "../components/ConfirmationToggle";
-import { Rule } from "@/types/Rule";
-import { getLatestRulesByService } from "@/lib/rulesUtils";
 
 // ============================================================
 // COMPOSANT PRINCIPAL — Accueil (page de consultation, lecture seule)
@@ -146,31 +145,21 @@ export default function HomePage() {
       if (eventsError) console.error("Erreur événements :", eventsError);
       if (eventsData) setEvents(eventsData);
 
-      // --- Résumé « ma journée » : présence foyer + repas du jour (lecture seule) ---
-      const [{ data: absData }, { data: dayPresences }, { data: defaultOpts }, { data: specialRulesData }] =
-        await Promise.all([
-          supabase.from("absences_sejour").select("id").eq("user_id", user.id).lte("date_debut", dateIso).gte("date_fin", dateIso).limit(1),
-          supabase.from("presences").select("type_repas, choix_repas, option_id").eq("user_id", user.id).eq("date_repas", dateIso),
-          supabase.from("select_options_repas").select("value, label, category").eq("is_active", true).is("parent_value", null),
-          supabase.from("special_meal_options").select("*").or(`start_date.lte.${dateIso},indefinite.eq.true`).filter("end_date", "gte", dateIso),
-        ]);
+      // --- Résumé « ma journée » : présence foyer + repas du jour (nouveau modèle, lecture seule) ---
+      const [{ data: absData }, { data: dayPresences }] = await Promise.all([
+        supabase.from("absences_sejour").select("id").eq("user_id", user.id).lte("date_debut", dateIso).gte("date_fin", dateIso).limit(1),
+        supabase.from("presences_v2").select("service, option:meal_options(label)").eq("user_id", user.id).eq("date", dateIso),
+      ]);
 
       setIsAbsent((absData?.length ?? 0) > 0);
 
-      const rules = (specialRulesData as Rule[]) || [];
-      const resolveMeal = (type: "dejeuner" | "diner"): string | null => {
-        const p = dayPresences?.find((x) => x.type_repas === type);
-        if (!p || (p.choix_repas || "").toLowerCase() === "non") return null;
-        if (p.option_id) {
-          const rule = getLatestRulesByService(rules, type) as Rule | null;
-          const opt = rule?.options?.find((o) => o.id === p.option_id);
-          if (opt) return opt.label || opt.value;
-        }
-        const def = (defaultOpts || []).find((o) => o.category === type && o.value === p.choix_repas);
-        return def?.label || p.choix_repas;
+      const optLabel = (service: "dejeuner" | "diner"): string | null => {
+        const p = dayPresences?.find((x) => x.service === service);
+        const opt = p?.option as { label?: string } | null | undefined;
+        return opt?.label ?? null;
       };
-      setDejeunerLabel(resolveMeal("dejeuner"));
-      setDinerLabel(resolveMeal("diner"));
+      setDejeunerLabel(optLabel("dejeuner"));
+      setDinerLabel(optLabel("diner"));
 
       setIsReady(true);
     };
@@ -284,8 +273,9 @@ export default function HomePage() {
     <main className="min-h-screen flex flex-col items-center bg-white px-4 pt-5 pb-8">
       <div className="w-full max-w-md">
 
-        {/* Profil / déconnexion en haut à droite */}
+        {/* Administratif / profil / déconnexion en haut à droite */}
         <div className="flex justify-end items-center gap-2 mb-3">
+          <AdministratifButton />
           <ProfileButton />
           <LogoutButton />
         </div>
@@ -322,6 +312,27 @@ export default function HomePage() {
             <Calendar className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Rappels du jour (compacts) — directement sous la date */}
+        {reminders.length > 0 && (
+          <div className="mb-4 space-y-1.5">
+            {reminders.map((evt) => {
+              if (!evt.nextReminderDate || typeof evt.joursRestants !== "number") return null;
+              return (
+                <div
+                  key={`${evt.id}-${evt.nextReminderDate.getTime()}`}
+                  className="flex items-center gap-2 text-xs bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-1.5"
+                >
+                  <Bell className="w-3.5 h-3.5 text-yellow-600 flex-shrink-0" />
+                  <span className="font-bold text-yellow-800 bg-yellow-100 rounded px-1.5 py-0.5 flex-shrink-0">
+                    J-{evt.joursRestants}
+                  </span>
+                  <span className="text-yellow-800 font-medium truncate">{evt.titre}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Carte PRÉSENCE au foyer (lecture seule) */}
         <section className="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-4">
@@ -361,30 +372,9 @@ export default function HomePage() {
           })}
         </div>
 
-        {/* Carte ÉVÉNEMENTS (rappels compacts + événements) */}
-        <section className="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-4">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-blue-800 mb-3">Événements</h3>
-
-          {/* Rappels du jour (compacts) */}
-          {reminders.length > 0 && (
-            <div className="mb-3 space-y-1.5">
-              {reminders.map((evt) => {
-                if (!evt.nextReminderDate || typeof evt.joursRestants !== "number") return null;
-                return (
-                  <div
-                    key={`${evt.id}-${evt.nextReminderDate.getTime()}`}
-                    className="flex items-center gap-2 text-xs bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-1.5"
-                  >
-                    <Bell className="w-3.5 h-3.5 text-yellow-600 flex-shrink-0" />
-                    <span className="font-bold text-yellow-800 bg-yellow-100 rounded px-1.5 py-0.5 flex-shrink-0">
-                      J-{evt.joursRestants}
-                    </span>
-                    <span className="text-yellow-800 font-medium truncate">{evt.titre}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        {/* Carte ÉVÉNEMENTS — bordure et titre à la couleur de la résidence sélectionnée */}
+        <section className={`bg-white rounded-xl shadow-md border-2 ${selectedResidenceValue === "12" ? "border-blue-400" : "border-pink-400"} p-4 mb-4`}>
+          <h3 className={`text-xs font-bold uppercase tracking-wide mb-3 ${selectedResidenceValue === "12" ? "text-blue-700" : "text-pink-700"}`}>Événements</h3>
 
           {/* Événements du jour */}
           {filteredEvents.length === 0 ? (

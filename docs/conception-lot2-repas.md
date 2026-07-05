@@ -1,176 +1,149 @@
 # Conception — Lot 2 : refonte des repas & comptabilité
 
-> **Document de travail à challenger** (pas une spec figée). Objectif : verrouiller le modèle **avant** d'écrire du code, car ce lot touche la **comptabilité** (zéro bug toléré).
-> Statut : 🟡 proposition · Version 0.1 — 2026-06-29.
-> Les points notés **🟣 À VALIDER CLIENT** doivent être tranchés en réunion ; les **❓ Questions ouvertes** sont des arbitrages techniques/produit.
+> **Document de travail** — on fige le modèle **avant** de coder (ce lot touche la comptabilité : zéro bug toléré).
+> Statut : 🟢 v0.3 — 2026-07-04. **Schéma figé** (tous les arbitrages tranchés). Prêt à coder.
+> **🟣 À VALIDER CLIENT** = à trancher en réunion ; **❓ Question ouverte** = arbitrage restant.
 
 ---
 
 ## 1. Pourquoi ce lot
 
-Le système actuel a trois faiblesses structurelles :
-- **Deux modèles en parallèle** : options par défaut (`select_options_repas`) **+** règles spéciales à plages de dates (`special_meal_options`) qui se chevauchent et se résolvent « la plus récente gagne » (`R-OPT-08`, la règle la plus fragile).
-- **Valeurs en dur** : le pique-nique est reconnu par les chaînes `pn_chaud`/`pn_froid`, le plateau par `plateau`. Tout repose sur du texte (`R-LOCK-05/06`, `R-COMPTA-03`).
-- **Encodage fragile** : `special:residence:label` dans `choix_repas` casse si un label contient `:` ; et un vestige `choix === "1"` supprime l'inscription (risque sur l'option d'`id` 1).
-
-**Objectif** : un modèle **unique, explicite et fiable**, où l'intendance compose les menus jour par jour facilement, et où la compta découle proprement des données.
+Le système actuel a trois faiblesses :
+- **Deux modèles en parallèle** : options par défaut (`select_options_repas`) **+** règles spéciales à plages (`special_meal_options`) qui se chevauchent et se résolvent « la plus récente gagne » (`R-OPT-08`, la règle la plus fragile).
+- **Valeurs en dur** : `plateau`, `pn_chaud`/`pn_froid`, `12`/`36` reconnues par leur texte (`R-LOCK-05/06`, `R-COMPTA-03/04`).
+- **Encodage fragile** : `special:residence:label` dans `choix_repas` (casse si le label contient `:`) ; vestige `choix === "1"` qui supprime l'inscription.
 
 ---
 
-## 2. Principe directeur
+## 2. Principe directeur (révisé)
 
-> **Un menu = la liste des choix proposés pour un (jour, service, résidence).**
-> L'intendance compose les menus ; la résidente choisit **dans** le menu ; la compta agrège les choix. Plus de « défauts vs spéciaux » : **un seul concept de menu**.
+> L'intendance ne compose **pas** de menus détaillés. Elle définit, **par (jour, service)**, la **liste des options** proposées — ex. **« Oui au 12 »**, **« Oui au 36 »**, **« Apéro dînatoire »**. 
+> **Les mêmes options sont proposées à toutes les résidentes** (sauf options réservées à l'intendance). La résidente choisit **une** option (ou « Non ») ; la comptabilité agrège par option.
 
-🟣 **À VALIDER CLIENT** — « plus de défauts » ne veut pas dire « tout retaper chaque jour ». On prévoit **modèles + duplication + application sur une plage** pour que ce soit utilisable (voir §5). À confirmer que c'est bien l'attente.
+Conséquences directes des arbitrages :
+- **Pas de dimension « résidence » sur la liste d'options** : une seule liste par (jour, service).
+- **Plus de types en dur** : « plateau » et « pique-nique » ne sont plus des concepts spéciaux — juste des options si l'intendance en crée.
+- **Zéro automatisation subie** : si aucune option n'est saisie pour un (jour, service), **ce service est fermé** ce jour-là (rien à saisir, tout le monde compte « Non »).
 
 ---
 
 ## 3. Modèle de données proposé
 
 ### 3.1 Catalogue d'options réutilisables — `meal_options`
-Une option = un choix possible, réutilisable d'un menu à l'autre.
-
 | Colonne | Type | Rôle |
 |---|---|---|
 | `id` | uuid | — |
-| `label` | text | ex. « Repas classique », « Plateau », « Pique-nique chaud », « Apéro dînatoire » |
-| `type` | enum | **`normal` · `plateau` · `pique_nique`** (le type pilote la logique métier) |
-| `is_active` | bool | option encore proposable |
+| `label` | text | ce que voit la résidente (ex. « Oui au 12 », « Apéro dînatoire ») |
+| `residence` | text (**non null**) | rattachement **pour la compta** : « 12 », « 36 », ou « **personne** » (= résidence de l'inscrite qui choisit l'option, ex. pique-nique) |
+| `delai_commande` | int (défaut 0) | nombre de **jours avant** la consommation où l'option doit être commandée (ex. pique-nique = 1) ; 0 = jour même |
 | `admin_only` | bool | réservée à l'intendance |
+| `is_active` | bool | encore proposable |
 
-> Le type **remplace les valeurs en dur**. Fini `pn_chaud` reconnu par son texte : une option « Pique-nique froid » a `type = pique_nique`, point.
-> **« Non »** (ne mange pas) n'est **pas** une option du catalogue : c'est l'**absence d'inscription** (voir §3.3).
+> Fini `type` (plateau/pique-nique) et les valeurs en dur : une option est **juste un libellé + une résidence de compta + un éventuel délai de commande**.
 
-### 3.2 Le menu du jour — `menus` + `menu_options`
-`menus` : un menu par **(date, service, résidence)**.
+### 3.2 Options ouvertes par service — `meal_service_options`
+La liste des options proposées un jour, pour un service (**identique pour toutes les résidentes**).
 
 | Colonne | Type |
 |---|---|
 | `id` | uuid |
 | `date` | date |
 | `service` | enum `dejeuner` \| `diner` |
-| `residence` | text (`12` / `36`) |
-| `updated_at` | timestamptz |
-
-Contrainte d'unicité : `(date, service, residence)`.
-
-`menu_options` : les options proposées dans ce menu (relation N-N).
-
-| Colonne | Type |
-|---|---|
-| `menu_id` | uuid (fk `menus`) |
 | `option_id` | uuid (fk `meal_options`) |
 | `position` | int (ordre d'affichage) |
 
-> Avantage : **plus de chevauchement, plus de “latest wins”**. Pour un jour/service/résidence donné, il y a **un** menu, déterministe.
+Unicité : `(date, service, option_id)`. **Aucune ligne pour un (date, service) ⇒ service fermé.**
 
-### 3.3 Les inscriptions — `presences` (refonte)
-On référence l'**option par son id** (stable), plus de chaîne `choix_repas`.
-
+### 3.3 Inscriptions — `presences` (refonte)
 | Colonne | Type | Rôle |
 |---|---|---|
 | `user_id` | uuid | qui |
 | `date` | date | — |
 | `service` | enum | dejeuner / diner |
 | `option_id` | uuid (fk `meal_options`) | le choix |
-| `commentaire` | text | optionnel |
+| `commentaire` | text \| null | optionnel |
 
-**Convention « Non »** : ❓ **Question ouverte** — soit *absence de ligne* = « Non » (simple, mais on perd la trace d'un « Non » explicite), soit une ligne avec `option_id = null` = « Non assumé ». Je penche pour **absence de ligne = Non** (comportement actuel), plus léger.
+**« Non »** = **absence de ligne** (par défaut, on ne mange pas). On référence l'**option par id** (fini les chaînes fragiles).
 
-### 3.4 Couplage absences → repas (réalise `R-FOYER-09`)
-On complète `absences_sejour` avec le **détail des jours-frontières** :
-
-| Colonne ajoutée | Type | Défaut |
-|---|---|---|
-| `depart_dejeuner` | bool | true |
-| `depart_diner` | bool | false |
-| `retour_dejeuner` | bool | false |
-| `retour_diner` | bool | true |
-
-Règle : pendant un séjour `[début..fin]`, **les jours intérieurs `[début+1 .. fin-1]` = « Non » aux deux services** ; les jours **début** et **fin** suivent les cases ci-dessus.
-
-❓ **Question ouverte (archi)** : ces « Non » d'absence, on les **déduit** (la compta lit `absences_sejour`) ou on les **matérialise** dans `presences` ? On avait acté **déduire** (absence = source de vérité, pas de doublon, pas d'écrasement du choix d'origine). Je confirme cette voie ; conséquence : la **compta** et l'**écran d'inscription** doivent intégrer la déduction (un jour d'absence s'affiche « Non — absente », verrouillé).
+### 3.4 Couplage absences → repas (`R-FOYER-09`)
+On complète `absences_sejour` avec le détail des jours-frontières : `depart_dejeuner`, `depart_diner`, `retour_dejeuner`, `retour_diner` (bool). Les jours **intérieurs** d'un séjour = « Non » aux deux services ; les jours **début/fin** suivent ces cases. Les « Non » d'absence sont **déduits** (l'absence reste la source de vérité), pas dupliqués.
 
 ---
 
-## 4. Règles métier qui changent
+## 4. Comptabilité & rattachement résidence
 
-| Règle | Avant | Après |
-|---|---|---|
-| `R-OPT-08` (latest wins) | conflits de règles spéciales | **supprimée** — un seul menu par jour/service/résidence |
-| `R-LOCK-05/06` (pique-nique) | détecté par `pn_*` | détecté par `type = pique_nique` |
-| `R-COMPTA-03` (P.N. la veille) | idem | inchangé sur le fond, basé sur le **type** |
-| `R-COMPTA-04` (rattachement résidence) | plateau → résidence de la personne | inchangé, basé sur le **type** |
-| `R-FOYER-09` (absence → repas) | reporté | **implémenté** (déduction, jours-frontières) |
+Pour une période, par **(jour, résidence, service)** : nombre d'inscriptions **par option** (le libellé parle : « Oui au 12 », « Apéro dînatoire »…), total jour, total période par résidence, grand total. Absences déduites en « Non ». Invités inclus (`R-COMPTA-06`).
 
-🟣 **À VALIDER CLIENT** : avec un menu par résidence, **plateau** garde-t-il le sens « rattaché à la résidence de la personne » (`R-COMPTA-04`) ou devient-il une option du menu de la résidence ?
+**Rattachement d'une inscription à une résidence** : donné par la `residence` de l'option choisie — **« 12 » / « 36 »** (fixe) ou **« personne »** → la **résidence de l'inscrite** (résolue via `presences_v2.user_id → residentes.residence`).
 
 ---
 
-## 5. Composition des menus (l'ergonomie, sinon inutilisable)
+## 5. Saisie des options par l'intendance (efficace, mais jamais automatique)
 
-L'écran d'intendance doit offrir :
-- **Éditer un menu** (date, service, résidence) : cocher les options du catalogue.
-- **Dupliquer** un menu vers d'autres jours / une plage de dates / l'autre résidence.
-- **Modèles** (`menu_templates`) : un jeu d'options nommé (« Semaine type », « Dimanche »), applicable sur une plage.
-- **Saisie en masse** : appliquer un modèle sur `[date début → date fin]` × résidences en une fois.
+L'intendance ne saisira pas chaque jour à la main → il faut des outils de **saisie en masse**, mais **toujours déclenchés par un·e admin** (jamais de valeur par défaut appliquée toute seule) :
+- **Éditer** les options d'un (jour, service) : cocher des options du catalogue.
+- **Dupliquer** les options d'un jour vers d'autres jours / une **plage de dates**.
+- **Modèles** réutilisables (« Semaine type ») **appliqués à la demande** sur une plage.
 
-🟣 **À VALIDER CLIENT** — **menu par défaut / récurrent** : que se passe-t-il pour un jour **sans menu défini** ? Trois options :
-1. **Pas de menu = pas d'inscription possible** (l'intendance doit tout définir — risqué).
-2. **Menu récurrent par défaut** (ex. « Semaine type ») appliqué automatiquement tant qu'aucun menu spécifique n'existe — *recommandé* (contrôle + zéro saisie quotidienne).
-3. Un menu « classique » minimal en dur.
-
-> C'est **la** décision la plus structurante du lot. Ma reco : **option 2**.
+> ⚠️ Différence clé avec la v0.1 : **pas de « menu par défaut récurrent »**. Un jour non préparé reste fermé tant que l'intendance ne l'a pas ouvert. (Décision Loan : garder la main.)
 
 ---
 
-## 6. Modification d'un menu déjà choisi (réinitialisation)
+## 6. Modification d'une option déjà choisie
 
-Quand l'intendance retire/modifie une option d'un menu sur lequel des résidentes se sont déjà inscrites :
-
-🟣 **À VALIDER CLIENT** — politique parmi :
-- **A.** Menu **verrouillé** dès qu'il y a des inscriptions (pas de modif).
-- **B.** Modif autorisée → les choix devenus **invalides repassent à « Non »** + notification aux concernées — *recommandé* (souple, traçable).
-- **C.** On conserve les choix historiques même si l'option disparaît (risque d'incohérence compta).
+Décision : **option B**. Si l'intendance retire une option d'un (jour, service) déjà choisie par des résidentes, les inscriptions devenues **invalides repassent à « Non »**.
+Notification aux concernées : **à étudier plus tard** — probablement via un **système de notifications centralisé** (façon fil de notifs Facebook/LinkedIn), hors périmètre immédiat.
 
 ---
 
-## 7. Comptabilité (refonte)
+## 7. Règles impactées
 
-Pour une période, par **(jour, résidence, service)** : agrégats par **type d'option** (normal / plateau / pique-nique) + détail des options nommées, **total jour**, **total période par résidence**, **grand total**. Règles conservées : pique-nique compté **la veille** (`R-COMPTA-03`), plateau rattaché à la résidence de la personne (`R-COMPTA-04`), invités inclus (`R-COMPTA-06`), absences déduites en « Non ».
-
-Au passage : suppression du vestige `choix === "1"` et de l'encodage `special:residence:label`.
+| Règle | Sort |
+|---|---|
+| `R-OPT-08` (latest wins) | **supprimée** — une seule liste d'options par (jour, service) |
+| `R-COMPTA-04` (rattachement plateau) | **remplacée** — rattachement via `residence` de l'option (§4) |
+| `R-LOCK-05/06` (pique-nique « la veille ») | **généralisées** via `delai_commande` : une option se verrouille `delai_commande` jour(s) avant la consommation (pique-nique = 1). Plus de valeur en dur. |
+| `R-COMPTA-03` (compté la veille) | **simplifiée** : compté le **jour de consommation** ; une vue « à préparer » pourra lister les options à `delai_commande > 0` du lendemain (optionnel, plus tard). |
+| `R-LOCK` verrouillage horaire du jour (`verrouillage_repas`) | **conservé** (borne « jour même ») |
+| `R-FOYER-09` (absence → repas) | **implémenté** (déduction, jours-frontières) |
 
 ---
 
-## 8. Migration (one-shot)
+## 8. Migration (one-shot, au déploiement)
 
-À faire le jour du déploiement :
-1. Créer le **catalogue** `meal_options` à partir des `select_options_repas` + options des `special_meal_options` (dédoublonnées), en leur affectant un **type**.
-2. Générer les **menus** : ❓ soit on part « page blanche » à partir d'une date de bascule (l'intendance compose), soit on reconstitue les menus passés depuis l'historique (lourd). Reco : **bascule à une date** (pas de réécriture du passé), la compta passée reste lisible via l'ancien format en lecture seule si besoin.
+1. Créer le **catalogue** `meal_options` à partir de l'existant (`select_options_repas` + libellés des `special_meal_options`), en posant la `residence` quand c'est pertinent (« Oui au 12 » → 12).
+2. **Bascule à une date** : on n'ouvre les services que **à partir d'une date de départ** (l'intendance saisit) ; on ne reconstitue pas le passé (la compta passée reste lisible via l'ancien format en lecture seule si besoin).
 3. Migrer `presences` vers le référencement par `option_id`.
 
 ---
 
 ## 9. Découpage de mise en œuvre (après validation)
 
-1. **S1** : figer ce doc (modèle, types, règles §5/§6). ← on est ici
-2. **S2–S3** : schéma BDD + catalogue + éditeur de menus + duplication/modèles + migration.
-3. **S3–S4** : écran de sélection résidente branché sur le nouveau modèle.
+1. **S1** : figer ce doc (§11). ← on y est
+2. **S2–S3** : schéma BDD + éditeur d'options (avec duplication / plage / modèles) + migration.
+3. **S3–S4** : écran de sélection résidente branché sur le nouveau modèle (service fermé si aucune option).
 4. **S4–S5** : refonte compta + déduction des absences + réinit des choix invalides.
 5. **S5–S6** : tests sur jeu de données + session de test client.
 
 ---
 
-## 10. Récap des décisions à trancher
+## 10. Décisions déjà tranchées (par Loan)
 
-| # | Décision | Type | Reco |
-|---|---|---|---|
-| 1 | Modèle « un menu par jour/service/résidence » | 🟣 client | oui |
-| 2 | Menu par défaut récurrent pour les jours non définis (§5) | 🟣 client | option 2 |
-| 3 | Politique de modif d'un menu déjà choisi (§6) | 🟣 client | option B |
-| 4 | Sens de « plateau » avec menus par résidence (§4) | 🟣 client | rattaché à la personne |
-| 5 | Absences : déduire vs matérialiser (§3.4) | ❓ archi | déduire |
-| 6 | « Non » : absence de ligne vs ligne explicite (§3.3) | ❓ archi | absence de ligne |
-| 7 | Migration : bascule à une date vs reconstituer le passé (§8) | ❓ archi | bascule |
+| Sujet | Décision |
+|---|---|
+| Options, pas menus | ✅ oui — l'intendance saisit des **options** simples |
+| Liste par résidence ? | ✅ **non** — mêmes options pour toutes (hors admin) |
+| Types plateau / pique-nique en dur | ✅ **supprimés** — de simples options si besoin |
+| Jour sans option | ✅ **service fermé** (aucun défaut auto) |
+| Modif d'un choix existant | ✅ **option B** (repasse à « Non ») ; notif centralisée plus tard |
+| Résidence de l'option | ✅ imposée à chaque option : **12 / 36 / « personne »** (= résidence de l'inscrite, ex. pique-nique) |
+| Pique-nique « la veille » | ✅ **conservé mais généralisé** via `delai_commande` (jours avant) sur l'option |
+
+---
+
+## 11. Schéma figé — points mineurs restants (non bloquants)
+
+Le modèle est **prêt à coder**. Restent, pour plus tard :
+- Une valeur `residence = "toutes"` si une option doit compter dans les deux résidences (v2, à la demande).
+- La **vue « à préparer »** (options à `delai_commande > 0` du lendemain) dans la compta — optionnelle.
+- Le **système de notifications centralisé** (choix invalides, etc.) — hors périmètre Lot 2.
