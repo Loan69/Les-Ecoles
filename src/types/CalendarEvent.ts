@@ -9,9 +9,10 @@ export interface CalendarEvent {
   heures?: string;
   lieu?: string[];
   visibilite?: {
-    residence: string[];
-    etage: string[];
-    chambre: string[];
+    residence: string[]; // résidences entières
+    etage: string[]; // étages précis (une résidence n'y figure pas si elle est déjà "entière")
+    chambre?: string[]; // hérité (anciens événements)
+    exclusions?: string[]; // user_ids explicitement décochés (ciblage dynamique)
   };
   visible_invites?: boolean;
   demander_confirmation?: boolean;
