@@ -2,17 +2,20 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Save, CheckCircle, AlertCircle, Loader2, ChevronDown, UserPlus, ClipboardList, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, CheckCircle, AlertCircle, Loader2, ChevronDown, UserPlus, ClipboardList, Settings, FlaskConical } from "lucide-react";
 import { useRouter } from "next/navigation";
 import InviteModal from "../components/inviteModal";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
+import AdministratifButton from "../components/administratifButton";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import { Rule } from "@/types/Rule";
 import { getLatestRulesByService } from "@/lib/rulesUtils";
 import { computeLockState } from "@/lib/lockUtils";
+import { CalendarEvent } from "@/types/CalendarEvent";
+import { eventVisibleFor } from "@/lib/eventVisibility";
 
 // ============================================================
 // TYPES
@@ -141,6 +144,8 @@ export default function SemaineRepas() {
     const [user, setUser] = useState<User | null>(null);
     const [settings, setSettings] = useState<Record<string, string>>({});
     const [isAdmin, setIsAdmin] = useState(false);
+    const [profil, setProfil] = useState<{ residence?: string; etage?: string; chambre?: string; is_admin?: boolean } | null>(null);
+    const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>([]);
 
     // ✅ Initialisation depuis localStorage (currentDate partagée avec la homepage)
     const [currentMonday, setCurrentMonday] = useState<Date>(() => {
@@ -181,12 +186,13 @@ export default function SemaineRepas() {
         const { data } = await supabase.auth.getUser();
         setUser(data.user);
         if (data.user) {
-            const { data: profil } = await supabase
+            const { data: profilData } = await supabase
             .from("residentes")
-            .select("is_admin")
+            .select("is_admin, residence, etage, chambre")
             .eq("user_id", data.user.id)
             .maybeSingle();
-            setIsAdmin(profil?.is_admin || false);
+            setIsAdmin(profilData?.is_admin || false);
+            setProfil(profilData ? { residence: profilData.residence, etage: profilData.etage, chambre: profilData.chambre, is_admin: profilData.is_admin } : null);
         }
         setAuthReady(true);
         };
@@ -204,6 +210,17 @@ export default function SemaineRepas() {
         };
         fetchSettings();
     }, [supabase]);
+
+    // Événements de la semaine (pour les afficher sous chaque jour)
+    useEffect(() => {
+        const loadEvents = async () => {
+        if (weekDays.length === 0) return;
+        const dayKeys = weekDays.map((d) => formatDateKeyLocal(d));
+        const { data } = await supabase.from("evenements").select("*").overlaps("dates_event", dayKeys);
+        setWeekEvents(data || []);
+        };
+        loadEvents();
+    }, [weekDays, supabase]);
 
     // À chaque changement de semaine, on masque le contenu le temps de tout recharger
     useEffect(() => {
@@ -490,6 +507,17 @@ export default function SemaineRepas() {
     const refMonday = getMondayOfWeek(storedDate ? parseDateKeyLocal(storedDate) : new Date());
     const isRefWeek = formatDateKeyLocal(currentMonday) === formatDateKeyLocal(refMonday);
 
+    // Événements visibles pour cette résidente, par jour
+    const eventViewer = {
+        residence: profil?.residence,
+        etage: profil?.etage,
+        chambre: profil?.chambre,
+        user_id: user?.id,
+        is_admin: profil?.is_admin,
+    };
+    const eventsForDay = (dateStr: string) =>
+        weekEvents.filter((e) => e.dates_event?.includes(dateStr) && eventVisibleFor(e, eventViewer));
+
     // ============================================================
     // RENDU
     // ============================================================
@@ -499,6 +527,7 @@ export default function SemaineRepas() {
         <div className="max-w-2xl mx-auto">
 
             <div className="flex justify-end items-center gap-2 mb-2">
+              <AdministratifButton />
               <ProfileButton />
               <LogoutButton />
             </div>
@@ -595,6 +624,18 @@ export default function SemaineRepas() {
                         )}
                         </div>
                     </div>
+
+                    {/* Événement(s) du jour */}
+                    {eventsForDay(dateStr).length > 0 && (
+                        <div className="px-4 pt-2 space-y-1">
+                        {eventsForDay(dateStr).map((e) => (
+                            <div key={e.id} className={`text-xs rounded-md px-2 py-1 border ${e.couleur || "border-gray-200 bg-gray-50"}`}>
+                            <span className="font-medium text-gray-800">📌 {e.titre}</span>
+                            {e.heures && <span className="text-gray-500"> · {e.heures}</span>}
+                            </div>
+                        ))}
+                        </div>
+                    )}
 
                     {/* Sélects */}
                     <div className="px-4 py-3 grid grid-cols-2 gap-3">
@@ -720,6 +761,18 @@ export default function SemaineRepas() {
                     className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer"
                     >
                     <Settings className="w-4 h-4" /> Paramétrer les repas
+                    </button>
+                    <button
+                    onClick={() => router.push("/admin/repas-options")}
+                    className="flex items-center gap-2 bg-white border border-purple-100 rounded-xl px-5 py-3 text-sm font-medium text-purple-800 hover:bg-purple-50 transition cursor-pointer"
+                    >
+                    <FlaskConical className="w-4 h-4" /> Options repas (nouveau — test)
+                    </button>
+                    <button
+                    onClick={() => router.push("/repas-v2")}
+                    className="flex items-center gap-2 bg-white border border-purple-100 rounded-xl px-5 py-3 text-sm font-medium text-purple-800 hover:bg-purple-50 transition cursor-pointer"
+                    >
+                    <FlaskConical className="w-4 h-4" /> Sélection repas résidente (nouveau — test)
                     </button>
                 </motion.div>
                 )}
