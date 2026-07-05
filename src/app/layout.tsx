@@ -8,6 +8,7 @@ export const metadata = {
   description: 'Espace des résidentes et invitées du Foyer des Écoles',
   icons: {
     icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
   },
   manifest: '/manifest.json',
 }
