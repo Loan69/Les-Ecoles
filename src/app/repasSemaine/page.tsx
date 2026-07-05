@@ -774,6 +774,12 @@ export default function SemaineRepas() {
                     >
                     <FlaskConical className="w-4 h-4" /> Sélection repas résidente (nouveau — test)
                     </button>
+                    <button
+                    onClick={() => router.push("/admin/repas-v2")}
+                    className="flex items-center gap-2 bg-white border border-purple-100 rounded-xl px-5 py-3 text-sm font-medium text-purple-800 hover:bg-purple-50 transition cursor-pointer"
+                    >
+                    <FlaskConical className="w-4 h-4" /> Compta repas (nouveau — test)
+                    </button>
                 </motion.div>
                 )}
             </div>
