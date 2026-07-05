@@ -16,8 +16,6 @@ import { User } from "@supabase/supabase-js";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import VisionConfirmation from "../components/VisionConfirmation";
 import ConfirmationToggle from "../components/ConfirmationToggle";
-import { Rule } from "@/types/Rule";
-import { getLatestRulesByService } from "@/lib/rulesUtils";
 
 // ============================================================
 // COMPOSANT PRINCIPAL — Accueil (page de consultation, lecture seule)
@@ -147,31 +145,21 @@ export default function HomePage() {
       if (eventsError) console.error("Erreur événements :", eventsError);
       if (eventsData) setEvents(eventsData);
 
-      // --- Résumé « ma journée » : présence foyer + repas du jour (lecture seule) ---
-      const [{ data: absData }, { data: dayPresences }, { data: defaultOpts }, { data: specialRulesData }] =
-        await Promise.all([
-          supabase.from("absences_sejour").select("id").eq("user_id", user.id).lte("date_debut", dateIso).gte("date_fin", dateIso).limit(1),
-          supabase.from("presences").select("type_repas, choix_repas, option_id").eq("user_id", user.id).eq("date_repas", dateIso),
-          supabase.from("select_options_repas").select("value, label, category").eq("is_active", true).is("parent_value", null),
-          supabase.from("special_meal_options").select("*").or(`start_date.lte.${dateIso},indefinite.eq.true`).filter("end_date", "gte", dateIso),
-        ]);
+      // --- Résumé « ma journée » : présence foyer + repas du jour (nouveau modèle, lecture seule) ---
+      const [{ data: absData }, { data: dayPresences }] = await Promise.all([
+        supabase.from("absences_sejour").select("id").eq("user_id", user.id).lte("date_debut", dateIso).gte("date_fin", dateIso).limit(1),
+        supabase.from("presences_v2").select("service, option:meal_options(label)").eq("user_id", user.id).eq("date", dateIso),
+      ]);
 
       setIsAbsent((absData?.length ?? 0) > 0);
 
-      const rules = (specialRulesData as Rule[]) || [];
-      const resolveMeal = (type: "dejeuner" | "diner"): string | null => {
-        const p = dayPresences?.find((x) => x.type_repas === type);
-        if (!p || (p.choix_repas || "").toLowerCase() === "non") return null;
-        if (p.option_id) {
-          const rule = getLatestRulesByService(rules, type) as Rule | null;
-          const opt = rule?.options?.find((o) => o.id === p.option_id);
-          if (opt) return opt.label || opt.value;
-        }
-        const def = (defaultOpts || []).find((o) => o.category === type && o.value === p.choix_repas);
-        return def?.label || p.choix_repas;
+      const optLabel = (service: "dejeuner" | "diner"): string | null => {
+        const p = dayPresences?.find((x) => x.service === service);
+        const opt = p?.option as { label?: string } | null | undefined;
+        return opt?.label ?? null;
       };
-      setDejeunerLabel(resolveMeal("dejeuner"));
-      setDinerLabel(resolveMeal("diner"));
+      setDejeunerLabel(optLabel("dejeuner"));
+      setDinerLabel(optLabel("diner"));
 
       setIsReady(true);
     };
