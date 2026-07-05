@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabaseServer";
 import { requireAdmin } from "@/lib/apiAuth";
 
-// --- Lecture : toutes les sections, pour toute utilisatrice connectée ---
+// --- Lecture : sections visibles pour l'utilisatrice connectée ---
+// Les rubriques admin_only ne sont transmises qu'aux administratrices.
 export async function GET() {
   const supabase = await createSupabaseServer();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -10,11 +11,20 @@ export async function GET() {
     return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
   }
 
-  const { data, error } = await supabase
+  const { data: profil } = await supabase
+    .from("residentes")
+    .select("is_admin")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const isAdmin = profil?.is_admin ?? false;
+
+  let query = supabase
     .from("admin_sections")
     .select("*")
     .order("position", { ascending: true });
+  if (!isAdmin) query = query.eq("admin_only", false);
 
+  const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ sections: data ?? [] });
 }
@@ -25,7 +35,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { title, type } = body as { title?: string; type?: string };
+  const { title, type, admin_only } = body as { title?: string; type?: string; admin_only?: boolean };
   if (!title || !title.trim()) return NextResponse.json({ error: "Titre requis." }, { status: 400 });
   if (type !== "richtext" && type !== "contacts") return NextResponse.json({ error: "Type invalide." }, { status: 400 });
 
@@ -41,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error: dbError } = await supabase
     .from("admin_sections")
-    .insert({ title: title.trim(), type, position: nextPos, content })
+    .insert({ title: title.trim(), type, position: nextPos, content, admin_only: !!admin_only })
     .select()
     .single();
 
@@ -55,7 +65,7 @@ export async function PUT(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { id, title, content } = body as { id?: string; title?: string; content?: unknown };
+  const { id, title, content, admin_only } = body as { id?: string; title?: string; content?: unknown; admin_only?: boolean };
   if (!id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -64,6 +74,7 @@ export async function PUT(req: NextRequest) {
     update.title = title.trim();
   }
   if (content !== undefined) update.content = content;
+  if (admin_only !== undefined) update.admin_only = !!admin_only;
 
   const { error: dbError } = await supabase.from("admin_sections").update(update).eq("id", id);
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });

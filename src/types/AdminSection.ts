@@ -14,5 +14,6 @@ export interface AdminSection {
   type: AdminSectionType;
   position: number;
   content: unknown;
+  admin_only: boolean; // rubrique réservée aux administratrices (non transmise aux résidentes)
   updated_at?: string;
 }

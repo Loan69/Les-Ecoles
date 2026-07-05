@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Pencil, Check, Plus, Trash2, ChevronUp, ChevronDown, Phone, Mail, Save } from "lucide-react";
+import { Pencil, Check, Plus, Trash2, ChevronUp, ChevronDown, Phone, Mail, Save, Lock } from "lucide-react";
 import type { JSONContent } from "@tiptap/react";
 import { useSupabase } from "../providers";
 import { AdminSection, Contact } from "@/types/AdminSection";
@@ -24,7 +24,14 @@ function getContacts(section: AdminSection): Contact[] {
 function SectionView({ section }: { section: AdminSection }) {
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-      <h2 className="text-lg font-bold text-blue-800 mb-3">{section.title}</h2>
+      <div className="flex items-center gap-2 mb-3">
+        <h2 className="text-lg font-bold text-blue-800">{section.title}</h2>
+        {section.admin_only && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+            <Lock className="w-3 h-3" /> Admins
+          </span>
+        )}
+      </div>
       {section.type === "contacts" ? (
         <ContactsView contacts={getContacts(section)} />
       ) : (
@@ -82,6 +89,7 @@ function SectionEditCard({
     section.type === "richtext" ? (section.content as JSONContent) : null
   );
   const [contacts, setContacts] = useState<Contact[]>(section.type === "contacts" ? getContacts(section) : []);
+  const [adminOnly, setAdminOnly] = useState(section.admin_only);
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -94,7 +102,7 @@ function SectionEditCard({
     const res = await fetch("/api/admin-sections", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: section.id, title, content }),
+      body: JSON.stringify({ id: section.id, title, content, admin_only: adminOnly }),
     });
     const j = await res.json();
     setSaving(false);
@@ -148,7 +156,18 @@ function SectionEditCard({
         <RichTextEditor value={richContent} onChange={setRichContent} />
       )}
 
-      <div className="flex justify-end mt-3">
+      <div className="flex items-center justify-between mt-3 gap-2">
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={adminOnly}
+            onChange={(e) => setAdminOnly(e.target.checked)}
+            className="w-4 h-4 accent-amber-600 cursor-pointer"
+          />
+          <span className="inline-flex items-center gap-1">
+            <Lock className="w-3.5 h-3.5 text-amber-600" /> Réservé aux administratrices
+          </span>
+        </label>
         <button onClick={save} disabled={saving} className="flex items-center gap-1 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-800 disabled:opacity-50 cursor-pointer">
           <Save className="w-4 h-4" /> {saving ? "Enregistrement…" : "Enregistrer"}
         </button>
@@ -196,6 +215,7 @@ export default function AdministratifPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newType, setNewType] = useState<"richtext" | "contacts">("richtext");
+  const [newAdminOnly, setNewAdminOnly] = useState(false);
 
   const fetchSections = useCallback(async () => {
     const res = await fetch("/api/admin-sections");
@@ -239,7 +259,7 @@ export default function AdministratifPage() {
     const res = await fetch("/api/admin-sections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTitle.trim(), type: newType }),
+      body: JSON.stringify({ title: newTitle.trim(), type: newType, admin_only: newAdminOnly }),
     });
     const j = await res.json();
     if (!res.ok) return toast.error(j.error || "Erreur.");
@@ -247,6 +267,7 @@ export default function AdministratifPage() {
     setAddOpen(false);
     setNewTitle("");
     setNewType("richtext");
+    setNewAdminOnly(false);
     await fetchSections();
   };
 
@@ -328,6 +349,12 @@ export default function AdministratifPage() {
                     <option value="contacts">Contacts</option>
                   </select>
                 </div>
+                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+                  <input type="checkbox" checked={newAdminOnly} onChange={(e) => setNewAdminOnly(e.target.checked)} className="w-4 h-4 accent-amber-600 cursor-pointer" />
+                  <span className="inline-flex items-center gap-1">
+                    <Lock className="w-3.5 h-3.5 text-amber-600" /> Réservé aux administratrices
+                  </span>
+                </label>
               </div>
               <div className="flex justify-end gap-2 mt-6">
                 <button onClick={() => setAddOpen(false)} className="px-4 py-2 rounded-lg border border-gray-400 text-gray-600 hover:bg-gray-100 cursor-pointer">Annuler</button>
