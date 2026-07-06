@@ -126,7 +126,7 @@ export default function AdminRepasV2Page() {
       residences.forEach((r) => (res[r.value] = { dejeuner: [], diner: [] }));
       presences.forEach((p) => {
         if (p.date !== dateKey) return;
-        if (isAwayForMeal(absences, p.user_id, p.date, p.service as Service)) return;
+        if (isAwayForMeal(absences, p.user_id, p.date)) return;
         const person = peopleById.get(p.user_id);
         const residence = comptaResidence(p);
         if (!person || !residence || !res[residence]) return;
@@ -149,7 +149,7 @@ export default function AdminRepasV2Page() {
       let dej = 0, din = 0;
       daysInRange.forEach((date) => {
         (["dejeuner", "diner"] as Service[]).forEach((service) => {
-          if (isAwayForMeal(absences, person.id, date, service)) return;
+          if (isAwayForMeal(absences, person.id, date)) return;
           const pres = presences.find((x) => x.user_id === person.id && x.date === date && x.service === service);
           if (pres) { if (service === "dejeuner") dej++; else din++; }
         });
@@ -339,14 +339,14 @@ export default function AdminRepasV2Page() {
               <button onClick={() => setTableOpen(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">✕</button>
             </div>
             <p className="text-xs text-gray-500 mb-3">
-              Repas choisi · <span className="text-red-600 font-semibold">Non</span> = ne mange pas · <span className="text-orange-500 font-semibold">Absente</span> = absence déduite
+              Repas choisi · <span className="text-red-600 font-semibold">Non</span> = ne mange pas · <span className="inline-flex items-center text-orange-500 align-middle"><MoonIcon className="w-3 h-3" /></span> = absente (absence déduite)
             </p>
             <DetailTable
               people={people}
               columns={tableColumns}
               renderCell={(p, key) => {
                 const [date, service] = key.split("|");
-                if (isAwayForMeal(absences, p.id, date, service as Service)) {
+                if (isAwayForMeal(absences, p.id, date)) {
                   return <span className="text-orange-500 flex items-center justify-center gap-0.5"><MoonIcon className="w-3 h-3" /></span>;
                 }
                 const pres = presences.find((x) => x.user_id === p.id && x.date === date && x.service === service);

@@ -249,7 +249,7 @@ export default function SemaineRepas() {
                       const opts = openOptions(dateKey, s.value);
                       const current = selectionFor(dateKey, s.value);
                       const selectable = opts.filter((o) => orderable(dateKey, o) || o.id === current);
-                      const away = isAwayForMeal(absences, user?.id ?? "", dateKey, s.value);
+                      const away = isAwayForMeal(absences, user?.id ?? "", dateKey);
                       return (
                         <div key={s.value}>
                           <p className={`text-[10px] font-bold uppercase mb-1 tracking-wide ${s.value === "dejeuner" ? "text-orange-500" : "text-blue-500"}`}>{s.label}</p>

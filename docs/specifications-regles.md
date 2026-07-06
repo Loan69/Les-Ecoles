@@ -56,7 +56,7 @@ Cet identifiant ne change jamais : on peut donc s'y référer dans les discussio
 | **R-FOYER-06** | Les séjours **futurs** sont librement modifiables (pas de verrouillage anticipé). |
 | **R-FOYER-07** | La vue d'ensemble admin classe les habitantes en **« au foyer »** et **« sorties »** pour une date donnée, par résidence ; le statut est **déduit des séjours d'absence** qui couvrent cette date. |
 | **R-FOYER-08** | Chaque séjour d'absence peut porter une information de contact **facultative** (« je suis chez… ») destinée au staff. |
-| **R-FOYER-09** | Le marquage automatique des repas en « Non » pendant un séjour d'absence est **prévu mais rattaché au Lot 2** (refonte repas/compta). À ce stade, un séjour d'absence **n'affecte pas encore** les inscriptions aux repas. |
+| **R-FOYER-09** | ✅ *(Réalisé au Lot 2.)* Un séjour d'absence marque automatiquement les repas des **jours intérieurs** en « Non » (déduits de la compta) ; les **jours-frontières** restent au libre choix. Détail : voir `R-REPAS-10` / `R-REPAS-11`. |
 | **R-FOYER-10** | La **vue staff** présente les présences sur une **période** (par défaut une semaine), **jours empilés verticalement**. Pour chaque jour et chaque résidence : nombre **au foyer** (vert) et **sorties** (rouge). **Chaque nombre est cliquable** → liste des personnes derrière ce nombre. Une **unique loupe « Voir le détail »** ouvre le **tableau de détail** (voir `R-ADM-01`). Population de référence = résidentes + invitées rattachées à la résidence. |
 | **R-ADM-01** | *(transversal)* Les vues admin utilisent une **structure de tableau de détail unique et cohérente** (présences, repas, plus tard chambres) : en **lignes** les habitantes classées **résidence → étage → chambre → alphabétique** (invitées en fin de bloc résidence), en **colonnes** la période (jours, ou jours × service pour les repas). Objectif : ne pas dérouter les administratrices d'un écran à l'autre. Cliquer sur un **nombre** ouvre partout la **liste** des personnes comptées derrière ce nombre. |
 | **R-FOYER-11** | Une administratrice peut **marquer une absence** au nom d'une résidente ou d'une invitée à compte, sur un intervalle. **« Marquer présente »** sur une période **retire/raccourcit/scinde** les séjours d'absence couvrant ces dates (force la présence) ; **« Marquer absente »** crée un séjour. Le marquage des repas « N/O » associé est **reporté au Lot 2** (voir `R-FOYER-09`). |
@@ -76,6 +76,8 @@ Cet identifiant ne change jamais : on peut donc s'y référer dans les discussio
 | **R-REPAS-07** | En saisie hebdomadaire, seuls les jours **non verrouillés** sont enregistrés ; les jours verrouillés sont ignorés lors de l'enregistrement. |
 | **R-REPAS-08** | En saisie hebdomadaire, le nombre de **modifications en attente** est affiché et l'enregistrement n'est possible que s'il y a au moins une modification. |
 | **R-REPAS-09** | La date sélectionnée est **partagée** entre l'accueil et l'écran hebdomadaire (mémorisée localement). |
+| **R-REPAS-10** | **Couplage absence → repas.** Pendant un **séjour d'absence**, les repas sont automatiquement comptés **« Non »** (déjeuner et dîner) et non modifiables (affichage « Absente — Non »), **uniquement pour les jours intérieurs** du séjour. |
+| **R-REPAS-11** | **Jours-frontières (R-ABS-BORD).** Le **premier** et le **dernier** jour d'un séjour, la résidente **choisit librement** ses repas (aucun « Non » forcé) : elle part typiquement **après le dîner** le jour de départ et revient **avant le déjeuner** le jour de retour, donc elle peut manger ces jours-là. Un séjour d'un **seul jour** reste entièrement absent (pas de jour intérieur). |
 
 ---
 
@@ -106,16 +108,15 @@ Cet identifiant ne change jamais : on peut donc s'y référer dans les discussio
 | ID | Règle |
 |---|---|
 | **R-LOCK-01** | Les repas d'un **jour passé** sont **entièrement verrouillés**. |
-| **R-LOCK-02** | Les repas du **jour en cours** sont **entièrement verrouillés** une fois passée l'**heure de verrouillage repas** (`verrouillage_repas`, par défaut **21:00**). |
-| **R-LOCK-03** | Avant l'heure de verrouillage, les repas du jour en cours restent modifiables **sauf les pique-niques** (voir R-LOCK-06). |
-| **R-LOCK-04** | Les repas d'un **jour futur** (au-delà de demain) sont **librement modifiables**, sous réserve de la règle week-end (R-LOCK-07). |
+| **R-LOCK-02** | **Clôture la veille.** Les inscriptions d'un jour se ferment **la veille** à l'**heure de verrouillage repas** (`verrouillage_repas`, par défaut **21:00**). Ainsi les repas du **jour en cours** sont **déjà entièrement verrouillés** (clôture hier), et ceux de **demain** se verrouillent dès **aujourd'hui** à l'heure de lock. *(Remplace l'ancienne règle « verrouillé après 21h le jour même ».)* |
+| **R-LOCK-03** | Les repas de **demain** restent modifiables **jusqu'à aujourd'hui à l'heure de verrouillage** ; ceux d'**après-demain et au-delà** sont librement modifiables, sous réserve de la règle week-end (R-LOCK-07). |
 
-### 6.2. Pique-niques
+### 6.2. Délai de commande par option
 
 | ID | Règle |
 |---|---|
-| **R-LOCK-05** | Les pique-niques (chaud / froid) doivent être commandés **la veille**, avant l'heure de verrouillage. |
-| **R-LOCK-06** | En conséquence : les pique-niques **du jour en cours** ne sont plus commandables, et ceux **de demain** ne le sont plus non plus une fois l'heure de verrouillage passée aujourd'hui. Seuls les autres repas restent modifiables dans ces cas. |
+| **R-LOCK-05** | Chaque option porte un **délai de commande** (`delai_commande`, en jours) qui **s'ajoute** à la clôture-veille : `délai 0` = clôture **la veille** ; `délai 1` = clôture **l'avant-veille** ; etc. |
+| **R-LOCK-06** | Ce délai permet aux options nécessitant plus d'anticipation (ex. **pique-nique**) d'être fermées plus tôt que les repas classiques, sans changer la règle générale. |
 
 ### 6.3. Verrouillage anticipé du week-end
 
@@ -217,6 +218,7 @@ Liste vivante des points à trancher avec le client. À mettre à jour (déplace
 | 2026-06-06 | 1.0 | Création du document : recensement des règles existantes. |
 | 2026-06-29 | 1.1 | **[FOYER]** Refonte de la présence foyer (Lot 1, Étape 1) : passage du modèle « jour par jour » à des **séjours d'absence datés** (écran dédié, calendrier mensuel, liste éditable, contact facultatif). MàJ `R-FOYER-02/03/07`, `R-FOYER-04/05` mises en revue (verrouillage horaire non appliqué), ajout `R-FOYER-08` (contact) et `R-FOYER-09` (couplage repas reporté au Lot 2). |
 | 2026-06-29 | 1.2 | **[FOYER]** Refonte de la **vue staff** `/admin/foyer` (croquis client) : vue par **période** (cartes/jour, compteurs au foyer/sorties par résidence, détail au clic) + **marquage admin** d'absence/présence sur intervalle. Ajout `R-FOYER-10` et `R-FOYER-11`. Marquage repas N/O toujours reporté au Lot 2. |
+| 2026-07-06 | 1.9 | **[REPAS][LOCK]** Verrouillage repas passé à **« clôture la veille »** (le jour en cours est figé, clôture hier à l'heure de lock ; demain se ferme aujourd'hui) — MàJ `R-LOCK-02/03`, refonte `R-LOCK-05/06` en **délai par option** (`delai_commande` cumulé). **Couplage absence → repas réalisé** : jours intérieurs auto « Non », **jours-frontières au libre choix** (part après le dîner / revient avant le déjeuner) — ajout `R-REPAS-10/11` (`R-ABS-BORD`), MàJ `R-FOYER-09`. Compta triée par **nom puis prénom**. Légende du tableau repas : **lune orange** pour « absente » (raccord avec les cellules). |
 | 2026-07-05 | 1.8 | **[ADM]** Nouvel espace **« Administratif »** (accès en haut à droite, consultable par toutes) : rubriques **libres** (ajout/renommage/réordonnancement) éditables par les admins — texte **mis en forme** (éditeur tiptap, stocké en JSON) et rubriques **Contacts structurés** (nom/rôle/tél/email). Table `admin_sections`. Contenu à saisir dans l'appli. |
 | 2026-07-05 | 1.7 | **[EVT]** Visibilité des événements par **noms** : après avoir coché résidence/étage, l'intendance voit la **liste des résidentes** et peut **cocher/décocher** individuellement (exclusions nommées). Ciblage **dynamique** (futures arrivantes incluses auto). Niveau « chambre » retiré de l'UI (conservé pour l'existant). MàJ `R-EVT-05`. Rétrocompatible. |
 | 2026-07-04 | 1.6 | **[FOYER][REPAS]** Retours client sur les vues admin : **jours empilés verticalement**, **nombres cliquables** → liste des personnes derrière chaque nombre, **une seule loupe** → **tableau de détail** (habitantes × jours). Introduction d'une **structure de tableau unique et réutilisable** (`R-ADM-01`) : classement résidence → étage → chambre → alphabétique (invitées en fin), appliquée aux **présences** ET aux **repas** (colonnes jours × service). MàJ `R-FOYER-10`, ajout `R-ADM-01`. |
