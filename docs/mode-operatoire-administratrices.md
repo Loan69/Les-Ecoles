@@ -1,9 +1,9 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.0 — 2026-06-29.
+> Version 1.1 — 2026-07-06.
 
-Une administratrice est une résidente dont le compte a le statut **admin**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir [Mode opératoire — Résidentes & invitées](mode-operatoire-residentes.md)), d'un **panneau d'administration** accessible depuis l'onglet ⚙️ **Administration** de la barre du bas.
+Une administratrice est une résidente dont le compte a le statut **admin**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir [Mode opératoire — Résidentes & invitées](mode-operatoire-residentes.md)), d'outils d'intendance : le **panneau d'administration**, le **paramétrage des repas**, la **comptabilité**, la **vue des présences** et la **gestion des événements**.
 
 ---
 
@@ -13,23 +13,17 @@ Le statut admin se donne depuis la **gestion des utilisatrices** (voir §3). La 
 
 ---
 
-## 2. Vue d'ensemble — l'onglet Administration
+## 2. Où trouver les fonctions d'intendance
 
-L'écran **Administration** regroupe :
-- la **gestion des utilisatrices** (résidentes & admins) ;
-- la **gestion des invitées** ;
-- les **repas spéciaux** (menus particuliers sur certaines dates) ;
-- les **paramètres** du foyer (heures de verrouillage).
-
-S'y ajoutent deux vues dédiées :
-- **Présences au foyer** (qui dort là / est sortie) — accessible aussi via l'onglet 🛏️ *Présence foyer* → bouton **« Voir les présences »** ;
-- **Inscriptions aux repas & comptabilité**.
-
-> Depuis l'**onglet 🍴 Repas de la semaine**, un bloc **« Espace intendance »** (replié) regroupe l'accès aux **inscriptions/comptabilité** et au **paramétrage des repas** (menus spéciaux). C'est le point d'entrée unique pour tout ce qui touche aux repas.
+- **Panneau d'administration** : bouton **roue crantée ⚙️** en **haut à droite** des écrans (visible uniquement pour les admins). Il ouvre la gestion des **utilisatrices**, des **invités** et des **paramètres** du foyer.
+- **Espace intendance (repas)** : sur l'onglet 🍴 **Repas de la semaine**, un bloc **« Espace intendance »** est affiché **tout en haut**. Il donne accès aux **inscriptions & comptabilité**, au **paramétrage des repas**, et à la **compta historique** (données d'avant la refonte).
+- **Présences au foyer (vue staff)** : via l'onglet 🧍 **Présence foyer** → bouton **« Voir les présences »**.
 
 ---
 
 ## 3. Gérer les utilisatrices
+
+Panneau ⚙️ **Administration** → onglet **Utilisatrices** :
 
 - **Promouvoir / révoquer** une administratrice : bouton dédié sur la ligne de la personne.
 - **Supprimer** un compte : action de suppression (avec confirmation). À utiliser avec précaution.
@@ -37,78 +31,100 @@ S'y ajoutent deux vues dédiées :
 
 ---
 
-## 4. Gérer les invitées
+## 4. Gérer les invités
 
-Depuis le tableau des invitées : consulter et gérer les comptes invités (comptes simplifiés).
-
----
-
-## 5. Repas spéciaux (menus particuliers)
-
-Les **options de repas par défaut** (oui / non / plateau / pique-nique…) peuvent être **remplacées** sur une plage de dates par des **options spéciales** (ex. « buffet », « repas de fête »).
-
-> Accès : onglet 🍴 **Repas de la semaine** → **Espace intendance** → **Paramétrer les repas**.
-
-1. Ouvre le gestionnaire de repas spéciaux.
-2. Crée une règle : service (déjeuner / dîner), période (dates de début/fin, ou indéfini), liste des options proposées, éventuelle réservation aux admins.
-3. En cas de chevauchement de règles, **la plus récente s'applique**.
-
-> *Évolution prévue (Lot 2) : refonte complète de la composition des menus, jour par jour, par l'intendance, avec saisie en masse par calendrier.*
+Panneau ⚙️ **Administration** → onglet **Invités** : consulter et gérer les comptes invités (comptes simplifiés).
 
 ---
 
-## 6. Paramètres du foyer
+## 5. Paramètres du foyer
+
+Panneau ⚙️ **Administration** → onglet **Paramètres** :
 
 | Paramètre | Effet | Défaut |
 |---|---|---|
-| `verrouillage_repas` | Heure après laquelle les repas du jour ne sont plus modifiables | 21:00 |
-| `verrouillage_foyer` | Heure de verrouillage de la présence foyer du jour | 23:00 |
+| `verrouillage_repas` | Heure de **clôture** des inscriptions repas (voir §6) | 21:00 |
 | `verrouillage_weekend` | Verrouille les repas du week-end dès le vendredi | selon réglage |
+| `verrouillage_foyer` | *(Hérité)* Heure de verrouillage de la présence foyer | 23:00 |
 
-> Note : avec le nouveau modèle d'absences par **séjours**, l'application du verrouillage foyer est **en cours de redéfinition** (voir *Décisions en attente* dans les spécifications).
+> Avec le modèle d'absences par **séjours**, le verrouillage foyer n'est **pas appliqué** : les résidentes peuvent ajouter/modifier/supprimer une absence à tout moment. L'opportunité d'un verrou de dernière minute reste à trancher.
+
+---
+
+## 6. Paramétrer les repas
+
+Accès : onglet 🍴 **Repas de la semaine** → **Espace intendance** → **Paramétrer les repas**. L'écran comporte deux parties.
+
+### 6.1. Catalogue d'options
+La liste des **options** que le foyer peut proposer (ex. « Repas classique », « Apéro dînatoire », « Pique-nique »). Pour chaque option :
+
+- **Libellé** (ce que voit la résidente) ;
+- **Résidence de rattachement** : **12**, **36**, ou **« Résidence de la personne »** (le couvert est alors compté dans la résidence de l'inscrite) — c'est ce qui détermine à quelle résidence le repas est **facturé** ;
+- **Délai (jours avant)** : `0` = clôture **la veille** à l'heure de verrouillage ; `+1` par jour d'avance supplémentaire (ex. un pique-nique en `1` ferme l'avant-veille) ;
+- **Réservée à l'intendance** : l'option n'apparaît qu'aux admins ;
+- **Active / inactive** : une option inactive n'est jamais proposée (sans être supprimée).
+
+### 6.2. Ouverture des services
+C'est ici qu'on décide, **jour par jour et par service** (déjeuner / dîner), **quelles options sont proposées** aux résidentes. Un service **sans aucune option ouverte** s'affiche **« fermé »** côté résidente.
+
+- **Dupliquer sur une plage** : reporter les options d'un jour sur plusieurs dates en une fois (sélecteur multi-dates), pour ouvrir toute une semaine rapidement.
+
+> ⚠️ **À faire régulièrement** : sans options créées **et** de services ouverts, les résidentes voient « Service fermé » et ne peuvent pas s'inscrire.
 
 ---
 
 ## 7. Présences au foyer (vue staff)
 
-Accessible via l'onglet 🛏️ *Présence foyer* → **« Voir les présences »** (ou directement la vue admin foyer). Elle indique **qui est au foyer ou sorti**, **par résidence**, déduit des **séjours d'absence**.
+Via l'onglet 🧍 **Présence foyer** → **« Voir les présences »**. Elle indique **qui est au foyer ou sorti**, **par résidence**, déduit des **séjours d'absence**.
 
-**Choisir la période** : deux champs de date en haut (« Du … au … » ; par défaut une semaine à partir d'aujourd'hui).
+**Choisir la période** : deux champs de date en haut (par défaut une semaine à partir d'aujourd'hui).
 
-**Lire les jours** : les jours sont **empilés les uns sous les autres**. Pour chaque jour et chaque résidence, deux compteurs — **Au foyer** (vert) et **Sorties** (rouge). **Chaque nombre est cliquable** : il ouvre la **liste des personnes derrière ce nombre** (ex. clic sur les sorties du 1er juillet → la liste des absentes).
+**Lire les jours** : les jours sont **empilés**. Pour chaque jour et chaque résidence, deux compteurs — **Au foyer** (vert) et **Sorties** (rouge). **Chaque nombre est cliquable** : il ouvre la **liste des personnes** derrière ce nombre.
 
-**Vue d'ensemble sur la période** : le bouton **« Voir le détail »** (une seule fois, en haut) ouvre un **tableau** — en lignes les habitantes (classées **résidence → étage → chambre → nom**, invitées en fin de résidence), en colonnes les jours, chaque case indiquant **P** (au foyer) ou **A** (sortie). *Cette même structure de tableau est réutilisée partout (présences, repas, plus tard chambres) pour ne pas se perdre.*
+**Vue d'ensemble** : le bouton **« Voir le détail »** ouvre un **tableau** — en lignes les habitantes (classées **résidence → étage → chambre → nom**, invitées en fin de résidence), en colonnes les jours, chaque case indiquant **P** (au foyer) ou **A** (sortie). *Cette structure de tableau est réutilisée partout (présences, repas) pour ne pas se perdre.*
 
 **Marquer une absence ou une présence** : bouton **« Ajouter une absence »**.
 1. Choisis la **résidence**, puis la **personne** (résidente ou invitée à compte).
-2. Choisis **« Absente »** (crée un séjour d'absence) ou **« Présente »** (retire les absences déjà déclarées sur la période — pour corriger ou faire revenir quelqu'un).
-3. Renseigne la **période** (date de début / de fin) et, pour une absence, un **contact** facultatif.
+2. Choisis **« Absente »** (crée un séjour) ou **« Présente »** (retire les absences déjà déclarées sur la période — pour corriger ou faire revenir quelqu'un).
+3. Renseigne la **période** et, pour une absence, un **contact** facultatif.
 4. Valide.
-
-> *À venir (Lot 2) : option « Marquer N/O » pour répercuter l'absence sur les repas (déjeuner/dîner) de l'intervalle.*
 
 ---
 
 ## 8. Inscriptions aux repas & comptabilité
 
-L'écran propose deux onglets, sur une **période choisie** (par défaut une semaine à partir de la date sélectionnée — sélecteur de dates en haut) :
+Accès : **Espace intendance** → **Voir les inscriptions & la compta**. Deux onglets, sur une **période choisie** (sélecteur de dates en haut).
 
-### Onglet « Inscriptions » — planning
-Les jours sont **empilés** ; pour chaque jour et chaque résidence : nombre de **midis**, **soirs**, **pique-niques** (comptés la **veille**), **plateaux** et **options spéciales**, plus un **total par jour**. **Chaque nombre est cliquable** → la **liste des personnes comptées** derrière ce nombre. Le bouton **« Voir le détail »** ouvre le **tableau** (mêmes lignes/classement que les présences ; en colonnes, les jours × service déjeuner/dîner ; chaque case = le repas choisi).
+### Onglet « Organisation » — repas à préparer
+Les jours sont **empilés** ; pour chaque jour et chaque résidence, le nombre de **midis** et de **soirs**. **Chaque nombre est cliquable** → la **liste des personnes comptées** (avec l'option choisie). Le bouton **« Voir le détail »** ouvre le **tableau** (habitantes × jours/service ; chaque case = l'option choisie, ou 🌙 **lune orange** = absente, ou **Non** en rouge = ne mange pas).
 
 ### Onglet « Comptabilité »
-- **Récapitulatif de la période** : total déjeuners / dîners / total **par résidence**, et un **grand total** toutes résidences.
-- **Détail par résidence** : pour chaque personne, nombre de déjeuners et de dîners (les « Non » ne comptent pas), **invités inclus** pour la personne qui les a invités.
+- **Récapitulatif de la période** : total déjeuners / dîners **par résidence**, et un **grand total**.
+- **Agrégat par personne** : pour chaque personne, nombre de déjeuners et de dîners (les « Non » et les jours d'absence ne comptent pas), **invités inclus** pour la personne qui les a invités. **Toutes les résidentes** apparaissent, même celles inscrites à rien (0). La liste est triée **par nom puis prénom** pour faciliter la facturation.
+
+> **Déduction des absences** : un séjour d'absence retire automatiquement les repas des **jours intérieurs** ; le **premier** et le **dernier** jour restent au libre choix de la résidente (elle part après le dîner, revient avant le déjeuner).
 
 ---
 
 ## 9. Événements & calendrier
 
 Depuis le calendrier, une administratrice peut **créer, modifier et supprimer** des événements :
-- titre, dates (une ou plusieurs), horaires, lieu (résidence·s) ;
-- **visibilité** (toutes, ou ciblée par résidence / étage / chambre ; réservé admin) ;
+- titre, dates (une ou plusieurs), horaires, lieu (résidence·s), couleur ;
+- **visibilité par noms** : après avoir ciblé une ou des **résidences / étages**, la liste des **résidentes concernées** s'affiche, pré-cochée ; on peut **décocher** individuellement pour exclure quelqu'un. Le ciblage est **dynamique** (les futures arrivantes correspondant au filtre sont incluses automatiquement). Une case **réservé admin** limite la visibilité à l'intendance ;
 - **rappel** (nombre de jours avant) ;
 - demande de **confirmation de participation** (avec vue des confirmations reçues).
+
+---
+
+## 10. Espace Administratif (infos pratiques)
+
+L'onglet 📖 **Administratif** (barre du bas) est **consultable par toutes** mais **modifiable par les admins** (bouton **« Modifier »**). On y gère des **rubriques libres** :
+
+- **Ajouter / renommer / réordonner / supprimer** des rubriques ;
+- rubrique **texte** (éditeur de mise en forme : gras, listes, titres, liens) ou rubrique **Contacts** structurés (nom, rôle, téléphone, email cliquables) ;
+- une rubrique peut être **réservée aux administratrices** (🔒) : elle n'est alors **pas visible** par les résidentes (ex. le présent mode d'emploi).
+
+Utilise-le pour le **règlement**, les **horaires**, les **contacts**, les **modes d'emploi** et toute information générale du foyer.
 
 ---
 

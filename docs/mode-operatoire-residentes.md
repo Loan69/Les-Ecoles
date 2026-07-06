@@ -1,9 +1,9 @@
 # Mode opératoire — Résidentes & invitées
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour les **habitantes** (résidentes et invitées). À mettre à jour à chaque évolution de l'appli.
-> Version 1.0 — 2026-06-29.
+> Version 1.1 — 2026-07-06.
 
-Cette application sert à gérer, au quotidien, **ta présence au foyer la nuit** et **tes repas** (midi et soir), et à consulter les **événements** du foyer. Elle est pensée pour le **téléphone** (mais marche aussi sur ordinateur).
+Cette application sert à gérer, au quotidien, **ta présence au foyer la nuit** et **tes repas** (midi et soir), à consulter les **événements** du foyer et les **informations pratiques**. Elle est pensée pour le **téléphone** (mais marche aussi sur ordinateur).
 
 ---
 
@@ -21,15 +21,19 @@ Cette application sert à gérer, au quotidien, **ta présence au foyer la nuit*
 
 ## 2. Se repérer dans l'appli
 
-En bas de l'écran, une **barre de navigation** :
+En bas de l'écran, une **barre de navigation** (identique pour toutes) :
 
 | Icône | Écran | À quoi ça sert |
 |---|---|---|
 | 📅 | **Calendrier** | Voir les événements du foyer, mois par mois. |
-| 🍴 | **Repas de la semaine** | Planifier ses repas sur la semaine. |
-| 🏠 | **Accueil** | Consulter sa journée (repas du jour, rappels, événements). |
-| 🛏️ | **Présence foyer** | Déclarer ses absences (nuits à l'extérieur). |
-| 🧍 | **Profil** | Voir et gérer son compte. |
+| 🍴 | **Repas de la semaine** | Choisir ses repas (midi/soir) et inviter quelqu'un. |
+| 🏠 | **Accueil** | Consulter sa journée (repas du jour, rappels, événements) — **en lecture seule**. |
+| 🧍 | **Présence foyer** | Déclarer ses absences (nuits à l'extérieur). |
+| 📖 | **Administratif** | Consulter les infos pratiques du foyer (règlement, horaires, contacts, modes d'emploi). |
+
+En **haut à droite** de chaque écran : accès à ton **Profil** 👤 et à la **déconnexion**.
+
+> L'**Accueil** ne sert qu'à **consulter** ta journée. Pour **modifier** tes repas, va sur **🍴 Repas de la semaine** ; pour tes absences, sur **🧍 Présence foyer**.
 
 ---
 
@@ -37,7 +41,7 @@ En bas de l'écran, une **barre de navigation** :
 
 Par défaut, **tu es considérée présente** chaque nuit. Tu n'as à déclarer que les périodes où **tu dors à l'extérieur**.
 
-1. Va sur l'onglet 🛏️ **Présence foyer**.
+1. Va sur l'onglet 🧍 **Présence foyer**.
 2. Le **calendrier du mois** montre tes jours d'absence (en rose). Navigue avec les flèches ‹ ›.
 3. Dans **« Mes absences »**, clique **« + Ajouter »**.
 4. Choisis la **date de départ** et la **date de retour** (les deux jours sont inclus dans l'absence).
@@ -47,54 +51,59 @@ Par défaut, **tu es considérée présente** chaque nuit. Tu n'as à déclarer 
 - Pour **modifier** une absence : icône ✏️.
 - Pour **supprimer** une absence : icône 🗑️ (une confirmation est demandée).
 
-> *À venir : pendant une absence, tes repas seront automatiquement marqués « Non », avec un réglage fin pour le jour de départ et le jour de retour.*
+### Effet sur les repas
+Pendant une absence, tes repas sont automatiquement marqués **« Non »** (tu ne manges pas au foyer) et non modifiables, **pour les jours intérieurs** du séjour. En revanche, le **premier jour** (départ) et le **dernier jour** (retour) restent à ton **libre choix** : tu peux t'inscrire à ces repas (on considère que tu pars **après le dîner** et reviens **avant le déjeuner**). Un séjour d'**un seul jour** compte comme absente à tous les repas.
 
 ---
 
 ## 4. S'inscrire aux repas
 
-### Au jour le jour (depuis l'Accueil)
-Pour la journée affichée, choisis ton option pour le **déjeuner** et le **dîner** dans la liste déroulante (ou **« Non »** si tu ne manges pas au foyer). Tu peux ajouter un **commentaire** (ex. allergie) avec le crayon ✏️.
+1. Va sur l'onglet 🍴 **Repas de la semaine** (la semaine s'affiche du lundi au lundi).
+2. Pour chaque jour, choisis ton **option de déjeuner** et ton **option de dîner** dans la liste déroulante, ou **« Non »** si tu ne manges pas au foyer.
+3. **C'est enregistré automatiquement** à chaque choix — pas de bouton à valider.
+4. Navigue d'une semaine à l'autre avec les flèches ‹ ›.
 
-### Sur toute la semaine (écran « Repas de la semaine »)
-1. Va sur l'onglet 🍴 **Repas de la semaine**.
-2. Tu vois la semaine entière. Coche tes repas (midi/soir) pour chaque jour.
-3. Clique **Enregistrer** pour tout valider d'un coup.
-4. Navigue de semaine en semaine avec les flèches.
-
-**Types d'options possibles** (selon le paramétrage du foyer) : repas classique, **plateau**, **pique-nique** (chaud/froid), ou **options spéciales** définies par l'intendance.
-
-> ⚠️ Le **pique-nique** se commande **la veille** : pense à t'inscrire à l'avance.
+- Les **options proposées** (repas classique, options spéciales…) sont définies par l'**intendance** et peuvent changer selon les jours. Si aucune option n'est proposée, le service est indiqué **« fermé »**.
+- Les **événements du jour** apparaissent sous chaque date.
 
 ---
 
 ## 5. Les heures limites (verrouillage)
 
-- Les repas du **jour en cours** ne sont plus modifiables après l'**heure de verrouillage** fixée par l'intendance (souvent en soirée).
-- Les repas d'un **jour passé** ne sont plus modifiables.
+Les inscriptions d'un jour **se ferment la veille** à l'**heure de verrouillage** fixée par l'intendance (par défaut 21:00). En pratique :
+
+- Les repas d'**aujourd'hui** sont **déjà figés** (la clôture était hier au soir).
+- Les repas de **demain** restent modifiables **jusqu'à ce soir** à l'heure de verrouillage.
+- Les repas d'**après-demain et au-delà** sont librement modifiables.
 - Si le **verrouillage week-end** est activé, les repas du week-end se verrouillent dès le vendredi.
 
-Un jour verrouillé est signalé visuellement ; en cas de besoin, rapproche-toi de l'intendance.
+Un jour verrouillé est signalé par un cadenas 🔒. En cas de besoin, rapproche-toi de l'intendance.
 
 ---
 
 ## 6. Inviter quelqu'un à un repas
 
-Depuis l'Accueil, bouton **« Inviter quelqu'un »** : renseigne le nom de la personne et le repas concerné. L'invité·e est ajouté·e au décompte des couverts.
+Depuis l'onglet 🍴 **Repas de la semaine**, bouton **« Inviter quelqu'un »** : renseigne le nom de la personne et le repas concerné. L'invité·e est ajouté·e au décompte des couverts.
 
 ---
 
 ## 7. Le calendrier et les événements
 
 - L'onglet 📅 **Calendrier** affiche les événements mois par mois ; clique un jour pour voir le détail.
-- Sur l'Accueil, les **rappels** annoncent les événements à venir.
+- Sur l'Accueil, les **rappels** annoncent les événements à venir (sous la date).
 - Pour certains événements, on te demande de **confirmer ta participation** : utilise l'interrupteur de confirmation.
 
 ---
 
-## 8. Mon profil
+## 8. L'espace Administratif
 
-L'onglet 🧍 **Profil** permet de consulter tes informations et de te **déconnecter**.
+L'onglet 📖 **Administratif** rassemble les **informations pratiques** du foyer, tenues à jour par l'intendance : informations générales, **règlement**, **horaires**, **contacts** (avec appel/email direct) et **modes d'emploi**. C'est une page de **consultation**.
+
+---
+
+## 9. Mon profil
+
+Le bouton **Profil** 👤 (en haut à droite) permet de consulter tes informations et de te **déconnecter**.
 
 ---
 
