@@ -9,7 +9,7 @@ import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { Residence } from "@/types/Residence";
 import { Absence } from "@/types/Absence";
 import { PresenceV2, MealOptionCatalog, Service } from "@/types/MealOption";
-import { PersonneDetail, sortAdminPeople } from "@/lib/adminPeople";
+import { PersonneDetail } from "@/lib/adminPeople";
 import { isAwayForMeal } from "@/lib/mealCompta";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
@@ -156,10 +156,11 @@ export default function AdminRepasV2Page() {
       });
       map[rk].push({ person, dejeuner: dej, diner: din, total: dej + din });
     });
-    Object.keys(map).forEach((k) => {
-      const order = sortAdminPeople(map[k].map((x) => x.person));
-      map[k] = order.map((p) => map[k].find((x) => x.person.id === p.id)!);
-    });
+    // Compta : tri alphabétique nom puis prénom (plus lisible pour la facturation).
+    const byNom = (a: { person: PersonneDetail }, b: { person: PersonneDetail }) =>
+      (a.person.nom || "").localeCompare(b.person.nom || "", "fr", { sensitivity: "base" }) ||
+      (a.person.prenom || "").localeCompare(b.person.prenom || "", "fr", { sensitivity: "base" });
+    Object.keys(map).forEach((k) => map[k].sort(byNom));
     return map;
   }, [residences, people, daysInRange, absences, presences]);
 

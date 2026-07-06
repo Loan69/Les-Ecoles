@@ -9,13 +9,12 @@ export interface LockState {
 /**
  * Calcule l'état de verrouillage des repas pour une date donnée.
  *
- * Règles :
- * - Jours passés          → verrouillé totalement
- * - Aujourd'hui après lock → verrouillé totalement
- * - Weekend si option activée et vendredi après lock (ou sam/dim) → verrouillé totalement
- * - Aujourd'hui avant lock → pique-niques verrouillés (à commander la veille)
- * - Lendemain après lock  → pique-niques verrouillés (trop tard)
- * - Sinon                 → libre
+ * Règle : clôture la VEILLE à l'heure de verrouillage.
+ * - Jours passés            → verrouillé
+ * - Aujourd'hui             → verrouillé (la clôture était hier à l'heure de lock)
+ * - Demain après lock       → verrouillé (la clôture était aujourd'hui à l'heure de lock)
+ * - Weekend si option activée et vendredi après lock (ou sam/dim) → verrouillé
+ * - Sinon                   → libre
  */
 export function computeLockState(
   selectedDate: Date,
@@ -40,15 +39,23 @@ export function computeLockState(
   const isToday = selectedDay === parisToday;
   const isTomorrow = selectedDay === parisTomorrow;
 
-  if (isPastDay) {
-    return { locked: true, lockedValues: [], message: "" };
-  }
+  const lockLabel = settings.verrouillage_repas || "21:00";
 
-  if (isToday && afterLock) {
+  // Clôture la veille : aujourd'hui est déjà figé (la clôture était hier à l'heure de lock).
+  if (isPastDay || isToday) {
     return {
       locked: true,
       lockedValues: [],
-      message: `Les présences aux repas ne sont plus modifiables après ${settings.verrouillage_repas}.`,
+      message: isToday ? `Les inscriptions du jour sont closes (clôture la veille à ${lockLabel}).` : "",
+    };
+  }
+
+  // Demain se ferme dès aujourd'hui à l'heure de lock.
+  if (isTomorrow && afterLock) {
+    return {
+      locked: true,
+      lockedValues: [],
+      message: `Les inscriptions de demain sont closes depuis ${lockLabel}.`,
     };
   }
 
@@ -71,11 +78,6 @@ export function computeLockState(
         message: `Les présences aux repas du weekend sont verrouillées dès le vendredi ${settings.verrouillage_repas}.`,
       };
     }
-  }
-
-  // Pique-niques : doivent être commandés la veille avant l'heure de lock
-  if (isToday || (isTomorrow && afterLock)) {
-    return { locked: false, lockedValues: ["pn_chaud", "pn_froid"], message: "" };
   }
 
   return { locked: false, lockedValues: [], message: "" };
