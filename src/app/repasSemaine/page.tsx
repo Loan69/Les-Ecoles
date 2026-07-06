@@ -16,7 +16,7 @@ import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import LoadingSpinner from "../components/LoadingSpinner";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
-import AdministratifButton from "../components/administratifButton";
+import AdministrationButton from "../components/administrationButton";
 import InviteModal from "../components/inviteModal";
 
 const SERVICES: { value: Service; label: string }[] = [
@@ -164,7 +164,7 @@ export default function SemaineRepas() {
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4 py-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-end items-center gap-2 mb-2">
-          <AdministratifButton />
+          <AdministrationButton />
           <ProfileButton />
           <LogoutButton />
         </div>
@@ -173,6 +173,29 @@ export default function SemaineRepas() {
           <h1 className="text-3xl font-black text-blue-900 tracking-tight">Repas de la semaine</h1>
           <p className="text-blue-500 text-sm mt-1">Choisissez votre repas parmi les options proposées</p>
         </div>
+
+        {/* Espace intendance (admin) — tout en haut pour éviter le scroll */}
+        {isAdmin && (
+          <div className="mb-6">
+            <button onClick={() => setAdminPanelOpen((o) => !o)} className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-5 py-3 text-sm font-bold text-blue-900 hover:bg-blue-50 transition cursor-pointer">
+              <span className="flex items-center gap-2"><Settings className="w-4 h-4" /> Espace intendance</span>
+              <ChevronDown className={`w-5 h-5 transition-transform ${adminPanelOpen ? "rotate-180" : ""}`} />
+            </button>
+            {adminPanelOpen && (
+              <div className="mt-3 grid gap-2">
+                <button onClick={() => router.push("/admin/repas-v2")} className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer">
+                  <ClipboardList className="w-4 h-4" /> Voir les inscriptions & la compta
+                </button>
+                <button onClick={() => router.push("/admin/repas-options")} className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer">
+                  <Settings className="w-4 h-4" /> Paramétrer les repas
+                </button>
+                <button onClick={() => router.push("/admin/repas")} className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 px-5 py-1 transition cursor-pointer">
+                  <ClipboardList className="w-3.5 h-3.5" /> Compta (historique — avant bascule)
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Navigation semaine */}
         <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-4">
@@ -261,29 +284,6 @@ export default function SemaineRepas() {
             <UserPlus className="w-4 h-4" /> Inviter quelqu&apos;un
           </button>
         </div>
-
-        {/* Espace intendance (admin) */}
-        {isAdmin && (
-          <div className="mt-8">
-            <button onClick={() => setAdminPanelOpen((o) => !o)} className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-5 py-3 text-sm font-bold text-blue-900 hover:bg-blue-50 transition cursor-pointer">
-              <span className="flex items-center gap-2"><Settings className="w-4 h-4" /> Espace intendance</span>
-              <ChevronDown className={`w-5 h-5 transition-transform ${adminPanelOpen ? "rotate-180" : ""}`} />
-            </button>
-            {adminPanelOpen && (
-              <div className="mt-3 grid gap-2">
-                <button onClick={() => router.push("/admin/repas-v2")} className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer">
-                  <ClipboardList className="w-4 h-4" /> Voir les inscriptions & la compta
-                </button>
-                <button onClick={() => router.push("/admin/repas-options")} className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer">
-                  <Settings className="w-4 h-4" /> Paramétrer les repas
-                </button>
-                <button onClick={() => router.push("/admin/repas")} className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 px-5 py-1 transition cursor-pointer">
-                  <ClipboardList className="w-3.5 h-3.5" /> Compta (historique — avant bascule)
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} />
       </div>

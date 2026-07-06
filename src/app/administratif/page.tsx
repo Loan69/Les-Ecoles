@@ -11,6 +11,7 @@ import { AdminSection, Contact } from "@/types/AdminSection";
 import { RichTextEditor, RichTextView } from "../components/RichText";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
+import AdministrationButton from "../components/administrationButton";
 import LoadingSpinner from "../components/LoadingSpinner";
 
 function getContacts(section: AdminSection): Contact[] {
@@ -295,6 +296,7 @@ export default function AdministratifPage() {
                 {editMode ? <><Check className="w-4 h-4" /> Terminer</> : <><Pencil className="w-4 h-4" /> Modifier</>}
               </button>
             )}
+            <AdministrationButton />
             <ProfileButton />
             <LogoutButton />
           </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
-import AdministratifButton from "../components/administratifButton";
+import AdministrationButton from "../components/administrationButton";
 import Image from "next/image";
 import { Bell, ChevronLeft, ChevronRight, Home, Moon, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -275,7 +275,7 @@ export default function HomePage() {
 
         {/* Administratif / profil / déconnexion en haut à droite */}
         <div className="flex justify-end items-center gap-2 mb-3">
-          <AdministratifButton />
+          <AdministrationButton />
           <ProfileButton />
           <LogoutButton />
         </div>

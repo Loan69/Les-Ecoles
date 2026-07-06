@@ -1,52 +1,26 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Calendar, Home, PersonStanding, Settings, Utensils } from 'lucide-react';
+import { BookOpen, Calendar, Home, PersonStanding, Utensils } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useSupabase } from "@/app/providers";
 
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [active, setActive] = useState<string>('/');
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-
-  const { supabase } = useSupabase();
-
-  // --- Récupère le statut admin ---
-  useEffect(() => {
-    const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from('residentes')
-        .select('is_admin')
-        .eq('user_id', user.id)
-        .single();
-
-      setIsAdmin(profile?.is_admin ?? false);
-    };
-
-    fetchProfile();
-  }, [supabase]);
 
   useEffect(() => {
     setActive(pathname || '/');
   }, [pathname]);
 
+  // Barre identique pour toutes (résidentes & admins) → la maison reste au centre (3e/5).
   const navItems = [
     { path: '/calendrier', icon: <Calendar size={22} />, label: 'Calendrier' },
     { path: '/repasSemaine', icon: <Utensils size={22} />, label: 'Repas de la semaine'},
     { path: '/homePage', icon: <Home size={22} />, label: 'Accueil' },
     { path: '/presenceFoyer', icon: <PersonStanding size={22} />, label: 'Présence foyer' },
+    { path: '/administratif', icon: <BookOpen size={22} />, label: 'Administratif' },
   ];
-
-  if (isAdmin) {
-    navItems.push({
-      path: '/admin/utilisatrices', icon: <Settings size={22} />, label: 'Administration',}
-    );
-  }
 
   return (
     <div className="fixed bottom-0 left-0 w-full flex justify-center bg-white pb-safe z-10">
