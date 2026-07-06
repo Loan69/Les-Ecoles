@@ -194,7 +194,7 @@ export default function AdminRepasV2Page() {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-amber-800 mb-1">Repas — comptabilité</h1>
-          <p className="text-gray-600 text-sm">Nouveau modèle · absences déduites</p>
+          <p className="text-gray-600 text-sm">Inscriptions & comptabilité · absences déduites</p>
         </div>
 
         <div className="flex flex-col md:flex-row items-center justify-center gap-3 mb-8">
@@ -224,7 +224,7 @@ export default function AdminRepasV2Page() {
           {/* ORGANISATION : jours empilés, compteurs cliquables (qui prépare quoi) */}
           <TabsContent value="orga">
             <div className="flex items-center gap-2 mb-3 text-sm text-gray-500">
-              <Soup className="w-4 h-4 text-orange-600" /> Repas à préparer, par jour et par résidence (rattachement selon l&apos;option).
+              <Soup className="w-4 h-4 text-orange-600" /> Repas à préparer, par jour et par résidence.
             </div>
             <div className="space-y-3">
               {daysInRange.map((date) => {
