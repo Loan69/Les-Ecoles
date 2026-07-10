@@ -9,12 +9,12 @@ export interface LockState {
 /**
  * Calcule l'état de verrouillage des repas pour une date donnée.
  *
- * Règle : clôture la VEILLE à l'heure de verrouillage.
+ * Règle : clôture LE JOUR MÊME à l'heure de verrouillage.
  * - Jours passés            → verrouillé
- * - Aujourd'hui             → verrouillé (la clôture était hier à l'heure de lock)
- * - Demain après lock       → verrouillé (la clôture était aujourd'hui à l'heure de lock)
+ * - Aujourd'hui après lock  → verrouillé
  * - Weekend si option activée et vendredi après lock (ou sam/dim) → verrouillé
  * - Sinon                   → libre
+ * Un blocage plus anticipé (X jours avant) se règle par option via le délai de commande.
  */
 export function computeLockState(
   selectedDate: Date,
@@ -31,31 +31,22 @@ export function computeLockState(
   const selectedDay = formatDateKeyLocal(selectedDate);
   const parisToday = formatDateKeyLocal(parisNow);
 
-  const parisTomorrowDate = new Date(parisNow);
-  parisTomorrowDate.setDate(parisNow.getDate() + 1);
-  const parisTomorrow = formatDateKeyLocal(parisTomorrowDate);
-
   const isPastDay = selectedDay < parisToday;
   const isToday = selectedDay === parisToday;
-  const isTomorrow = selectedDay === parisTomorrow;
 
   const lockLabel = settings.verrouillage_repas || "21:00";
 
-  // Clôture la veille : aujourd'hui est déjà figé (la clôture était hier à l'heure de lock).
-  if (isPastDay || isToday) {
-    return {
-      locked: true,
-      lockedValues: [],
-      message: isToday ? `Les inscriptions du jour sont closes (clôture la veille à ${lockLabel}).` : "",
-    };
+  // Jour passé : verrouillé.
+  if (isPastDay) {
+    return { locked: true, lockedValues: [], message: "" };
   }
 
-  // Demain se ferme dès aujourd'hui à l'heure de lock.
-  if (isTomorrow && afterLock) {
+  // Jour même : verrouillé une fois l'heure de verrouillage passée (clôture le jour même).
+  if (isToday && afterLock) {
     return {
       locked: true,
       lockedValues: [],
-      message: `Les inscriptions de demain sont closes depuis ${lockLabel}.`,
+      message: `Les inscriptions du jour ne sont plus modifiables après ${lockLabel}.`,
     };
   }
 

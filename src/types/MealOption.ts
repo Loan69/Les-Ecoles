@@ -8,7 +8,7 @@ export interface MealOptionCatalog {
   id: string;
   label: string;
   residence: string; // "12" / "36" — rattachement compta, imposé
-  delai_commande: number; // jours d'avance en plus de la clôture la veille (0 = clôture la veille à l'heure de lock)
+  delai_commande: number; // jours d'avance (0 = clôture le jour même à l'heure de lock ; 1 = la veille ; etc.)
   admin_only: boolean;
   is_active: boolean;
   created_at?: string;

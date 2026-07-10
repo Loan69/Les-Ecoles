@@ -70,11 +70,11 @@ Pendant une absence, tes repas sont automatiquement marqués **« Non »** (tu n
 
 ## 5. Les heures limites (verrouillage)
 
-Les inscriptions d'un jour **se ferment la veille**, à l'**heure de verrouillage** fixée par l'intendance (elle est réglable : par exemple **9h le matin**, ou le soir). En notant cette heure **H** :
+Les repas d'un jour se ferment **le jour même**, à l'**heure de verrouillage** fixée par l'intendance (réglable, par défaut 21:00). En pratique :
 
-- Les repas d'**aujourd'hui** sont **déjà figés** (la clôture était hier à **H**).
-- Les repas de **demain** restent modifiables **jusqu'à aujourd'hui à H**.
-- Les repas d'**après-demain et au-delà** sont librement modifiables.
+- Les repas d'**aujourd'hui** restent modifiables **jusqu'à cette heure**, puis sont **figés**.
+- Les repas d'un **jour passé** ne sont plus modifiables.
+- Certaines **options** (ex. pique-nique) peuvent fermer **plus tôt** (un ou plusieurs jours avant), selon leur réglage.
 - Si le **verrouillage week-end** est activé, les repas du week-end se verrouillent dès le vendredi.
 
 Un jour verrouillé est signalé par un cadenas 🔒. En cas de besoin, rapproche-toi de l'intendance.

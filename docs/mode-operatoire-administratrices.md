@@ -43,7 +43,7 @@ Panneau ⚙️ **Administration** → onglet **Paramètres** :
 
 | Paramètre | Effet | Défaut |
 |---|---|---|
-| `verrouillage_repas` | Heure de **clôture, la veille**, des inscriptions repas (réglable, ex. 9h ; voir §6) | 21:00 |
+| `verrouillage_repas` | Heure après laquelle les repas **du jour** ne sont plus modifiables (réglable ; voir §6) | 21:00 |
 | `verrouillage_weekend` | Verrouille les repas du week-end dès le vendredi | selon réglage |
 | `verrouillage_foyer` | *(Hérité)* Heure de verrouillage de la présence foyer | 23:00 |
 
@@ -60,7 +60,7 @@ La liste des **options** que le foyer peut proposer (ex. « Repas classique », 
 
 - **Libellé** (ce que voit la résidente) ;
 - **Résidence de rattachement** : **12**, **36**, ou **« Résidence de la personne »** (le couvert est alors compté dans la résidence de l'inscrite) — c'est ce qui détermine à quelle résidence le repas est **facturé** ;
-- **Délai (jours avant)** : `0` = clôture **la veille** à l'heure de verrouillage ; `+1` par jour d'avance supplémentaire (ex. un pique-nique en `1` ferme l'avant-veille) ;
+- **Délai (jours avant)** : `0` = clôture **le jour même** à l'heure de verrouillage ; `+1` par jour d'avance (ex. un pique-nique en `1` ferme **la veille**) ;
 - **Réservée à l'intendance** : l'option n'apparaît qu'aux admins ;
 - **Active / inactive** : une option inactive n'est jamais proposée (sans être supprimée).
 

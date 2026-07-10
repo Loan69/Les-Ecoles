@@ -374,7 +374,7 @@ export default function RepasOptionsManager() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Délai (jours avant)</label>
                     <input type="number" min={0} value={optForm.delai} onChange={(e) => setOptForm((f) => ({ ...f, delai: e.target.value }))} className="w-full border border-gray-300 rounded-lg p-2 text-gray-700 focus:ring-2 focus:ring-blue-600 focus:outline-none" />
-                    <p className="text-xs text-gray-400 mt-1">0 = clôture la veille à l&apos;heure de verrouillage. +1 par jour d&apos;avance supplémentaire (ex. 1 = clôture l&apos;avant-veille).</p>
+                    <p className="text-xs text-gray-400 mt-1">0 = clôture le jour même à l&apos;heure de verrouillage. +1 par jour d&apos;avance (ex. 1 = clôture la veille).</p>
                   </div>
                 </div>
                 <label className="flex items-center gap-2 text-sm text-gray-700">
