@@ -43,7 +43,7 @@ Panneau ⚙️ **Administration** → onglet **Paramètres** :
 
 | Paramètre | Effet | Défaut |
 |---|---|---|
-| `verrouillage_repas` | Heure de **clôture** des inscriptions repas (voir §6) | 21:00 |
+| `verrouillage_repas` | Heure de **clôture, la veille**, des inscriptions repas (réglable, ex. 9h ; voir §6) | 21:00 |
 | `verrouillage_weekend` | Verrouille les repas du week-end dès le vendredi | selon réglage |
 | `verrouillage_foyer` | *(Hérité)* Heure de verrouillage de la présence foyer | 23:00 |
 

@@ -205,7 +205,7 @@ Liste vivante des points à trancher avec le client. À mettre à jour (déplace
 
 | Paramètre | Rôle | Valeur par défaut |
 |---|---|---|
-| `verrouillage_repas` | Heure après laquelle les repas du jour ne sont plus modifiables | 21:00 |
+| `verrouillage_repas` | Heure de clôture **la veille** des inscriptions (un jour se ferme la veille à cette heure) | 21:00 |
 | `verrouillage_foyer` | Heure après laquelle la présence foyer du jour n'est plus modifiable | 23:00 |
 | `verrouillage_weekend` | Active le verrouillage anticipé des repas du week-end dès le vendredi | (selon réglage) |
 
