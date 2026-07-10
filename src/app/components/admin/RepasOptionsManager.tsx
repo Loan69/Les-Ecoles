@@ -379,7 +379,7 @@ export default function RepasOptionsManager() {
                 </div>
                 <label className="flex items-center gap-2 text-sm text-gray-700">
                   <input type="checkbox" checked={optForm.adminOnly} onChange={(e) => setOptForm((f) => ({ ...f, adminOnly: e.target.checked }))} />
-                  Réservée à l&apos;intendance
+                  Réservée aux admins
                 </label>
               </div>
               <div className="flex justify-end gap-2 mt-6">
