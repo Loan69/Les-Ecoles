@@ -211,7 +211,7 @@ export default function SignInPage() {
                   <h1 className="text-2xl text-blue-800 font-bold">Ou inscrivez-vous</h1>
                   <div className="w-full bg-blue-500 h-[2px] mb-3" />
                   <p className="text-sm text-gray-600 mb-3">
-                    Les <strong>résidentes</strong> reçoivent une <strong>invitation par email</strong> de l&apos;intendance : il n&apos;y a pas d&apos;inscription à faire ici.
+                    Les résidentes reçoivent une <strong>invitation par email</strong> de l&apos;intendance pour accéder à l&apos;application.
                   </p>
                   <div className="flex justify-center">
                     <button

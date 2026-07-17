@@ -43,6 +43,29 @@ export async function POST(req: NextRequest) {
   const { data: pending } = await supabase.from("invitations").select("id").eq("place_id", place_id).eq("statut", "envoyee").maybeSingle();
   if (pending) return NextResponse.json({ error: "Une invitation est déjà en attente pour cette place." }, { status: 409 });
 
+  // Compte déjà existant pour cet email ? → réactivation + réassignation (sans nouvel email).
+  const { data: existing } = await supabase.from("residentes").select("user_id, is_super_admin").eq("email", mail).maybeSingle();
+  if (existing) {
+    if (existing.is_super_admin) return NextResponse.json({ error: "Ce compte est le super-admin et n'occupe pas de place." }, { status: 400 });
+    const { data: place } = await supabase.from("places").select("*").eq("id", place_id).maybeSingle();
+    if (!place) return NextResponse.json({ error: "Place introuvable." }, { status: 404 });
+
+    await supabase.auth.admin.updateUserById(existing.user_id, { ban_duration: "none" }).catch(() => {});
+    const { error: upErr } = await supabase
+      .from("residentes")
+      .update({
+        statut: "active",
+        archived_at: null,
+        place_id: place.id,
+        residence: place.residence,
+        etage: place.kind === "chambre" ? place.etage : null,
+        chambre: place.kind === "chambre" ? place.code : null,
+      })
+      .eq("user_id", existing.user_id);
+    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+    return NextResponse.json({ success: true, reassigned: true });
+  }
+
   const { data: invited, error: invErr } = await sendInvite(supabase, mail, place_id, req.nextUrl.origin);
   if (invErr) {
     const msg = /already/i.test(invErr.message) ? "Cet email a déjà un compte." : invErr.message;

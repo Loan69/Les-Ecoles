@@ -117,7 +117,7 @@ export default function PlacesManager() {
     const j = await res.json();
     setInviting(false);
     if (!res.ok) return toast.error(j.error || "Erreur.");
-    toast.success("Invitation envoyée par email.");
+    toast.success(j.reassigned ? "Compte existant réactivé et réassigné (sans nouvel email)." : "Invitation envoyée par email.");
     setInviteFor(null);
     setInviteEmail("");
     await load();
@@ -404,7 +404,7 @@ function InviteModal({
           <Mail className="w-5 h-5" /> Inviter une résidente
         </h3>
         <p className="text-sm text-gray-500 mb-4">
-          {place.kind === "poste" ? "Poste" : "Chambre"} <span className="font-medium">{placeName(place)}</span> — résidence {place.residence}. Un email d&apos;activation lui sera envoyé.
+          {place.kind === "poste" ? "Poste" : "Chambre"} <span className="font-medium">{placeName(place)}</span> — résidence {place.residence}. Un email d&apos;activation lui sera envoyé (si elle a déjà un compte, il sera réactivé et réassigné, sans nouvel email).
         </p>
         <input
           type="email"
