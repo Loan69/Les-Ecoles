@@ -4,7 +4,8 @@ import UsersTable from "@/app/components/admin/UsersTable";
 import GuestsTable from "@/app/components/admin/GuestsTable"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import AdminSettingsManager from "@/app/components/admin/AdminSettingsManager";
-import { Cog, UserRoundPen, Users } from "lucide-react";
+import PlacesManager from "@/app/components/admin/PlacesManager";
+import { Cog, DoorClosed, UserRoundPen, Users } from "lucide-react";
 
 export default async function AdminUsersPage() {
   const supabase = await createSupabaseServer();
@@ -80,6 +81,20 @@ export default async function AdminUsersPage() {
             >
               <Cog className="w-4 h-4 sm:w-5 sm:h-5" /> Paramétrage
             </TabsTrigger>
+
+            <TabsTrigger
+              value="chambres"
+              className="
+                flex items-center justify-center gap-2
+                cursor-pointer text-sm sm:text-base font-medium
+                data-[state=active]:bg-blue-600 data-[state=active]:text-white
+                px-3 sm:px-4 py-2 sm:py-3 rounded-full
+                transition-all duration-200 hover:bg-blue-100 hover:text-blue-700
+                whitespace-nowrap min-w-[8rem] sm:min-w-[10rem]
+              "
+            >
+              <DoorClosed className="w-4 h-4 sm:w-5 sm:h-5" /> Chambres
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -95,6 +110,10 @@ export default async function AdminUsersPage() {
 
           <TabsContent value="settings">
             <AdminSettingsManager />
+          </TabsContent>
+
+          <TabsContent value="chambres">
+            <PlacesManager />
           </TabsContent>
         </div>
       </Tabs>
