@@ -48,16 +48,32 @@ export default function ProfilPage() {
             return;
         }
 
-        let etageLabel = null;
-        let chambreLabel = null;
+        let etageLabel: string | null = null;
+        let chambreLabel: string | null = null;
 
-        const { data: options } = await supabase
-            .from("select_options_residence")
-            .select("value, label");
+        // Nouveau modèle (Lot 3) : le nom propre de la chambre est le libellé de la place.
+        const placeId = (data as { place_id?: string | null }).place_id;
+        if (placeId) {
+            const { data: place } = await supabase
+                .from("places")
+                .select("label, code, etage")
+                .eq("id", placeId)
+                .maybeSingle();
+            if (place) {
+                chambreLabel = place.label || formatChambre(place.code);
+                etageLabel = place.etage ?? null;
+            }
+        }
 
-        if (options) {
-            etageLabel = options.find((opt) => opt.value === data.etage)?.label || null;
-            chambreLabel = options.find((opt) => opt.value === data.chambre)?.label || null;
+        // Ancien modèle : résolution via la table d'options.
+        if (!chambreLabel && !etageLabel) {
+            const { data: options } = await supabase
+                .from("select_options_residence")
+                .select("value, label");
+            if (options) {
+                etageLabel = options.find((opt) => opt.value === data.etage)?.label || null;
+                chambreLabel = options.find((opt) => opt.value === data.chambre)?.label || null;
+            }
         }
 
         setProfil({
