@@ -53,8 +53,8 @@ export default function AdminRepasV2Page() {
     const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: optsRes }] =
       await Promise.all([
         supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
-        // NB: filtre "Admin" retiré le temps des tests (pour voir ton propre compte dans la compta)
-        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre"),
+        // Exclut le super-admin (compte technique) ; garde les archivées pour l'historique de compta.
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre").eq("is_super_admin", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("meal_options").select("*"),
         supabase.from("select_options_residence").select("value, label"),

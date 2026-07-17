@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Power, DoorClosed, Briefcase, UserCheck, Mail, Save, RefreshCw, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Power, DoorClosed, Briefcase, UserCheck, Mail, Save, RefreshCw, X, ArrowLeftRight, LogOut } from "lucide-react";
 import { PlaceWithStatus, PlaceKind } from "@/types/Place";
 import { formatEtage, formatChambre } from "@/lib/adminPeople";
 import LoadingSpinner from "../LoadingSpinner";
@@ -46,6 +46,7 @@ export default function PlacesManager() {
   const [inviteFor, setInviteFor] = useState<PlaceWithStatus | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [moveFor, setMoveFor] = useState<PlaceWithStatus | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/places");
@@ -153,6 +154,40 @@ export default function PlacesManager() {
     });
   };
 
+  const archiveOccupant = (p: PlaceWithStatus) => {
+    if (!p.occupant) return;
+    toast(`Libérer la place de ${p.occupant.prenom} ${p.occupant.nom} ? Son compte sera archivé (historique conservé).`, {
+      action: {
+        label: "Libérer / Archiver",
+        onClick: async () => {
+          const res = await fetch("/api/admin/residentes", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: p.occupant!.user_id }),
+          });
+          const j = await res.json();
+          if (!res.ok) return toast.error(j.error || "Erreur.");
+          toast.success("Place libérée, compte archivé.");
+          await load();
+        },
+      },
+    });
+  };
+
+  const doMove = async (targetId: string) => {
+    if (!moveFor?.occupant) return;
+    const res = await fetch("/api/admin/residentes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: moveFor.occupant.user_id, place_id: targetId }),
+    });
+    const j = await res.json();
+    if (!res.ok) return toast.error(j.error || "Erreur.");
+    toast.success("Résidente déplacée.");
+    setMoveFor(null);
+    await load();
+  };
+
   const remove = (p: PlaceWithStatus) => {
     toast(`Supprimer « ${placeName(p)} » ?`, {
       action: {
@@ -209,6 +244,8 @@ export default function PlacesManager() {
                 onInvite={(p) => { setInviteEmail(""); setInviteFor(p); }}
                 onResend={resendInvite}
                 onCancelInvite={cancelInvite}
+                onArchive={archiveOccupant}
+                onMove={(p) => setMoveFor(p)}
               />
             )}
           </section>
@@ -226,6 +263,14 @@ export default function PlacesManager() {
           sending={inviting}
         />
       )}
+      {moveFor && (
+        <MoveModal
+          place={moveFor}
+          freePlaces={places.filter((p) => p.is_active && !p.occupant && !p.invitation && p.id !== moveFor.id)}
+          onClose={() => setMoveFor(null)}
+          onMove={doMove}
+        />
+      )}
     </div>
   );
 }
@@ -238,6 +283,8 @@ type RowActions = {
   onInvite: (p: PlaceWithStatus) => void;
   onResend: (p: PlaceWithStatus) => void;
   onCancelInvite: (p: PlaceWithStatus) => void;
+  onArchive: (p: PlaceWithStatus) => void;
+  onMove: (p: PlaceWithStatus) => void;
 };
 
 function PlaceGroups({ places, isPoste, ...actions }: { places: PlaceWithStatus[]; isPoste: boolean } & RowActions) {
@@ -269,7 +316,7 @@ function PlaceGroups({ places, isPoste, ...actions }: { places: PlaceWithStatus[
   );
 }
 
-function PlaceRow({ p, onEdit, onToggle, onDelete, onInvite, onResend, onCancelInvite }: { p: PlaceWithStatus } & RowActions) {
+function PlaceRow({ p, onEdit, onToggle, onDelete, onInvite, onResend, onCancelInvite, onArchive, onMove }: { p: PlaceWithStatus } & RowActions) {
   const free = p.is_active && !p.occupant && !p.invitation;
   return (
     <div className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border px-4 py-3 ${p.is_active ? "border-gray-100 bg-white" : "border-gray-200 bg-gray-50 opacity-70"}`}>
@@ -290,6 +337,16 @@ function PlaceRow({ p, onEdit, onToggle, onDelete, onInvite, onResend, onCancelI
             </button>
             <button onClick={() => onCancelInvite(p)} className="p-2 rounded-full text-red-600 hover:bg-red-50 cursor-pointer" title="Annuler l'invitation">
               <X className="w-4 h-4" />
+            </button>
+          </>
+        )}
+        {p.occupant && (
+          <>
+            <button onClick={() => onMove(p)} className="p-2 rounded-full text-blue-600 hover:bg-blue-50 cursor-pointer" title="Déplacer vers une autre place">
+              <ArrowLeftRight className="w-4 h-4" />
+            </button>
+            <button onClick={() => onArchive(p)} className="p-2 rounded-full text-orange-600 hover:bg-orange-50 cursor-pointer" title="Libérer la place (archiver)">
+              <LogOut className="w-4 h-4" />
             </button>
           </>
         )}
@@ -362,6 +419,49 @@ function InviteModal({
           <button onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-400 text-gray-600 hover:bg-gray-100 cursor-pointer">Annuler</button>
           <button onClick={onSend} disabled={sending} className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-800 disabled:opacity-50 cursor-pointer">
             <Mail className="w-4 h-4" /> {sending ? "Envoi…" : "Envoyer l'invitation"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Modale de déplacement (choisir une place libre) ---
+function MoveModal({
+  place,
+  freePlaces,
+  onClose,
+  onMove,
+}: {
+  place: PlaceWithStatus;
+  freePlaces: PlaceWithStatus[];
+  onClose: () => void;
+  onMove: (targetId: string) => void;
+}) {
+  const [target, setTarget] = useState("");
+  const optionLabel = (p: PlaceWithStatus) =>
+    p.kind === "poste" ? `Corail · ${placeName(p)}` : `Rés. ${p.residence} · ${formatEtage(p.etage) ?? "?"} · ${placeName(p)}`;
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <h3 className="text-lg font-semibold text-blue-800 mb-1 flex items-center gap-2">
+          <ArrowLeftRight className="w-5 h-5" /> Déplacer {place.occupant?.prenom} {place.occupant?.nom}
+        </h3>
+        <p className="text-sm text-gray-500 mb-4">Depuis <span className="font-medium">{placeName(place)}</span> vers une place libre :</p>
+        {freePlaces.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">Aucune place libre disponible.</p>
+        ) : (
+          <select value={target} onChange={(e) => setTarget(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none">
+            <option value="">Choisir une place…</option>
+            {freePlaces.map((p) => (
+              <option key={p.id} value={p.id}>{optionLabel(p)}</option>
+            ))}
+          </select>
+        )}
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-400 text-gray-600 hover:bg-gray-100 cursor-pointer">Annuler</button>
+          <button onClick={() => target && onMove(target)} disabled={!target} className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-800 disabled:opacity-50 cursor-pointer">
+            <ArrowLeftRight className="w-4 h-4" /> Déplacer
           </button>
         </div>
       </div>

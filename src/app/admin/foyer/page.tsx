@@ -58,7 +58,7 @@ export default function AdminFoyerView() {
     const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }] =
       await Promise.all([
         supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
-        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre").neq("nom", "Admin"),
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre").eq("statut", "active").eq("is_super_admin", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("select_options_residence").select("value, label"),
       ]);

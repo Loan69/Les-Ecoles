@@ -50,6 +50,10 @@ export default function ActivationPage() {
 
   useEffect(() => {
     let mounted = true;
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("error")) {
+      setInvalid(true);
+      return;
+    }
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       if (s?.user && mounted && !ready) loadFor(s.user);
     });

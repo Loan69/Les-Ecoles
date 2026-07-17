@@ -41,7 +41,7 @@ export default function EventVisibilitySelector({ value, onChange, disabled = fa
       const [{ data: resData }, { data: etData }, { data: rData }] = await Promise.all([
         supabase.from("select_options_residence").select("value, label, parent_value").eq("category", "residence").is("parent_value", null).order("label"),
         supabase.from("select_options_residence").select("value, label, parent_value").eq("category", "etage").order("label"),
-        supabase.from("residentes").select("user_id, nom, prenom, residence, etage").neq("nom", "Admin"),
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage").eq("statut", "active").eq("is_super_admin", false),
       ]);
       setResidences(resData || []);
       setEtages(etData || []);
