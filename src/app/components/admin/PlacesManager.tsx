@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Power, DoorClosed, Briefcase, UserCheck, Mail, Save } from "lucide-react";
+import { Plus, Pencil, Trash2, Power, DoorClosed, Briefcase, UserCheck, Mail, Save, RefreshCw, X } from "lucide-react";
 import { PlaceWithStatus, PlaceKind } from "@/types/Place";
-import { formatEtage } from "@/lib/adminPeople";
+import { formatEtage, formatChambre } from "@/lib/adminPeople";
 import LoadingSpinner from "../LoadingSpinner";
 
 const RESIDENCES: { value: string; label: string; kind: PlaceKind }[] = [
@@ -19,17 +19,33 @@ type Form = {
   residence: string;
   kind: PlaceKind;
   etage: string;
-  code: string;
-  label: string;
+  name: string;
 };
 
-const EMPTY_FORM: Form = { open: false, editingId: null, residence: "12", kind: "chambre", etage: "", code: "", label: "" };
+const EMPTY_FORM: Form = { open: false, editingId: null, residence: "12", kind: "chambre", etage: "", name: "" };
+
+// Nom affiché d'une place (le code interne n'est jamais montré).
+function placeName(p: PlaceWithStatus): string {
+  return p.label || formatChambre(p.code) || p.code;
+}
+
+// Numéro d'étage « propre » pour la saisie (r12_etage4 / etage_2 / 4 -> "4" / "2" / "4").
+function etageNumber(etage?: string | null): string {
+  if (!etage) return "";
+  const m = etage.match(/(?:etage|étage|et)[ _-]?(\d+)/i);
+  if (m) return m[1];
+  if (/^\d+$/.test(etage.trim())) return etage.trim();
+  return etage;
+}
 
 export default function PlacesManager() {
   const [places, setPlaces] = useState<PlaceWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [inviteFor, setInviteFor] = useState<PlaceWithStatus | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/places");
@@ -47,11 +63,11 @@ export default function PlacesManager() {
     setForm({ ...EMPTY_FORM, open: true, residence, kind });
 
   const openEdit = (p: PlaceWithStatus) =>
-    setForm({ open: true, editingId: p.id, residence: p.residence, kind: p.kind, etage: p.etage ?? "", code: p.code, label: p.label ?? "" });
+    setForm({ open: true, editingId: p.id, residence: p.residence, kind: p.kind, etage: etageNumber(p.etage), name: placeName(p) });
 
   const save = async () => {
-    if (!form.code.trim()) {
-      toast.error(form.kind === "poste" ? "Le libellé du poste est requis." : "Le code de la chambre est requis.");
+    if (!form.name.trim()) {
+      toast.error(form.kind === "poste" ? "Le nom du poste est requis." : "Le nom de la chambre est requis.");
       return;
     }
     if (form.kind === "chambre" && !form.etage.trim()) {
@@ -59,7 +75,7 @@ export default function PlacesManager() {
       return;
     }
     setSaving(true);
-    const payload = { residence: form.residence, kind: form.kind, etage: form.kind === "chambre" ? form.etage : null, code: form.code, label: form.label };
+    const payload = { residence: form.residence, kind: form.kind, etage: form.kind === "chambre" ? form.etage : null, name: form.name };
     const res = await fetch("/api/admin/places", {
       method: form.editingId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -85,8 +101,60 @@ export default function PlacesManager() {
     await load();
   };
 
+  const sendInvite = async () => {
+    if (!inviteFor) return;
+    if (!inviteEmail.trim()) {
+      toast.error("Email requis.");
+      return;
+    }
+    setInviting(true);
+    const res = await fetch("/api/admin/invitations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ place_id: inviteFor.id, email: inviteEmail }),
+    });
+    const j = await res.json();
+    setInviting(false);
+    if (!res.ok) return toast.error(j.error || "Erreur.");
+    toast.success("Invitation envoyée par email.");
+    setInviteFor(null);
+    setInviteEmail("");
+    await load();
+  };
+
+  const resendInvite = async (p: PlaceWithStatus) => {
+    const res = await fetch("/api/admin/invitations", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ place_id: p.id }),
+    });
+    const j = await res.json();
+    if (!res.ok) return toast.error(j.error || "Erreur.");
+    toast.success("Invitation renvoyée.");
+    await load();
+  };
+
+  const cancelInvite = (p: PlaceWithStatus) => {
+    toast(`Annuler l'invitation de ${p.invitation?.email} ?`, {
+      action: {
+        label: "Annuler l'invitation",
+        onClick: async () => {
+          const res = await fetch("/api/admin/invitations", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ place_id: p.id }),
+          });
+          const j = await res.json();
+          if (!res.ok) return toast.error(j.error || "Erreur.");
+          toast.success("Invitation annulée.");
+          await load();
+        },
+      },
+    });
+  };
+
   const remove = (p: PlaceWithStatus) => {
-    toast(`Supprimer « ${p.label || p.code} » ?`, {
+    toast(`Supprimer « ${placeName(p)} » ?`, {
       action: {
         label: "Supprimer",
         onClick: async () => {
@@ -106,7 +174,7 @@ export default function PlacesManager() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <LoadingSpinner />
       </div>
     );
@@ -117,67 +185,82 @@ export default function PlacesManager() {
       {RESIDENCES.map((r) => {
         const rPlaces = places.filter((p) => p.residence === r.value);
         return (
-          <section key={r.value} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-blue-800 flex items-center gap-2">
-                {r.kind === "poste" ? <Briefcase className="w-5 h-5 text-amber-600" /> : <DoorClosed className="w-5 h-5 text-blue-600" />}
-                {r.label}
-                <span className="text-sm font-normal text-gray-400">
-                  ({rPlaces.length} {r.kind === "poste" ? "poste(s)" : "chambre(s)"})
-                </span>
+          <section key={r.value} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5">
+            <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-base sm:text-lg font-bold text-blue-800 flex items-center gap-2 min-w-0">
+                {r.kind === "poste" ? <Briefcase className="w-5 h-5 text-amber-600 shrink-0" /> : <DoorClosed className="w-5 h-5 text-blue-600 shrink-0" />}
+                <span className="truncate">{r.label}</span>
+                <span className="text-xs sm:text-sm font-normal text-gray-400 shrink-0">· {rPlaces.length}</span>
               </h2>
-              <button onClick={() => openCreate(r.value, r.kind)} className="flex items-center gap-1 bg-blue-600 text-white rounded-lg px-3 py-2 text-sm font-medium hover:bg-blue-800 cursor-pointer">
-                <Plus className="w-4 h-4" /> {r.kind === "poste" ? "Ajouter un poste" : "Ajouter une chambre"}
+              <button onClick={() => openCreate(r.value, r.kind)} className="self-start sm:self-auto shrink-0 flex items-center gap-1 bg-blue-600 text-white rounded-lg px-3 py-2 text-sm font-medium hover:bg-blue-800 cursor-pointer whitespace-nowrap">
+                <Plus className="w-4 h-4" /> Ajouter
               </button>
             </div>
 
             {rPlaces.length === 0 ? (
               <p className="text-sm text-gray-400 italic">Aucune {r.kind === "poste" ? "place" : "chambre"} pour le moment.</p>
             ) : (
-              <PlaceGroups places={rPlaces} isPoste={r.kind === "poste"} onEdit={openEdit} onToggle={toggleActive} onDelete={remove} />
+              <PlaceGroups
+                places={rPlaces}
+                isPoste={r.kind === "poste"}
+                onEdit={openEdit}
+                onToggle={toggleActive}
+                onDelete={remove}
+                onInvite={(p) => { setInviteEmail(""); setInviteFor(p); }}
+                onResend={resendInvite}
+                onCancelInvite={cancelInvite}
+              />
             )}
           </section>
         );
       })}
 
       {form.open && <PlaceModal form={form} setForm={setForm} onSave={save} saving={saving} />}
+      {inviteFor && (
+        <InviteModal
+          place={inviteFor}
+          email={inviteEmail}
+          setEmail={setInviteEmail}
+          onClose={() => setInviteFor(null)}
+          onSend={sendInvite}
+          sending={inviting}
+        />
+      )}
     </div>
   );
 }
 
 // --- Groupement par étage (chambres) ou liste plate (postes) ---
-function PlaceGroups({
-  places,
-  isPoste,
-  onEdit,
-  onToggle,
-  onDelete,
-}: {
-  places: PlaceWithStatus[];
-  isPoste: boolean;
+type RowActions = {
   onEdit: (p: PlaceWithStatus) => void;
   onToggle: (p: PlaceWithStatus) => void;
   onDelete: (p: PlaceWithStatus) => void;
-}) {
+  onInvite: (p: PlaceWithStatus) => void;
+  onResend: (p: PlaceWithStatus) => void;
+  onCancelInvite: (p: PlaceWithStatus) => void;
+};
+
+function PlaceGroups({ places, isPoste, ...actions }: { places: PlaceWithStatus[]; isPoste: boolean } & RowActions) {
   const groups = useMemo(() => {
-    if (isPoste) return [{ etage: null as string | null, items: places }];
+    if (isPoste) return [{ label: null as string | null, items: places }];
+    // Clé = étage normalisé (« Étage 4 ») → fusionne r12_etage4, etage_4, 4…
     const byEtage = new Map<string, PlaceWithStatus[]>();
     for (const p of places) {
-      const key = p.etage ?? "—";
+      const key = formatEtage(p.etage) ?? "Étage ?";
       if (!byEtage.has(key)) byEtage.set(key, []);
       byEtage.get(key)!.push(p);
     }
-    return [...byEtage.entries()].sort((a, b) => a[0].localeCompare(b[0], "fr", { numeric: true })).map(([etage, items]) => ({ etage, items }));
+    return [...byEtage.entries()].sort((a, b) => a[0].localeCompare(b[0], "fr", { numeric: true })).map(([label, items]) => ({ label, items }));
   }, [places, isPoste]);
 
   return (
     <div className="space-y-4">
       {groups.map((g) => (
-        <div key={g.etage ?? "postes"}>
-          {!isPoste && <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">{formatEtage(g.etage) ?? "Étage ?"}</p>}
+        <div key={g.label ?? "postes"}>
+          {!isPoste && <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">{g.label}</p>}
           <div className="grid gap-2">
             {g.items.map((p) => (
-              <PlaceRow key={p.id} p={p} onEdit={onEdit} onToggle={onToggle} onDelete={onDelete} />
+              <PlaceRow key={p.id} p={p} {...actions} />
             ))}
           </div>
         </div>
@@ -186,24 +269,30 @@ function PlaceGroups({
   );
 }
 
-function PlaceRow({
-  p,
-  onEdit,
-  onToggle,
-  onDelete,
-}: {
-  p: PlaceWithStatus;
-  onEdit: (p: PlaceWithStatus) => void;
-  onToggle: (p: PlaceWithStatus) => void;
-  onDelete: (p: PlaceWithStatus) => void;
-}) {
+function PlaceRow({ p, onEdit, onToggle, onDelete, onInvite, onResend, onCancelInvite }: { p: PlaceWithStatus } & RowActions) {
+  const free = p.is_active && !p.occupant && !p.invitation;
   return (
-    <div className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 ${p.is_active ? "border-gray-100 bg-white" : "border-gray-200 bg-gray-50 opacity-70"}`}>
+    <div className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border px-4 py-3 ${p.is_active ? "border-gray-100 bg-white" : "border-gray-200 bg-gray-50 opacity-70"}`}>
       <div className="min-w-0">
-        <p className="font-medium text-gray-800 truncate">{p.label || p.code}</p>
+        <p className="font-medium text-gray-800 truncate">{placeName(p)}</p>
         <StatusBadge p={p} />
       </div>
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
+        {free && (
+          <button onClick={() => onInvite(p)} className="flex items-center gap-1 bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-800 cursor-pointer" title="Inviter une résidente">
+            <Mail className="w-4 h-4" /> Inviter
+          </button>
+        )}
+        {p.invitation && (
+          <>
+            <button onClick={() => onResend(p)} className="p-2 rounded-full text-amber-600 hover:bg-amber-50 cursor-pointer" title="Renvoyer l'invitation">
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <button onClick={() => onCancelInvite(p)} className="p-2 rounded-full text-red-600 hover:bg-red-50 cursor-pointer" title="Annuler l'invitation">
+              <X className="w-4 h-4" />
+            </button>
+          </>
+        )}
         <button onClick={() => onEdit(p)} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 cursor-pointer" title="Modifier">
           <Pencil className="w-4 h-4" />
         </button>
@@ -235,6 +324,51 @@ function StatusBadge({ p }: { p: PlaceWithStatus }) {
   return <span className="text-xs text-blue-500">Libre</span>;
 }
 
+// --- Modale d'invitation ---
+function InviteModal({
+  place,
+  email,
+  setEmail,
+  onClose,
+  onSend,
+  sending,
+}: {
+  place: PlaceWithStatus;
+  email: string;
+  setEmail: (v: string) => void;
+  onClose: () => void;
+  onSend: () => void;
+  sending: boolean;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <h3 className="text-lg font-semibold text-blue-800 mb-1 flex items-center gap-2">
+          <Mail className="w-5 h-5" /> Inviter une résidente
+        </h3>
+        <p className="text-sm text-gray-500 mb-4">
+          {place.kind === "poste" ? "Poste" : "Chambre"} <span className="font-medium">{placeName(place)}</span> — résidence {place.residence}. Un email d&apos;activation lui sera envoyé.
+        </p>
+        <input
+          type="email"
+          autoFocus
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !sending && onSend()}
+          placeholder="email@exemple.fr"
+          className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+        />
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-400 text-gray-600 hover:bg-gray-100 cursor-pointer">Annuler</button>
+          <button onClick={onSend} disabled={sending} className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-800 disabled:opacity-50 cursor-pointer">
+            <Mail className="w-4 h-4" /> {sending ? "Envoi…" : "Envoyer l'invitation"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Modale création / édition ---
 function PlaceModal({ form, setForm, onSave, saving }: { form: Form; setForm: (f: Form) => void; onSave: () => void; saving: boolean }) {
   const isPoste = form.kind === "poste";
@@ -251,26 +385,19 @@ function PlaceModal({ form, setForm, onSave, saving }: { form: Form; setForm: (f
               <input
                 value={form.etage}
                 onChange={(e) => setForm({ ...form, etage: e.target.value })}
-                placeholder="Ex : 2 (ou etage_2)"
+                placeholder="Ex : 2"
                 className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none"
               />
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{isPoste ? "Libellé du poste" : "Code de la chambre"}</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{isPoste ? "Nom du poste" : "Nom de la chambre"}</label>
             <input
-              value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
-              placeholder={isPoste ? "Ex : Cuisine, Ménage…" : "Ex : grand_palais"}
-              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Libellé affiché <span className="text-gray-400">(optionnel)</span></label>
-            <input
-              value={form.label}
-              onChange={(e) => setForm({ ...form, label: e.target.value })}
-              placeholder={isPoste ? "Sinon = le libellé du poste" : "Ex : Grand Palais"}
+              autoFocus
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onKeyDown={(e) => e.key === "Enter" && !saving && onSave()}
+              placeholder={isPoste ? "Ex : Cuisine, Ménage…" : "Ex : Grand Palais"}
               className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none"
             />
           </div>

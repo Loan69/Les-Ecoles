@@ -1,0 +1,61 @@
+<!--
+  Template d'email « Invite user » — à coller dans Supabase :
+  Authentication → Email Templates → Invite user (onglet « Source »/HTML).
+  Variable Supabase utilisée : {{ .ConfirmationURL }} (lien d'activation).
+  Objet suggéré : « Votre accès à l'application du Foyer des Écoles »
+-->
+<div style="margin:0;padding:0;background:#f1f5f9;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+          <!-- Bandeau -->
+          <tr>
+            <td style="background:#004AAD;padding:28px 32px;text-align:center;">
+              <div style="color:#ffffff;font-size:20px;font-weight:800;letter-spacing:.02em;">Foyer des Écoles</div>
+              <div style="color:#bcd2f7;font-size:13px;margin-top:4px;">Votre application du quotidien</div>
+            </td>
+          </tr>
+          <!-- Corps -->
+          <tr>
+            <td style="padding:32px;color:#1f2937;font-size:15px;line-height:1.6;">
+              <p style="margin:0 0 16px;">Bonjour,</p>
+              <p style="margin:0 0 16px;">
+                L'intendance vous a ouvert un accès à l'application du foyer. Vous pourrez y gérer vos
+                <strong>repas</strong>, votre <strong>présence</strong> et consulter les <strong>événements</strong> et
+                informations pratiques.
+              </p>
+              <p style="margin:0 0 24px;">Pour activer votre compte, il vous suffit de définir votre mot de passe :</p>
+              <!-- Bouton -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+                <tr>
+                  <td align="center" style="border-radius:10px;background:#004AAD;">
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;border-radius:10px;">
+                      Activer mon compte
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 8px;color:#6b7280;font-size:13px;">
+                Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :
+              </p>
+              <p style="margin:0 0 20px;word-break:break-all;font-size:12px;">
+                <a href="{{ .ConfirmationURL }}" style="color:#1d4ed8;">{{ .ConfirmationURL }}</a>
+              </p>
+              <p style="margin:0;color:#9ca3af;font-size:12px;">
+                Ce lien est personnel et à durée limitée. Si vous n'êtes pas concernée par cette invitation,
+                ignorez simplement cet email.
+              </p>
+            </td>
+          </tr>
+          <!-- Pied -->
+          <tr>
+            <td style="padding:18px 32px;background:#f8fafc;border-top:1px solid #e5e7eb;text-align:center;color:#9ca3af;font-size:12px;">
+              Foyer des Écoles · Cet email vous est envoyé par l'intendance.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>

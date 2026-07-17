@@ -7,10 +7,19 @@ type Body = {
   residence?: string;
   kind?: PlaceKind;
   etage?: string | null;
-  code?: string;
-  label?: string | null;
+  name?: string; // ce que saisit l'admin (nom de chambre ou de poste) — le code interne en est dérivé
   is_active?: boolean;
 };
+
+// Code technique interne dérivé du nom (jamais saisi par l'admin).
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
 
 // Règles : 12/36 → chambre (avec étage) ; corail → poste (sans étage).
 function validate(body: Body): string | null {
@@ -19,7 +28,7 @@ function validate(body: Body): string | null {
   if (body.residence === "corail" && body.kind !== "poste") return "La résidence corail ne comporte que des postes.";
   if ((body.residence === "12" || body.residence === "36") && body.kind !== "chambre") return "Les résidences 12 et 36 ne comportent que des chambres.";
   if (body.kind === "chambre" && !(body.etage ?? "").trim()) return "L'étage est requis pour une chambre.";
-  if (!(body.code ?? "").trim()) return body.kind === "poste" ? "Le libellé du poste est requis." : "Le code de la chambre est requis.";
+  if (!(body.name ?? "").trim()) return body.kind === "poste" ? "Le nom du poste est requis." : "Le nom de la chambre est requis.";
   return null;
 }
 
@@ -55,9 +64,7 @@ export async function GET() {
     occupant: occByPlace.get(p.id)
       ? { user_id: occByPlace.get(p.id)!.user_id, nom: occByPlace.get(p.id)!.nom, prenom: occByPlace.get(p.id)!.prenom }
       : null,
-    invitation: invByPlace.get(p.id)
-      ? { email: invByPlace.get(p.id)!.email, expires_at: invByPlace.get(p.id)!.expires_at }
-      : null,
+    invitation: invByPlace.get(p.id) ? { email: invByPlace.get(p.id)!.email, expires_at: invByPlace.get(p.id)!.expires_at } : null,
   }));
 
   return NextResponse.json({ places: result });
@@ -72,27 +79,25 @@ export async function POST(req: NextRequest) {
   const v = validate(body);
   if (v) return NextResponse.json({ error: v }, { status: 400 });
 
+  const name = body.name!.trim();
+  const etage = body.kind === "chambre" ? body.etage!.trim() : null;
+  // Code interne unique, dérivé du nom (+ étage pour les chambres, pour éviter les collisions inter-étages).
+  const code = body.kind === "chambre" ? slugify(`${etage}_${name}`) : slugify(name);
+
   const { data, error: dbError } = await supabase
     .from("places")
-    .insert({
-      residence: body.residence,
-      kind: body.kind,
-      etage: body.kind === "chambre" ? body.etage!.trim() : null,
-      code: body.code!.trim(),
-      label: body.label?.trim() || null,
-      is_active: body.is_active ?? true,
-    })
+    .insert({ residence: body.residence, kind: body.kind, etage, code, label: name, is_active: true })
     .select()
     .single();
 
   if (dbError) {
-    const msg = dbError.code === "23505" ? "Une place avec ce code existe déjà dans cette résidence." : dbError.message;
+    const msg = dbError.code === "23505" ? "Une place portant ce nom existe déjà à cet endroit." : dbError.message;
     return NextResponse.json({ error: msg }, { status: 400 });
   }
   return NextResponse.json({ success: true, place: data });
 }
 
-// --- Modifier une place (code, libellé, étage, activation) ---
+// --- Modifier une place (nom affiché, étage, activation) — le code interne reste stable ---
 export async function PUT(req: NextRequest) {
   const { supabase, error } = await requireAdmin();
   if (error) return error;
@@ -101,19 +106,15 @@ export async function PUT(req: NextRequest) {
   if (!body.id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
 
   const update: Record<string, unknown> = {};
-  if (body.code !== undefined) {
-    if (!body.code.trim()) return NextResponse.json({ error: "Le code / libellé est requis." }, { status: 400 });
-    update.code = body.code.trim();
+  if (body.name !== undefined) {
+    if (!body.name.trim()) return NextResponse.json({ error: "Le nom est requis." }, { status: 400 });
+    update.label = body.name.trim();
   }
-  if (body.label !== undefined) update.label = body.label?.trim() || null;
   if (body.etage !== undefined) update.etage = body.etage ? body.etage.trim() : null;
   if (body.is_active !== undefined) update.is_active = body.is_active;
 
   const { error: dbError } = await supabase.from("places").update(update).eq("id", body.id);
-  if (dbError) {
-    const msg = dbError.code === "23505" ? "Une place avec ce code existe déjà dans cette résidence." : dbError.message;
-    return NextResponse.json({ error: msg }, { status: 400 });
-  }
+  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 400 });
   return NextResponse.json({ success: true });
 }
 
@@ -125,7 +126,6 @@ export async function DELETE(req: NextRequest) {
   const { id } = (await req.json()) as { id?: string };
   if (!id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
 
-  // Refus si une résidente (active OU archivée) ou une invitation y est rattachée → préférer la désactivation.
   const { count: resCount } = await supabase.from("residentes").select("id", { count: "exact", head: true }).eq("place_id", id);
   if (resCount && resCount > 0)
     return NextResponse.json({ error: "Place déjà utilisée (occupant ou historique). Désactivez-la plutôt que de la supprimer." }, { status: 409 });
