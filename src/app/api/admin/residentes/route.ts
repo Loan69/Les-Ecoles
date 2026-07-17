@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/apiAuth";
 
+// --- Liste des comptes archivés (pour réassignation rapide) : GET ---
+export async function GET() {
+  const { supabase, error } = await requireAdmin();
+  if (error) return error;
+
+  const { data } = await supabase
+    .from("residentes")
+    .select("user_id, nom, prenom, email")
+    .eq("statut", "archivee")
+    .eq("is_super_admin", false)
+    .order("nom", { ascending: true })
+    .order("prenom", { ascending: true });
+
+  return NextResponse.json({ archived: data ?? [] });
+}
+
 // --- Archiver (libérer la place) une résidente : PATCH { user_id } ---
 // Le compte est désactivé (plus de connexion) mais conservé pour la compta ;
 // la place redevient libre (plus de compte actif rattaché).

@@ -24,6 +24,8 @@ type Form = {
 
 const EMPTY_FORM: Form = { open: false, editingId: null, residence: "12", kind: "chambre", etage: "", name: "" };
 
+type ArchivedAccount = { user_id: string; nom: string; prenom: string; email: string };
+
 // Nom affiché d'une place (le code interne n'est jamais montré).
 function placeName(p: PlaceWithStatus): string {
   return p.label || formatChambre(p.code) || p.code;
@@ -47,12 +49,14 @@ export default function PlacesManager() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
   const [moveFor, setMoveFor] = useState<PlaceWithStatus | null>(null);
+  const [archived, setArchived] = useState<ArchivedAccount[]>([]);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/admin/places");
-    const j = await res.json();
-    if (res.ok) setPlaces(j.places ?? []);
+    const [placesRes, archivedRes] = await Promise.all([fetch("/api/admin/places"), fetch("/api/admin/residentes")]);
+    const j = await placesRes.json();
+    if (placesRes.ok) setPlaces(j.places ?? []);
     else toast.error(j.error || "Erreur de chargement.");
+    if (archivedRes.ok) setArchived((await archivedRes.json()).archived ?? []);
     setLoading(false);
   }, []);
 
@@ -258,6 +262,7 @@ export default function PlacesManager() {
           place={inviteFor}
           email={inviteEmail}
           setEmail={setInviteEmail}
+          archived={archived}
           onClose={() => setInviteFor(null)}
           onSend={sendInvite}
           sending={inviting}
@@ -386,6 +391,7 @@ function InviteModal({
   place,
   email,
   setEmail,
+  archived,
   onClose,
   onSend,
   sending,
@@ -393,6 +399,7 @@ function InviteModal({
   place: PlaceWithStatus;
   email: string;
   setEmail: (v: string) => void;
+  archived: ArchivedAccount[];
   onClose: () => void;
   onSend: () => void;
   sending: boolean;
@@ -404,8 +411,32 @@ function InviteModal({
           <Mail className="w-5 h-5" /> Inviter une résidente
         </h3>
         <p className="text-sm text-gray-500 mb-4">
-          {place.kind === "poste" ? "Poste" : "Chambre"} <span className="font-medium">{placeName(place)}</span> — résidence {place.residence}. Un email d&apos;activation lui sera envoyé (si elle a déjà un compte, il sera réactivé et réassigné, sans nouvel email).
+          {place.kind === "poste" ? "Poste" : "Chambre"} <span className="font-medium">{placeName(place)}</span> — résidence {place.residence}.
         </p>
+
+        {archived.length > 0 && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Réassigner une ancienne résidente</label>
+            <select
+              value=""
+              onChange={(e) => {
+                const a = archived.find((x) => x.user_id === e.target.value);
+                if (a) setEmail(a.email);
+              }}
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+            >
+              <option value="">— Compte archivé… —</option>
+              {archived.map((a) => (
+                <option key={a.user_id} value={a.user_id}>{a.nom.toUpperCase()} {a.prenom} · {a.email}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Son compte sera réactivé et réassigné, sans nouvel email.</p>
+          </div>
+        )}
+
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {archived.length > 0 ? "Ou inviter par email" : "Email"}
+        </label>
         <input
           type="email"
           autoFocus
@@ -415,6 +446,7 @@ function InviteModal({
           placeholder="email@exemple.fr"
           className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none"
         />
+        <p className="text-xs text-gray-400 mt-1">Nouvelle personne : un email d&apos;activation lui sera envoyé.</p>
         <div className="flex justify-end gap-2 mt-6">
           <button onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-400 text-gray-600 hover:bg-gray-100 cursor-pointer">Annuler</button>
           <button onClick={onSend} disabled={sending} className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-800 disabled:opacity-50 cursor-pointer">

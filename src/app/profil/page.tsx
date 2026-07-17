@@ -6,6 +6,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { Residente } from "@/types/Residente";
+import { formatEtage, formatChambre } from "@/lib/adminPeople";
+
+// Date de naissance « jolie » (2004-05-12 -> 12 mai 2004), sans décalage de fuseau.
+function formatDateNaissance(d?: string | null): string | null {
+  if (!d) return null;
+  const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return d;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
 
 type ResidenteWithLabels = Residente & {
   etageLabel?: string | null;
@@ -100,9 +113,9 @@ export default function ProfilPage() {
             </motion.div>
 
             <div className="divide-y divide-gray-100 px-6">
-                <InfoRow label="Étage" value={profil.etageLabel ?? profil.etage} />
-                <InfoRow label="Chambre" value={profil.chambreLabel ?? profil.chambre} />
-                <InfoRow label="Date de naissance" value={profil.date_naissance} />
+                <InfoRow label="Étage" value={formatEtage(profil.etageLabel ?? profil.etage)} />
+                <InfoRow label="Chambre" value={formatChambre(profil.chambreLabel ?? profil.chambre)} />
+                <InfoRow label="Date de naissance" value={formatDateNaissance(profil.date_naissance)} />
                 {profil.is_admin ? (
                 <InfoRow label="Statut" value="Administratrice" />
                 ) : (
