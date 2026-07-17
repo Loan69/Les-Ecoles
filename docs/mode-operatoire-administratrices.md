@@ -41,10 +41,14 @@ Panneau ⚙️ **Administration** → onglet **Chambres**. C'est ici qu'on gère
 - État de chaque place : **Libre**, **Occupée · Nom Prénom**, ou **Invitation envoyée · email**.
 
 **Inviter une résidente**
-1. Sur une place **libre**, clique **« Inviter »** et saisis l'**email**.
-2. La résidente reçoit un email ; elle définit son mot de passe et complète son profil (résidence/chambre **imposées**).
-3. La place passe à **« Occupée »**.
+1. Sur une place **libre**, clique **« Inviter »**.
+2. Deux possibilités :
+   - **Nouvelle personne** : saisis son **email** → elle reçoit un email d'activation.
+   - **Ancienne résidente** (déjà eu un compte) : choisis-la dans la liste **« Réassigner une ancienne résidente »** → son compte est **réactivé et réassigné sans nouvel email**.
+3. Elle définit son mot de passe et complète son profil (résidence/chambre **imposées**) ; la place passe à **« Occupée »**.
 - Une invitation en attente peut être **relancée** (↻) ou **annulée** (✕).
+
+> Inviter un email qui a **déjà** un compte le **réactive et le réassigne** automatiquement (utile pour replacer une personne archivée).
 
 **Départ d'une résidente** : bouton **« Libérer / archiver »** (⤴) sur sa place → le compte est **archivé** (il ne peut plus se connecter, mais son **historique de repas/présence est conservé** pour la compta) et la **place se libère** (réattribuable).
 
