@@ -8,16 +8,17 @@ import LoadingSpinner from "./LoadingSpinner";
 type Role = "residente" | "invitee";
 
 export default function CompletionProfileClient() {
-  const [role, setRole] = useState<Role>("residente");
+  const [role, setRole] = useState<Role>("invitee");
   const [loading, setLoading] = useState(true);
 
   const searchParams = useSearchParams();
   const router = useRouter();
 
   useEffect(() => {
+    // Le self-signup est réservé aux invitées : les résidentes passent par une invitation (Lot 3).
     const urlRole = searchParams.get("role");
-    if (urlRole === "residente" || urlRole === "invitee") {
-      setRole(urlRole);
+    if (urlRole === "invitee") {
+      setRole("invitee");
       setLoading(false);
     } else {
       router.push("/signin");

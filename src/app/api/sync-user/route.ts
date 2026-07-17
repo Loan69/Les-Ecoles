@@ -25,21 +25,12 @@ export async function POST() {
     }
 
     if (pending.role === "residente") {
-      const { error: insertError } = await supabase.from("residentes").insert([
-        {
-          user_id: user.id,
-          email: user.email,
-          is_admin: false,
-          nom: pending.nom,
-          prenom: pending.prenom,
-          date_naissance: pending.datenaissance,
-          residence: pending.residence,
-          etage: pending.etage,
-          chambre: pending.chambre,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-      if (insertError) throw insertError;
+      // Lot 3 : les résidentes sont créées par invitation de l'intendance
+      // (plus de self-signup). On refuse toute création résidente par cette voie.
+      return NextResponse.json(
+        { error: "Les comptes résidents sont créés par invitation de l'intendance." },
+        { status: 403 }
+      );
     } else if (pending.role === "invitee") {
       const { error: insertError } = await supabase.from("invitees").insert([
         {

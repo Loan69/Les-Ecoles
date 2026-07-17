@@ -31,9 +31,32 @@ Panneau ⚙️ **Administration** → onglet **Utilisatrices** :
 
 ---
 
+## 3 bis. Chambres, postes & invitations (comptes résidentes)
+
+Panneau ⚙️ **Administration** → onglet **Chambres**. C'est ici qu'on gère les **places** et les **comptes résidentes**. Principe : **une chambre = une place = un compte**. Les résidentes **ne s'inscrivent plus elles-mêmes** — elles sont **invitées** par l'intendance.
+
+**Le référentiel des places**
+- Résidences **12 / 36** → des **chambres** (regroupées par étage). Corail → des **postes** (prestataires : Cuisine, Ménage… ; libellé libre, sans chambre).
+- **Ajouter / modifier / désactiver** une place (un seul champ « Nom » ; le reste est automatique). L'ajout est rare : les chambres sont normalement déjà toutes là.
+- État de chaque place : **Libre**, **Occupée · Nom Prénom**, ou **Invitation envoyée · email**.
+
+**Inviter une résidente**
+1. Sur une place **libre**, clique **« Inviter »** et saisis l'**email**.
+2. La résidente reçoit un email ; elle définit son mot de passe et complète son profil (résidence/chambre **imposées**).
+3. La place passe à **« Occupée »**.
+- Une invitation en attente peut être **relancée** (↻) ou **annulée** (✕).
+
+**Départ d'une résidente** : bouton **« Libérer / archiver »** (⤴) sur sa place → le compte est **archivé** (il ne peut plus se connecter, mais son **historique de repas/présence est conservé** pour la compta) et la **place se libère** (réattribuable).
+
+**Déménagement interne** : bouton **« Déplacer »** (⇄) → choisir une place libre de destination.
+
+> Le compte **super-admin** (technique) n'occupe aucune place et n'apparaît pas dans les listes.
+
+---
+
 ## 4. Gérer les invités
 
-Panneau ⚙️ **Administration** → onglet **Invités** : consulter et gérer les comptes invités (comptes simplifiés).
+Panneau ⚙️ **Administration** → onglet **Invités** : consulter et gérer les comptes invités (comptes simplifiés). Les **invitées** conservent l'**inscription libre** (« Inscription invitée » sur l'écran de connexion) — elles n'occupent pas de place.
 
 ---
 

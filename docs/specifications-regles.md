@@ -32,8 +32,8 @@ Cet identifiant ne change jamais : on peut donc s'y référer dans les discussio
 
 | ID | Règle |
 |---|---|
-| **R-INSC-01** | L'inscription se fait selon deux profils : **résidente** ou **invitée**. |
-| **R-INSC-02** | Champs obligatoires **résidente** : nom, prénom, date de naissance, résidence, étage, chambre, email, mot de passe. |
+| **R-INSC-01** | *(MàJ Lot 3.)* Le **self-signup est réservé aux invitées**. Les **résidentes sont créées par invitation** de l'intendance (voir `[CPT]`) : plus de bouton « Résidente » à l'inscription. |
+| **R-INSC-02** | *(Obsolète — self-signup résidente supprimé.)* À l'activation d'une invitation, la résidente ne saisit que **nom, prénom, date de naissance, mot de passe** ; **résidence/étage/chambre** sont **imposés** par la place (voir `R-CPT-03`). |
 | **R-INSC-03** | Champs obligatoires **invitée** : nom, prénom, type d'invitée, email, mot de passe. |
 | **R-INSC-04** | Les deux mots de passe saisis doivent être identiques, sinon l'inscription est refusée. |
 | **R-INSC-05** | Un email déjà associé à un compte ne peut pas être réutilisé pour une nouvelle inscription. |
@@ -185,8 +185,25 @@ Cet identifiant ne change jamais : on peut donc s'y référer dans les discussio
 | ID | Règle |
 |---|---|
 | **R-RES-01** | Le foyer compte deux résidences actives : **Résidence 12** et **Résidence 36**. |
-| **R-RES-02** | Une ancienne résidence « Corail » a été retirée et n'est plus proposée dans les vues actives. |
+| **R-RES-02** | *(MàJ Lot 3.)* **Corail** désigne désormais les **prestataires** (cuisine, ménage, intendance) qui travaillent au foyer sans y dormir : gérées via des **postes** (voir `[CPT]`), pas des chambres. |
 | **R-RES-03** | Chaque résidente est rattachée à une résidence, un étage et une chambre, qui servent au ciblage des événements et à la comptabilité. |
+
+---
+
+## 11. Gestion des comptes & chambres — `[CPT]`
+
+| ID | Règle |
+|---|---|
+| **R-CPT-01** | Un compte résidente est **rattaché à exactement une place** (chambre ou poste) ; une place active porte **au plus un compte actif** (contrainte base de données). |
+| **R-CPT-02** | La création d'un compte résidente/corail se fait **uniquement par invitation** d'une administratrice (plus de self-signup pour ces rôles ; les **invitées** gardent l'inscription libre). |
+| **R-CPT-03** | À l'acceptation de l'invitation, **résidence / étage / chambre (ou poste)** sont **imposés** par l'invitation et non modifiables par l'étudiante. |
+| **R-CPT-04** | Le départ **archive** le compte (`statut = archivee`) : plus de connexion, retiré des vues actives, **historique conservé** pour la comptabilité. La place se libère. |
+| **R-CPT-05** | Une place est **occupée** si et seulement si un compte **actif** y est rattaché ; sinon **libre** et réattribuable. |
+| **R-CPT-06** | Les **invitées** conservent le self-signup et **n'occupent aucune place**. |
+| **R-CPT-07** | **Corail** : places de type **poste** (sans étage/chambre), **sans plafond**, **libellé libre** ; même cycle de vie que les chambres. |
+| **R-CPT-08** | Le **super-admin** est un **compte technique à accès total** : **sans place**, **non compté**, **exclu** des listes résidentes (présences, repas, compta, sélection), **non archivable/rétrogradable** par les autres. |
+| **R-CPT-09** | Une administratrice peut **déplacer** une résidente **active** vers une place libre (déménagement interne). |
+| **R-CPT-10** | Une invitation a un état (**envoyée / acceptée / expirée / annulée**), peut être **relancée** et expire (≈ 14 jours). Le lien d'activation est vérifié **côté serveur** (`/auth/confirm`). |
 
 ---
 
@@ -215,6 +232,7 @@ Liste vivante des points à trancher avec le client. À mettre à jour (déplace
 
 | Date | Version | Modification |
 |---|---|---|
+| 2026-07-17 | 1.11 | **[CPT]** Lot 3 — gestion des comptes par l'intendance : **chambre/poste = une place** (table `places`), **invitation par email** des résidentes (self-signup résidente supprimé, invitées conservées), **activation** (`/auth/confirm` + `/activation`), **archivage** au départ (historique conservé), **déplacement** interne, **super-admin** hors modèle. Écran ⚙️ Administration → **Chambres**. Ajout section `[CPT]` (`R-CPT-01..10`), MàJ `R-INSC-01/02`, `R-RES-02`. |
 | 2026-06-06 | 1.0 | Création du document : recensement des règles existantes. |
 | 2026-06-29 | 1.1 | **[FOYER]** Refonte de la présence foyer (Lot 1, Étape 1) : passage du modèle « jour par jour » à des **séjours d'absence datés** (écran dédié, calendrier mensuel, liste éditable, contact facultatif). MàJ `R-FOYER-02/03/07`, `R-FOYER-04/05` mises en revue (verrouillage horaire non appliqué), ajout `R-FOYER-08` (contact) et `R-FOYER-09` (couplage repas reporté au Lot 2). |
 | 2026-06-29 | 1.2 | **[FOYER]** Refonte de la **vue staff** `/admin/foyer` (croquis client) : vue par **période** (cartes/jour, compteurs au foyer/sorties par résidence, détail au clic) + **marquage admin** d'absence/présence sur intervalle. Ajout `R-FOYER-10` et `R-FOYER-11`. Marquage repas N/O toujours reporté au Lot 2. |

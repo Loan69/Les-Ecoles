@@ -9,11 +9,19 @@ Cette application sert à gérer, au quotidien, **ta présence au foyer la nuit*
 
 ## 1. Créer son compte
 
-1. Sur l'écran de connexion, choisis **« S'inscrire »**.
-2. Indique si tu es **résidente** (tu habites au foyer) ou **invitée** (compte simplifié).
-3. Renseigne tes informations (nom, prénom, email, mot de passe ; pour une résidente : résidence 12 ou 36, étage, chambre, date de naissance).
-4. Valide : tu reçois un **email de confirmation**. Clique sur le lien.
-5. Reconnecte-toi : ton profil est activé. Tu peux utiliser l'appli.
+### Résidente — sur invitation
+Tu **ne t'inscris pas toi-même** : l'intendance t'ouvre une place et t'envoie une **invitation par email**.
+1. Ouvre l'email **« Votre accès à l'application du Foyer des Écoles »** et clique sur **« Activer mon compte »**.
+2. Sur la page d'activation, ton **email** et ton **logement** (résidence / étage / chambre) sont déjà renseignés et **verrouillés**.
+3. Complète ton **nom, prénom, date de naissance** et choisis un **mot de passe**.
+4. Valide : ton compte est activé, tu arrives directement dans l'appli.
+
+> Tu n'as pas reçu d'invitation ? Rapproche-toi de l'intendance.
+
+### Invitée — inscription libre
+1. Sur l'écran de connexion, clique **« Inscription invitée »**.
+2. Renseigne tes informations (nom, prénom, type d'invitée, email, mot de passe).
+3. Valide : tu reçois un **email de confirmation**. Clique sur le lien, puis reconnecte-toi.
 
 > En cas d'oubli de mot de passe : sur l'écran de connexion, clique **« Mot de passe oublié »** et suis les instructions reçues par email.
 

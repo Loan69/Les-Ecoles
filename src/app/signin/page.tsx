@@ -209,22 +209,19 @@ export default function SignInPage() {
             {!showResetPassword && (
               <div className="mt-8">
                   <h1 className="text-2xl text-blue-800 font-bold">Ou inscrivez-vous</h1>
-                  <div className="w-full bg-blue-500 h-[2px] mb-2" />
-                      <div className="flex gap-4 justify-center">
-                        <button
-                        onClick={() => router.push(`/completionProfile?role=residente`)}
-                        className="px-6 py-2 border border-blue-600 text-white font-bold bg-blue-600 rounded-lg hover:bg-blue-800 transition cursor-pointer"
-                        >
-                          Résidente
-                        </button>
-                        <button
-                        onClick={() => router.push(`/completionProfile?role=invitee`)}
-                        className="px-6 py-2 border border-blue-600 text-white font-bold bg-blue-600 rounded-lg hover:bg-blue-800 transition cursor-pointer"
-                        >
-                        Invitée
-                        </button>
-                      </div>
+                  <div className="w-full bg-blue-500 h-[2px] mb-3" />
+                  <p className="text-sm text-gray-600 mb-3">
+                    Les <strong>résidentes</strong> reçoivent une <strong>invitation par email</strong> de l&apos;intendance : il n&apos;y a pas d&apos;inscription à faire ici.
+                  </p>
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => router.push(`/completionProfile?role=invitee`)}
+                      className="px-6 py-2 border border-blue-600 text-white font-bold bg-blue-600 rounded-lg hover:bg-blue-800 transition cursor-pointer"
+                    >
+                      Inscription invitée
+                    </button>
                   </div>
+              </div>
             )}
             </div>
         </div>
