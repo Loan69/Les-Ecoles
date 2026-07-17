@@ -3,7 +3,7 @@
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
 > Version 1.1 — 2026-07-06.
 
-Une administratrice est une résidente dont le compte a le statut **admin**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir [Mode opératoire — Résidentes & invitées](mode-operatoire-residentes.md)), d'outils d'intendance : le **panneau d'administration**, le **paramétrage des repas**, la **comptabilité**, la **vue des présences** et la **gestion des événements**.
+Une administratrice est une résidente dont le compte a le statut **admin**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), d'outils d'intendance : le **panneau d'administration**, le **paramétrage des repas**, la **comptabilité**, la **vue des présences** et la **gestion des événements**.
 
 ---
 
