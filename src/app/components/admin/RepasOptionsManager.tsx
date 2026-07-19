@@ -8,6 +8,7 @@ import { MealOptionCatalog, ServiceOption, Service } from "@/types/MealOption";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import MultiDatePicker from "@/app/components/MultiDatePicker";
+import EventVisibilitySelector from "@/app/components/EventVisibilitySelector";
 import { Switch } from "@/components/ui/switch";
 
 const SERVICES: { value: Service; label: string }[] = [
@@ -67,7 +68,8 @@ export default function RepasOptionsManager() {
     residence: string;
     delai: string;
     adminOnly: boolean;
-  }>({ open: false, editing: null, label: "", residence: "12", delai: "0", adminOnly: false });
+    visibilite: { residence: string[]; etage: string[]; exclusions: string[] };
+  }>({ open: false, editing: null, label: "", residence: "12", delai: "0", adminOnly: false, visibilite: { residence: [], etage: [], exclusions: [] } });
 
   // Modale picker (ouverture d'un service)
   const [picker, setPicker] = useState<{ date: string; service: Service; selected: Set<string> } | null>(null);
@@ -106,22 +108,38 @@ export default function RepasOptionsManager() {
   }, [fetchCatalog, fetchServiceOptions]);
 
   // ---------- Catalogue ----------
+  const emptyVis = { residence: [], etage: [], exclusions: [] };
   const openAddOption = () =>
-    setOptForm({ open: true, editing: null, label: "", residence: "12", delai: "0", adminOnly: false });
+    setOptForm({ open: true, editing: null, label: "", residence: "12", delai: "0", adminOnly: false, visibilite: emptyVis });
   const openEditOption = (o: MealOptionCatalog) =>
-    setOptForm({ open: true, editing: o, label: o.label, residence: o.residence, delai: String(o.delai_commande), adminOnly: o.admin_only });
+    setOptForm({
+      open: true,
+      editing: o,
+      label: o.label,
+      residence: o.residence,
+      delai: String(o.delai_commande),
+      adminOnly: o.admin_only,
+      visibilite: {
+        residence: o.visibilite?.residence ?? [],
+        etage: o.visibilite?.etage ?? [],
+        exclusions: o.visibilite?.exclusions ?? [],
+      },
+    });
 
   const saveOption = async () => {
     if (!optForm.label.trim()) {
       toast.error("Le libellé est requis.");
       return;
     }
+    const vis = optForm.visibilite;
     const payload = {
       label: optForm.label.trim(),
       residence: optForm.residence,
       delai_commande: Number(optForm.delai) || 0,
       admin_only: optForm.adminOnly,
       is_active: optForm.editing?.is_active ?? true,
+      // vide = visible par toutes → on stocke null pour rester lisible
+      visibilite: vis.residence.length || vis.etage.length ? vis : null,
     };
     const res = await fetch("/api/admin/meal-options", {
       method: optForm.editing ? "PUT" : "POST",
@@ -142,7 +160,7 @@ export default function RepasOptionsManager() {
     const res = await fetch("/api/admin/meal-options", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: o.id, label: o.label, residence: o.residence, delai_commande: o.delai_commande, admin_only: o.admin_only, is_active: !o.is_active }),
+      body: JSON.stringify({ id: o.id, label: o.label, residence: o.residence, delai_commande: o.delai_commande, admin_only: o.admin_only, is_active: !o.is_active, visibilite: o.visibilite ?? null }),
     });
     const j = await res.json();
     if (!res.ok) return toast.error(j.error || "Erreur.");
@@ -355,7 +373,7 @@ export default function RepasOptionsManager() {
       <AnimatePresence>
         {optForm.open && (
           <motion.div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <motion.div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}>
+            <motion.div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[85vh] overflow-y-auto" initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}>
               <h3 className="text-lg font-semibold text-blue-800 mb-4">{optForm.editing ? "Modifier l'option" : "Nouvelle option"}</h3>
               <div className="space-y-4">
                 <div>
@@ -381,6 +399,15 @@ export default function RepasOptionsManager() {
                   <input type="checkbox" checked={optForm.adminOnly} onChange={(e) => setOptForm((f) => ({ ...f, adminOnly: e.target.checked }))} />
                   Réservée aux admins
                 </label>
+
+                <div className="border-t border-gray-100 pt-3">
+                  <p className="text-sm font-medium text-gray-700 mb-1">Visibilité</p>
+                  <p className="text-xs text-gray-400 mb-3">Laissez vide pour proposer l&apos;option à toutes. Sinon, ciblez des résidences / étages (et décochez nommément si besoin).</p>
+                  <EventVisibilitySelector
+                    value={optForm.visibilite}
+                    onChange={(v) => setOptForm((f) => ({ ...f, visibilite: v }))}
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-2 mt-6">
                 <button onClick={() => setOptForm((f) => ({ ...f, open: false }))} className="px-4 py-2 rounded-lg border border-gray-400 text-gray-600 hover:bg-gray-100 cursor-pointer">Annuler</button>

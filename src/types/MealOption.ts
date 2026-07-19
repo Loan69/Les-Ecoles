@@ -3,6 +3,14 @@
 
 export type Service = "dejeuner" | "diner";
 
+// Visibilité d'une option (comme les événements) : ciblage résidences/étages + exclusions nominatives.
+// Vide (aucune résidence, aucun étage) = visible par toutes.
+export interface OptionVisibilite {
+  residence: string[];
+  etage: string[];
+  exclusions?: string[];
+}
+
 // Option réutilisable du catalogue (meal_options)
 export interface MealOptionCatalog {
   id: string;
@@ -11,6 +19,7 @@ export interface MealOptionCatalog {
   delai_commande: number; // jours d'avance (0 = clôture le jour même à l'heure de lock ; 1 = la veille ; etc.)
   admin_only: boolean;
   is_active: boolean;
+  visibilite?: OptionVisibilite | null;
   created_at?: string;
 }
 

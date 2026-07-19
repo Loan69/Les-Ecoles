@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Lock, Moon, ChevronDown, UserPlus, ClipboardList, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, Moon, ChevronDown, UserPlus, ClipboardList, Settings, Trash2 } from "lucide-react";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
 import { ServiceOption, MealOptionCatalog, PresenceV2, Service } from "@/types/MealOption";
@@ -12,6 +12,8 @@ import { CalendarEvent } from "@/types/CalendarEvent";
 import { computeLockState } from "@/lib/lockUtils";
 import { isAwayForMeal } from "@/lib/mealCompta";
 import { eventVisibleFor } from "@/lib/eventVisibility";
+import { optionVisibleFor } from "@/lib/optionVisibility";
+import { formatLieu } from "@/lib/eventLieu";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import LoadingSpinner from "../components/LoadingSpinner";
 import LogoutButton from "../components/logoutButton";
@@ -50,6 +52,7 @@ function weekLabel(monday: Date): string {
 }
 
 type Profil = { is_admin?: boolean; residence?: string; etage?: string; chambre?: string };
+type InviteRow = { id: number; nom: string; prenom: string; date_repas: string; type_repas: "dejeuner" | "diner" };
 
 export default function SemaineRepas() {
   const router = useRouter();
@@ -62,6 +65,7 @@ export default function SemaineRepas() {
   const [presences, setPresences] = useState<PresenceV2[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>([]);
+  const [myInvites, setMyInvites] = useState<InviteRow[]>([]);
   const [ready, setReady] = useState(false);
 
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -107,16 +111,18 @@ export default function SemaineRepas() {
     setReady(false);
     const start = days[0];
     const end = days[days.length - 1];
-    const [{ data: soData }, { data: presData }, { data: absData }, { data: evData }] = await Promise.all([
+    const [{ data: soData }, { data: presData }, { data: absData }, { data: evData }, { data: invData }] = await Promise.all([
       supabase.from("meal_service_options").select("*, option:meal_options(*)").gte("date", start).lte("date", end).order("position"),
       supabase.from("presences_v2").select("*").eq("user_id", user.id).gte("date", start).lte("date", end),
       supabase.from("absences_sejour").select("*").eq("user_id", user.id).lte("date_debut", end).gte("date_fin", start),
       supabase.from("evenements").select("*").overlaps("dates_event", days),
+      supabase.from("invites_repas").select("id, nom, prenom, date_repas, type_repas").eq("invite_par", user.id).gte("date_repas", start).lte("date_repas", end),
     ]);
     setServiceOptions((soData as ServiceOption[]) ?? []);
     setPresences((presData as PresenceV2[]) ?? []);
     setAbsences((absData as Absence[]) ?? []);
     setWeekEvents((evData as CalendarEvent[]) ?? []);
+    setMyInvites((invData as InviteRow[]) ?? []);
     setReady(true);
   }, [user, days, supabase]);
 
@@ -140,10 +146,19 @@ export default function SemaineRepas() {
     serviceOptions
       .filter((so) => so.date === dateKey && so.service === service && so.option)
       .map((so) => so.option as MealOptionCatalog)
-      .filter((o) => o.is_active && (isAdmin || !o.admin_only));
+      .filter((o) => o.is_active && optionVisibleFor(o, { residence: profil?.residence, etage: profil?.etage, user_id: user?.id, is_admin: profil?.is_admin }));
 
   const eventViewer = { residence: profil?.residence, etage: profil?.etage, chambre: profil?.chambre, user_id: user?.id, is_admin: profil?.is_admin };
   const eventsForDay = (dateKey: string) => weekEvents.filter((e) => e.dates_event?.includes(dateKey) && eventVisibleFor(e, eventViewer));
+
+  const invitesForDay = (dateKey: string) => myInvites.filter((i) => i.date_repas === dateKey);
+  const deleteInvite = async (id: number) => {
+    const res = await fetch("/api/invite-repas", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    const j = await res.json();
+    if (!res.ok) { toast.error(j.error || "Erreur."); return; }
+    setMyInvites((prev) => prev.filter((x) => x.id !== id));
+    toast.success("Invitation supprimée.");
+  };
 
   const setChoice = async (dateKey: string, service: Service, optionId: string) => {
     const res = await fetch("/api/presences-v2", {
@@ -239,6 +254,7 @@ export default function SemaineRepas() {
                         <div key={e.id} className={`text-xs rounded-md px-2 py-1 border ${e.couleur || "border-gray-200 bg-gray-50"}`}>
                           <span className="font-medium text-gray-800">📌 {e.titre}</span>
                           {e.heures && <span className="text-gray-500"> · {e.heures}</span>}
+                          {formatLieu(e.lieu) && <span className="text-gray-500"> · 📍 {formatLieu(e.lieu)}</span>}
                         </div>
                       ))}
                     </div>
@@ -272,6 +288,22 @@ export default function SemaineRepas() {
                       );
                     })}
                   </div>
+
+                  {invitesForDay(dateKey).length > 0 && (
+                    <div className="px-4 pb-3 -mt-1">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-purple-500 mb-1">Mes invités</p>
+                      <div className="space-y-1">
+                        {invitesForDay(dateKey).map((inv) => (
+                          <div key={inv.id} className="flex items-center justify-between gap-2 text-xs bg-purple-50 border border-purple-100 rounded-lg px-2.5 py-1.5">
+                            <span className="text-purple-800 truncate">👤 {inv.prenom} {inv.nom} · {inv.type_repas === "dejeuner" ? "Midi" : "Soir"}</span>
+                            <button onClick={() => deleteInvite(inv.id)} title="Supprimer l'invitation" className="p-1 rounded text-red-500 hover:bg-red-50 cursor-pointer shrink-0">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -285,7 +317,7 @@ export default function SemaineRepas() {
           </button>
         </div>
 
-        <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} />
+        <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} onInvited={loadWeek} />
       </div>
     </main>
   );

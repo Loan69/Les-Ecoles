@@ -24,6 +24,7 @@ export default function GuestsTable() {
     const { data: guests, error } = await supabase
       .from("invites")
       .select("id, nom, prenom")
+      .eq("is_active", true)
     if (error) {
       console.error("Erreur lors du chargement des invités", error)
     } else {
@@ -39,42 +40,33 @@ export default function GuestsTable() {
   async function performDeleteGuest(u: GuestRow) {
     setDeletingGuestId(u.id)
     setError(null)
+    setSuccess(null)
     try {
-      const { error: errorDeleteInvite_repas } = await supabase
-        .from("invites_repas")
-        .delete()
-        .eq("id_invite", u.id)
-
-      if (errorDeleteInvite_repas) {
-        setError("Erreur lors la suppression de l'invité")
+      // Archivage doux : on conserve l'historique de repas (compta intacte).
+      const res = await fetch("/api/invites", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: u.id }),
+      })
+      const j = await res.json()
+      if (!res.ok) {
+        setError(j.error || "Erreur lors du retrait de l'invité")
         return
       }
-
-      const { error: errorDeleteInvite } = await supabase
-        .from("invites")
-        .delete()
-        .eq("id", u.id)
-
-      if (errorDeleteInvite) {
-        setError("Erreur lors la suppression de l'invité")
-        return
-      } else {
-        setInvites(invites.filter(x => x.id !== u.id))
-      }
+      setInvites(invites.filter(x => x.id !== u.id))
+      setSuccess("Invité retiré du carnet")
     } catch (e) {
-      if (e instanceof Error) setError(e.message)
-      else setError(String(e))
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setDeletingGuestId(null)
-      setSuccess("Invité supprimé avec succès")
     }
   }
 
   function deleteGuest(u: GuestRow) {
-    toast("Supprimer cet invité ?", {
-      description: `${u.prenom} ${u.nom} — Action irréversible.`,
+    toast("Retirer cet invité du carnet ?", {
+      description: `${u.prenom} ${u.nom} — ses invitations passées sont conservées (compta intacte).`,
       action: {
-        label: "Supprimer",
+        label: "Retirer",
         onClick: () => performDeleteGuest(u)
       },
       cancel: {

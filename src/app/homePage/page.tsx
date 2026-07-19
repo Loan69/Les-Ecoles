@@ -5,7 +5,7 @@ import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import Image from "next/image";
-import { Bell, ChevronLeft, ChevronRight, Home, Moon, Calendar } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Home, Moon, Calendar, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { Residente } from "@/types/Residente";
@@ -14,6 +14,7 @@ import { Residence } from "@/types/Residence";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
+import { formatLieu } from "@/lib/eventLieu";
 import VisionConfirmation from "../components/VisionConfirmation";
 import ConfirmationToggle from "../components/ConfirmationToggle";
 
@@ -41,6 +42,7 @@ export default function HomePage() {
   const [isAbsent, setIsAbsent] = useState(false);
   const [dejeunerLabel, setDejeunerLabel] = useState<string | null>(null);
   const [dinerLabel, setDinerLabel] = useState<string | null>(null);
+  const [invitesRepas, setInvitesRepas] = useState<{ dejeuner: number; diner: number }>({ dejeuner: 0, diner: 0 });
 
   // ============================================================
   // UTILITAIRES
@@ -123,47 +125,69 @@ export default function HomePage() {
   useEffect(() => {
     const fetchAllData = async () => {
       if (!user) return;
-
       const dateIso = formatDateKeyLocal(currentDate);
+      try {
+        const { data: profilData, error: profilError } = await supabase
+          .from("residentes")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (profilError) console.error("Erreur profil :", profilError);
+        if (profilData) {
+          setProfil(profilData);
+          setSelectedResidenceValue(profilData.residence);
+          setSelectedResidenceLabel(profilData.residence === "12" ? "Résidence 12" : "Résidence 36");
+        }
 
-      const { data: profilData, error: profilError } = await supabase
-        .from("residentes")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (profilError) console.error("Erreur profil :", profilError);
-      if (profilData) {
-        setProfil(profilData);
-        setSelectedResidenceValue(profilData.residence);
-        setSelectedResidenceLabel(profilData.residence === "12" ? "Résidence 12" : "Résidence 36");
+        const { data: eventsData, error: eventsError } = await supabase
+          .from("evenements")
+          .select("*")
+          .contains("dates_event", [dateIso]);
+        if (eventsError) console.error("Erreur événements :", eventsError);
+        if (eventsData) setEvents(eventsData);
+
+        // --- Résumé « ma journée » : présence foyer + repas du jour (lecture seule) ---
+        const [{ data: absData }, { data: dayPresences }] = await Promise.all([
+          supabase.from("absences_sejour").select("id").eq("user_id", user.id).lte("date_debut", dateIso).gte("date_fin", dateIso).limit(1),
+          supabase.from("presences_v2").select("service, option:meal_options(label)").eq("user_id", user.id).eq("date", dateIso),
+        ]);
+        setIsAbsent((absData?.length ?? 0) > 0);
+
+        const optLabel = (service: "dejeuner" | "diner"): string | null => {
+          const p = dayPresences?.find((x) => x.service === service);
+          const opt = p?.option as { label?: string } | null | undefined;
+          return opt?.label ?? null;
+        };
+        setDejeunerLabel(optLabel("dejeuner"));
+        setDinerLabel(optLabel("diner"));
+      } catch (err) {
+        console.error("Erreur chargement accueil :", err);
+      } finally {
+        setIsReady(true); // la page s'affiche même si une requête échoue
       }
-
-      const { data: eventsData, error: eventsError } = await supabase
-        .from("evenements")
-        .select("*")
-        .contains("dates_event", [dateIso]);
-      if (eventsError) console.error("Erreur événements :", eventsError);
-      if (eventsData) setEvents(eventsData);
-
-      // --- Résumé « ma journée » : présence foyer + repas du jour (nouveau modèle, lecture seule) ---
-      const [{ data: absData }, { data: dayPresences }] = await Promise.all([
-        supabase.from("absences_sejour").select("id").eq("user_id", user.id).lte("date_debut", dateIso).gte("date_fin", dateIso).limit(1),
-        supabase.from("presences_v2").select("service, option:meal_options(label)").eq("user_id", user.id).eq("date", dateIso),
-      ]);
-
-      setIsAbsent((absData?.length ?? 0) > 0);
-
-      const optLabel = (service: "dejeuner" | "diner"): string | null => {
-        const p = dayPresences?.find((x) => x.service === service);
-        const opt = p?.option as { label?: string } | null | undefined;
-        return opt?.label ?? null;
-      };
-      setDejeunerLabel(optLabel("dejeuner"));
-      setDinerLabel(optLabel("diner"));
-
-      setIsReady(true);
     };
     fetchAllData();
+  }, [user, currentDate, supabase]);
+
+  // Invités repas du jour — effet indépendant : ne bloque jamais l'affichage de la page.
+  useEffect(() => {
+    if (!user) return;
+    const dateIso = formatDateKeyLocal(currentDate);
+    supabase
+      .from("invites_repas")
+      .select("type_repas")
+      .eq("invite_par", user.id)
+      .eq("date_repas", dateIso)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Erreur invités repas :", error);
+          return;
+        }
+        setInvitesRepas({
+          dejeuner: (data ?? []).filter((x) => x.type_repas === "dejeuner").length,
+          diner: (data ?? []).filter((x) => x.type_repas === "diner").length,
+        });
+      });
   }, [user, currentDate, supabase]);
 
   useEffect(() => {
@@ -265,6 +289,31 @@ export default function HomePage() {
       })
     : [];
 
+  // Couleur de la résidence sélectionnée (jaune pour la 12, rose pour la 36).
+  const is12 = selectedResidenceValue === "12";
+
+  // Événements du jour SANS lieu résidence (ou lieu hors 12/36) : ils ne rentrent
+  // pas dans la carte « Événements » d'une résidence → on les montre comme rappels « Aujourd'hui ».
+  const RES_LIEUX = ["12", "36"];
+  const todayOffsiteEvents = events.filter((event) => {
+    const lieux = event.lieu || [];
+    if (lieux.some((l) => RES_LIEUX.includes(l))) return false; // événement rattaché à une résidence → carte normale
+
+    if (event.reserve_admin) {
+      if (!profil?.is_admin) return false;
+      if (event.reserve_admin !== "all" && event.reserve_admin !== profil?.residence) return false;
+    }
+    const exclusions: string[] = event.visibilite?.exclusions ?? [];
+    if (user?.id && exclusions.includes(user.id)) return false;
+    if (!profil?.residence) return event.visible_invites === true;
+
+    const res: string[] = event.visibilite?.residence ?? [];
+    const et: string[] = event.visibilite?.etage ?? [];
+    const ch: string[] = event.visibilite?.chambre ?? [];
+    if (res.length === 0 && et.length === 0 && ch.length === 0) return true; // aucun ciblage → visible pour tous
+    return res.includes(profil.residence) || et.includes(profil.etage) || ch.includes(profil.chambre);
+  });
+
   // ============================================================
   // RENDU
   // ============================================================
@@ -314,8 +363,21 @@ export default function HomePage() {
         </div>
 
         {/* Rappels du jour (compacts) — directement sous la date */}
-        {reminders.length > 0 && (
+        {(reminders.length > 0 || todayOffsiteEvents.length > 0) && (
           <div className="mb-4 space-y-1.5">
+            {/* Événements du jour sans lieu résidence → rappel « Aujourd'hui » */}
+            {todayOffsiteEvents.map((evt) => (
+              <div
+                key={`today-${evt.id}`}
+                className="flex items-center gap-2 text-xs bg-yellow-50 border border-yellow-200 rounded-lg px-2.5 py-1.5"
+              >
+                <Bell className="w-3.5 h-3.5 text-yellow-600 flex-shrink-0" />
+                <span className="font-bold text-yellow-800 bg-yellow-100 rounded px-1.5 py-0.5 flex-shrink-0">Aujourd&apos;hui</span>
+                <span className="text-yellow-800 font-medium truncate">{evt.titre}</span>
+                {evt.heures && <span className="text-yellow-700/80 truncate">· {evt.heures}</span>}
+                {formatLieu(evt.lieu) && <span className="text-yellow-700/80 truncate">· 📍 {formatLieu(evt.lieu)}</span>}
+              </div>
+            ))}
             {reminders.map((evt) => {
               if (!evt.nextReminderDate || typeof evt.joursRestants !== "number") return null;
               return (
@@ -350,11 +412,12 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Intercalaires résidence — esthétique d'origine, couleur par résidence (12 = bleu clair, 36 = rose) */}
+        {/* Intercalaires résidence — couleurs du logo (12 = jaune, 36 = rose) */}
         <div className="flex justify-center mb-4">
           {residences.map((res) => {
             const active = selectedResidenceValue === res.value;
-            const activeColor = res.value === "12" ? "bg-blue-400 border-blue-400" : "bg-pink-400 border-pink-400";
+            const activeColor =
+              res.value === "12" ? "bg-yellow-400 border-yellow-400 text-amber-900" : "bg-pink-400 border-pink-400 text-white";
             return (
               <button
                 key={res.value}
@@ -363,7 +426,7 @@ export default function HomePage() {
                   setSelectedResidenceLabel(res.label);
                 }}
                 className={`cursor-pointer flex items-center justify-center w-20 h-12 text-lg font-bold border rounded-t-xl transition-colors ${
-                  active ? `text-white ${activeColor}` : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"
+                  active ? activeColor : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"
                 }`}
               >
                 {res.value}
@@ -372,9 +435,9 @@ export default function HomePage() {
           })}
         </div>
 
-        {/* Carte ÉVÉNEMENTS — bordure et titre à la couleur de la résidence sélectionnée */}
-        <section className={`bg-white rounded-xl shadow-md border-2 ${selectedResidenceValue === "12" ? "border-blue-400" : "border-pink-400"} p-4 mb-4`}>
-          <h3 className={`text-xs font-bold uppercase tracking-wide mb-3 ${selectedResidenceValue === "12" ? "text-blue-700" : "text-pink-700"}`}>Événements</h3>
+        {/* Carte ÉVÉNEMENTS — fond entièrement coloré à la couleur de la résidence (jaune/rose) */}
+        <section className={`rounded-xl shadow-md border-2 p-4 mb-4 ${is12 ? "bg-yellow-100 border-yellow-300" : "bg-pink-100 border-pink-300"}`}>
+          <h3 className={`text-xs font-bold uppercase tracking-wide mb-3 ${is12 ? "text-amber-800" : "text-pink-800"}`}>Événements</h3>
 
           {/* Événements du jour */}
           {filteredEvents.length === 0 ? (
@@ -392,7 +455,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 {e.heures && <p className="text-xs text-gray-600 mt-1 italic">{e.heures}</p>}
-                {e.description && <p className="text-xs text-gray-500 mt-1">{e.description}</p>}
+                {formatLieu(e.lieu) && <p className="text-xs text-gray-500 mt-1">📍 {formatLieu(e.lieu)}</p>}
               </div>
             ))
           )}
@@ -405,10 +468,20 @@ export default function HomePage() {
             <div className="bg-orange-50 rounded-xl p-3">
               <p className="text-[10px] uppercase font-bold text-orange-500 mb-1">Déjeuner</p>
               <p className="text-sm font-semibold text-blue-900 truncate">{dejeunerLabel ?? "Non"}</p>
+              {invitesRepas.dejeuner > 0 && (
+                <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-purple-700 bg-purple-100 rounded-full px-2 py-0.5">
+                  <UserPlus className="w-3 h-3" /> {invitesRepas.dejeuner} invité{invitesRepas.dejeuner > 1 ? "s" : ""}
+                </p>
+              )}
             </div>
             <div className="bg-blue-50 rounded-xl p-3">
               <p className="text-[10px] uppercase font-bold text-blue-500 mb-1">Dîner</p>
               <p className="text-sm font-semibold text-blue-900 truncate">{dinerLabel ?? "Non"}</p>
+              {invitesRepas.diner > 0 && (
+                <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-purple-700 bg-purple-100 rounded-full px-2 py-0.5">
+                  <UserPlus className="w-3 h-3" /> {invitesRepas.diner} invité{invitesRepas.diner > 1 ? "s" : ""}
+                </p>
+              )}
             </div>
           </div>
         </section>

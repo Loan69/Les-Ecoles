@@ -60,7 +60,8 @@ export function formatChambre(chambre?: string | null): string | null {
 
 // Libellé compact de rattachement (pour les listes).
 export function personneSublabel(p: PersonneDetail): string {
-  if (p.isInvite) return `Rés. ${p.residence ?? "?"} · invitée`;
+  // Invitée repas : pas de résidence par définition → juste « invitée ».
+  if (p.isInvite) return p.residence ? `Rés. ${p.residence} · invitée` : "invitée";
   const parts = [`Rés. ${p.residence ?? "?"}`];
   const et = formatEtage(p.etage);
   if (et) parts.push(et);

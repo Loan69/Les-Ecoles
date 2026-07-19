@@ -25,7 +25,8 @@ export default function AdminSettingsManager() {
             .from('app_settings')
             .select('key, value, label')
         if (error) console.error(error)
-        else setSettings(data || [])
+        // Le verrouillage des repas est désormais réglé dans « Paramétrer les repas ».
+        else setSettings((data || []).filter((s) => !['verrouillage_repas', 'verrouillage_weekend'].includes(s.key)))
         setLoading(false)
         }
         loadSettings()
