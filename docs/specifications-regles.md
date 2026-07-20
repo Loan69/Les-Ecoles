@@ -56,7 +56,7 @@ Cet identifiant ne change jamais : on peut donc s'y référer dans les discussio
 | **R-FOYER-06** | Les séjours **futurs** sont librement modifiables (pas de verrouillage anticipé). |
 | **R-FOYER-07** | La vue d'ensemble admin classe les habitantes en **« au foyer »** et **« sorties »** pour une date donnée, par résidence ; le statut est **déduit des séjours d'absence** qui couvrent cette date. |
 | **R-FOYER-08** | Chaque séjour d'absence peut porter une information de contact **facultative** (« je suis chez… ») destinée au staff. |
-| **R-FOYER-09** | ✅ *(Réalisé au Lot 2.)* Un séjour d'absence marque automatiquement les repas des **jours intérieurs** en « Non » (déduits de la compta) ; les **jours-frontières** restent au libre choix. Détail : voir `R-REPAS-10` / `R-REPAS-11`. |
+| **R-FOYER-09** | ✅ *(Réalisé au Lot 2.)* Un séjour d'absence peut marquer les repas des **jours intérieurs** en « Non » (déduits de la compta), **selon l'option « Me noter Non aux repas »** (cochée par défaut) ; les **jours-frontières** restent au libre choix. Détail : voir `R-REPAS-10` / `R-REPAS-11`. |
 | **R-FOYER-10** | La **vue staff** présente les présences sur une **période** (par défaut une semaine), **jours empilés verticalement**. Pour chaque jour et chaque résidence : nombre **au foyer** (vert) et **sorties** (rouge). **Chaque nombre est cliquable** → liste des personnes derrière ce nombre. Une **unique loupe « Voir le détail »** ouvre le **tableau de détail** (voir `R-ADM-01`). Population de référence = résidentes + invitées rattachées à la résidence. |
 | **R-ADM-01** | *(transversal)* Les vues admin utilisent une **structure de tableau de détail unique et cohérente** (présences, repas, plus tard chambres) : en **lignes** les habitantes classées **résidence → étage → chambre → alphabétique** (invitées en fin de bloc résidence), en **colonnes** la période (jours, ou jours × service pour les repas). Objectif : ne pas dérouter les administratrices d'un écran à l'autre. Cliquer sur un **nombre** ouvre partout la **liste** des personnes comptées derrière ce nombre. |
 | **R-FOYER-11** | Une administratrice peut **marquer une absence** au nom d'une résidente ou d'une invitée à compte, sur un intervalle. **« Marquer présente »** sur une période **retire/raccourcit/scinde** les séjours d'absence couvrant ces dates (force la présence) ; **« Marquer absente »** crée un séjour. Le marquage des repas « N/O » associé est **reporté au Lot 2** (voir `R-FOYER-09`). |
@@ -76,7 +76,7 @@ Cet identifiant ne change jamais : on peut donc s'y référer dans les discussio
 | **R-REPAS-07** | En saisie hebdomadaire, seuls les jours **non verrouillés** sont enregistrés ; les jours verrouillés sont ignorés lors de l'enregistrement. |
 | **R-REPAS-08** | En saisie hebdomadaire, le nombre de **modifications en attente** est affiché et l'enregistrement n'est possible que s'il y a au moins une modification. |
 | **R-REPAS-09** | La date sélectionnée est **partagée** entre l'accueil et l'écran hebdomadaire (mémorisée localement). |
-| **R-REPAS-10** | **Couplage absence → repas.** Pendant un **séjour d'absence**, les repas sont automatiquement comptés **« Non »** (déjeuner et dîner) et non modifiables (affichage « Absente — Non »), **uniquement pour les jours intérieurs** du séjour. |
+| **R-REPAS-10** | **Couplage absence → repas (optionnel).** Chaque séjour d'absence porte une option **« Me noter Non aux repas »** (case **cochée par défaut**). Si activée, les repas sont automatiquement comptés **« Non »** (déjeuner et dîner) et non modifiables (« Absente — Non »), **uniquement pour les jours intérieurs**. Si **décochée**, l'absence **n'affecte pas** les repas (la résidente reste libre de s'inscrire). |
 | **R-REPAS-11** | **Jours-frontières (R-ABS-BORD).** Le **premier** et le **dernier** jour d'un séjour, la résidente **choisit librement** ses repas (aucun « Non » forcé) : elle part typiquement **après le dîner** le jour de départ et revient **avant le déjeuner** le jour de retour, donc elle peut manger ces jours-là. Un séjour d'un **seul jour** reste entièrement absent (pas de jour intérieur). |
 
 ---
@@ -152,14 +152,14 @@ Cet identifiant ne change jamais : on peut donc s'y référer dans les discussio
 | ID | Règle |
 |---|---|
 | **R-EVT-01** | Seules les administratrices créent, modifient et suppriment des événements. |
-| **R-EVT-02** | Un événement requiert au minimum : un **type**, un **titre**, **au moins une date** et **au moins un lieu** (résidence). |
+| **R-EVT-02** | Un événement requiert au minimum : un **type**, un **titre** et **au moins une date**. Le **lieu (résidence) est facultatif** (voir R-EVT-08). |
 | **R-EVT-03** | Un événement peut porter sur **plusieurs dates** (multi-occurrences). |
 | **R-EVT-04** | Le **type** détermine la **couleur** d'affichage : anniversaire, formation, intendance, autre. |
 | **R-EVT-05** | La **visibilité** d'un événement se cible par **résidence** (entière) et/ou **étage** (précis). À la sélection, l'intendance voit la **liste des résidentes concernées** et peut **décocher** certaines pour les **exclure nommément**. Le ciblage est **dynamique** : une résidente qui rejoint la résidence/étage plus tard est incluse automatiquement (sauf si exclue). Une habitante voit l'événement si elle est dans le périmètre **et** non exclue. *(L'ancien niveau « chambre » reste pris en charge pour les événements existants.)* |
 | **R-EVT-06** | Un événement peut être rendu **visible par les invitées**. Par défaut, les invitées ne voient que les événements explicitement ouverts. |
 | **R-EVT-07** | Un événement peut être **réservé au staff** : aucun, staff de la Résidence 12 uniquement, staff de la Résidence 36 uniquement, ou tout le staff. Un événement réservé au staff n'est visible que des administratrices concernées. |
-| **R-EVT-08** | Sur l'accueil, un événement n'est affiché que s'il concerne la **résidence sélectionnée** et que l'habitante remplit les critères de visibilité. |
-| **R-EVT-09** | Un événement peut demander une **confirmation de participation** ; les habitantes confirment alors leur présence, et les administratrices peuvent consulter les confirmations. |
+| **R-EVT-08** | Sur l'accueil, un événement **avec lieu** n'est affiché (carte Événements de la résidence) que s'il concerne la **résidence sélectionnée** et que l'habitante remplit les critères de visibilité. Un événement **sans lieu** (ou lieu hors 12/36) s'affiche en **rappel « Aujourd'hui »** en haut de l'accueil le jour J. |
+| **R-EVT-09** | Un événement peut demander une **confirmation de participation** ; l'habitante confirme via un **bouton à bascule** (« Je participe ✓ » / « Je participe ? »), et les administratrices peuvent consulter les confirmations. |
 | **R-EVT-10** | Un événement peut définir un **rappel** : un nombre de jours avant l'événement à partir duquel un rappel s'affiche sur l'accueil, avec le décompte des jours restants. |
 | **R-EVT-11** | La suppression d'un événement multi-dates peut se faire **sur une seule occurrence** (une date) ou **sur l'ensemble** de l'événement. |
 
@@ -232,6 +232,7 @@ Liste vivante des points à trancher avec le client. À mettre à jour (déplace
 
 | Date | Version | Modification |
 |---|---|---|
+| 2026-07-20 | 1.12 | **[FOYER][EVT]** Retours client : option **« Me noter Non aux repas »** sur une absence (cochée par défaut ; le couplage absence→repas devient optionnel) — MàJ `R-REPAS-10`, `R-FOYER-09`. Événements : **lieu facultatif** ; un événement **sans lieu** s'affiche en **rappel « Aujourd'hui »** sur l'accueil — MàJ `R-EVT-02/08`. Confirmation de participation via **bouton à bascule** lisible — MàJ `R-EVT-09`. |
 | 2026-07-17 | 1.11 | **[CPT]** Lot 3 — gestion des comptes par l'intendance : **chambre/poste = une place** (table `places`), **invitation par email** des résidentes (self-signup résidente supprimé, invitées conservées), **activation** (`/auth/confirm` + `/activation`), **archivage** au départ (historique conservé), **déplacement** interne, **super-admin** hors modèle. Écran ⚙️ Administration → **Chambres**. Ajout section `[CPT]` (`R-CPT-01..10`), MàJ `R-INSC-01/02`, `R-RES-02`. |
 | 2026-06-06 | 1.0 | Création du document : recensement des règles existantes. |
 | 2026-06-29 | 1.1 | **[FOYER]** Refonte de la présence foyer (Lot 1, Étape 1) : passage du modèle « jour par jour » à des **séjours d'absence datés** (écran dédié, calendrier mensuel, liste éditable, contact facultatif). MàJ `R-FOYER-02/03/07`, `R-FOYER-04/05` mises en revue (verrouillage horaire non appliqué), ajout `R-FOYER-08` (contact) et `R-FOYER-09` (couplage repas reporté au Lot 2). |

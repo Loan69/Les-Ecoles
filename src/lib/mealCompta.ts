@@ -10,6 +10,7 @@ export function isAwayForMeal(absences: Absence[], userId: string, dateKey: stri
   for (const a of absences) {
     if (a.user_id !== userId) continue;
     if (dateKey < a.date_debut || dateKey > a.date_fin) continue;
+    if (a.repas_non === false) continue; // absence qui n'affecte pas les repas
 
     if (a.date_debut === a.date_fin) return true; // séjour d'un seul jour → absente
     if (dateKey === a.date_debut || dateKey === a.date_fin) return false; // jours-frontières → libre choix

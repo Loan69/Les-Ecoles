@@ -112,8 +112,8 @@ export default function ModalAjoutEvenement({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!form.category || !form.titre || !form.dates_event?.length || !form.lieu?.length) {
-      toast.error("Merci de remplir tous les champs requis (au moins une résidence doit être sélectionnée).");
+    if (!form.category || !form.titre || !form.dates_event?.length) {
+      toast.error("Merci de remplir les champs requis (titre, catégorie, date).");
       return;
     }
     
@@ -206,8 +206,9 @@ export default function ModalAjoutEvenement({
           {/* Lieu avec multiselect */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Lieu(x) de l&apos;évènement *
+              Lieu(x) de l&apos;évènement <span className="text-gray-400">(facultatif)</span>
             </label>
+            <p className="text-xs text-gray-400 mb-1">Sans lieu, l&apos;événement s&apos;affiche en rappel « Aujourd&apos;hui » sur l&apos;accueil le jour J.</p>
             <DynamicMultiSelectGroup
               key={`lieu-${open}-${isEditing}`}
               rootCategory="residence"

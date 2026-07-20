@@ -9,6 +9,7 @@ type AbsenceBody = {
   date_debut?: string;
   date_fin?: string;
   contact?: string | null;
+  repas_non?: boolean;
 };
 
 function validateDates(date_debut?: string, date_fin?: string): string | null {
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
       date_debut: body.date_debut,
       date_fin: body.date_fin,
       contact: body.contact?.trim() ? body.contact.trim() : null,
+      repas_non: body.repas_non ?? true,
     })
     .select()
     .single();
@@ -86,6 +88,7 @@ export async function PUT(req: NextRequest) {
       date_debut: body.date_debut,
       date_fin: body.date_fin,
       contact: body.contact?.trim() ? body.contact.trim() : null,
+      repas_non: body.repas_non ?? true,
     })
     .eq("id", body.id)
     .eq("user_id", user.id) // garantit qu'on ne modifie que ses propres absences

@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react"
 import { useSupabase } from "@/app/providers"
 import { User } from "@supabase/supabase-js"
-import { Check, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CalendarEvent } from "@/types/CalendarEvent"
 
@@ -101,23 +100,21 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
     };
 
   const activeLabel = isIntendance ? "Fait" : "Je participe"
-  const inactiveLabel = isIntendance ? "Non réalisé" : "Je ne participe pas"
 
   return (
-    <Button
-      variant="outline"
+    <button
       disabled={loading}
       onClick={handleToggle}
-      title={checked ? activeLabel : inactiveLabel} // infobulle
+      title={checked ? "Cliquer pour retirer" : "Cliquer pour confirmer"}
       className={cn(
-        "cursor-pointer p-2 rounded-lg transition-all flex items-center justify-center",
-        "border hover:bg-gray-200",
+        "cursor-pointer inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-50 whitespace-nowrap",
         checked
-          ? "border-green-500 bg-green-500 text-white hover:bg-green-600"
-          : "border-gray-400 bg-white text-gray-700"
+          ? "bg-green-600 text-white hover:bg-green-700"
+          : "border border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
       )}
     >
-      {checked ? <Check className="h-5 w-5" /> : <Check className="h-5 w-5" />}
-    </Button>
+      {checked && <Check className="h-3.5 w-3.5" />}
+      {checked ? activeLabel : `${activeLabel} ?`}
+    </button>
   )
 }

@@ -22,6 +22,7 @@ export default function AbsenceModal({
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [contact, setContact] = useState("");
+  const [repasNon, setRepasNon] = useState(true);
   const [saving, setSaving] = useState(false);
 
   // Réinitialise le formulaire à chaque ouverture
@@ -30,6 +31,7 @@ export default function AbsenceModal({
       setDateDebut(initial?.date_debut ?? "");
       setDateFin(initial?.date_fin ?? "");
       setContact(initial?.contact ?? "");
+      setRepasNon(initial?.repas_non ?? true);
     }
   }, [isOpen, initial]);
 
@@ -49,6 +51,7 @@ export default function AbsenceModal({
         date_debut: dateDebut,
         date_fin: dateFin,
         contact: contact.trim() ? contact.trim() : null,
+        repas_non: repasNon,
       });
       onClose();
     } finally {
@@ -113,6 +116,14 @@ export default function AbsenceModal({
                   className="w-full border border-gray-300 rounded-lg p-2 text-gray-700 focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 />
               </div>
+
+              <label className="flex items-start gap-2 cursor-pointer text-sm text-gray-700 bg-blue-50 border border-blue-100 rounded-lg p-3">
+                <input type="checkbox" checked={repasNon} onChange={(e) => setRepasNon(e.target.checked)} className="w-4 h-4 accent-blue-600 mt-0.5 cursor-pointer" />
+                <span>
+                  Me noter <strong>« Non »</strong> aux repas pendant mon absence
+                  <span className="block text-xs text-gray-500 mt-0.5">Les jours intérieurs sont automatiquement « Non ». Les jours de départ et de retour restent à ton choix.</span>
+                </span>
+              </label>
             </div>
 
             <div className="flex justify-end gap-2 mt-6">

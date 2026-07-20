@@ -60,7 +60,9 @@ Par défaut, **tu es considérée présente** chaque nuit. Tu n'as à déclarer 
 - Pour **supprimer** une absence : icône 🗑️ (une confirmation est demandée).
 
 ### Effet sur les repas
-Pendant une absence, tes repas sont automatiquement marqués **« Non »** (tu ne manges pas au foyer) et non modifiables, **pour les jours intérieurs** du séjour. En revanche, le **premier jour** (départ) et le **dernier jour** (retour) restent à ton **libre choix** : tu peux t'inscrire à ces repas (on considère que tu pars **après le dîner** et reviens **avant le déjeuner**). Un séjour d'**un seul jour** compte comme absente à tous les repas.
+Dans la fenêtre d'absence, une case **« Me noter Non aux repas pendant mon absence »** est **cochée par défaut**. Quand elle est cochée, tes repas des **jours intérieurs** sont automatiquement marqués **« Non »** (non modifiables) ; le **premier jour** (départ) et le **dernier jour** (retour) restent à ton **libre choix** (on considère que tu pars **après le dîner** et reviens **avant le déjeuner**). Un séjour d'**un seul jour** compte comme absente à tous les repas.
+
+Si tu **décoches** cette case, ton absence **n'affecte pas** tes repas : tu peux rester inscrite normalement.
 
 ---
 

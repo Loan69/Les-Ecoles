@@ -302,6 +302,15 @@ export default function AdministratifPage() {
           </div>
         </div>
 
+        {editMode && (
+          <button
+            onClick={() => setAddOpen(true)}
+            className="mb-5 flex items-center gap-1 bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Ajouter une section
+          </button>
+        )}
+
         {sections.length === 0 && !editMode && (
           <p className="text-gray-500 italic">Aucune information pour le moment.</p>
         )}
@@ -322,15 +331,6 @@ export default function AdministratifPage() {
             )
           )}
         </div>
-
-        {editMode && (
-          <button
-            onClick={() => setAddOpen(true)}
-            className="mt-5 flex items-center gap-1 bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Ajouter une section
-          </button>
-        )}
       </div>
 
       {/* Modale ajout de section */}
