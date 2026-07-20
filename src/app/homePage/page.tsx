@@ -5,7 +5,7 @@ import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import Image from "next/image";
-import { Bell, ChevronLeft, ChevronRight, Home, Moon, Calendar, UserPlus } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Home, Moon, Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { Residente } from "@/types/Residente";
@@ -42,7 +42,7 @@ export default function HomePage() {
   const [isAbsent, setIsAbsent] = useState(false);
   const [dejeunerLabel, setDejeunerLabel] = useState<string | null>(null);
   const [dinerLabel, setDinerLabel] = useState<string | null>(null);
-  const [invitesRepas, setInvitesRepas] = useState<{ dejeuner: number; diner: number }>({ dejeuner: 0, diner: 0 });
+  const [invitesRepas, setInvitesRepas] = useState<{ nom: string; prenom: string; type_repas: "dejeuner" | "diner" }[]>([]);
 
   // ============================================================
   // UTILITAIRES
@@ -175,7 +175,7 @@ export default function HomePage() {
     const dateIso = formatDateKeyLocal(currentDate);
     supabase
       .from("invites_repas")
-      .select("type_repas")
+      .select("nom, prenom, type_repas")
       .eq("invite_par", user.id)
       .eq("date_repas", dateIso)
       .then(({ data, error }) => {
@@ -183,10 +183,7 @@ export default function HomePage() {
           console.error("Erreur invités repas :", error);
           return;
         }
-        setInvitesRepas({
-          dejeuner: (data ?? []).filter((x) => x.type_repas === "dejeuner").length,
-          diner: (data ?? []).filter((x) => x.type_repas === "diner").length,
-        });
+        setInvitesRepas(data ?? []);
       });
   }, [user, currentDate, supabase]);
 
@@ -468,22 +465,25 @@ export default function HomePage() {
             <div className="bg-orange-50 rounded-xl p-3">
               <p className="text-[10px] uppercase font-bold text-orange-500 mb-1">Déjeuner</p>
               <p className="text-sm font-semibold text-blue-900 truncate">{dejeunerLabel ?? "Non"}</p>
-              {invitesRepas.dejeuner > 0 && (
-                <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-purple-700 bg-purple-100 rounded-full px-2 py-0.5">
-                  <UserPlus className="w-3 h-3" /> {invitesRepas.dejeuner} invité{invitesRepas.dejeuner > 1 ? "s" : ""}
-                </p>
-              )}
             </div>
             <div className="bg-blue-50 rounded-xl p-3">
               <p className="text-[10px] uppercase font-bold text-blue-500 mb-1">Dîner</p>
               <p className="text-sm font-semibold text-blue-900 truncate">{dinerLabel ?? "Non"}</p>
-              {invitesRepas.diner > 0 && (
-                <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-purple-700 bg-purple-100 rounded-full px-2 py-0.5">
-                  <UserPlus className="w-3 h-3" /> {invitesRepas.diner} invité{invitesRepas.diner > 1 ? "s" : ""}
-                </p>
-              )}
             </div>
           </div>
+
+          {invitesRepas.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-purple-500 mb-1">Mes invités</p>
+              <div className="space-y-1">
+                {invitesRepas.map((inv, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs bg-purple-50 border border-purple-100 rounded-lg px-2.5 py-1.5">
+                    <span className="text-purple-800 truncate">👤 {inv.prenom} {inv.nom} · {inv.type_repas === "dejeuner" ? "Midi" : "Soir"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       </div>
     </main>
