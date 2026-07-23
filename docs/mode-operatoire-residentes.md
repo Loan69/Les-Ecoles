@@ -1,7 +1,7 @@
 # Mode opératoire — Résidentes & invitées
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour les **habitantes** (résidentes et invitées). À mettre à jour à chaque évolution de l'appli.
-> Version 1.1 — 2026-07-06.
+> Version 1.2 — 2026-07-23.
 
 Cette application sert à gérer, au quotidien, **ta présence au foyer la nuit** et **tes repas** (midi et soir), à consulter les **événements** du foyer et les **informations pratiques**. Elle est pensée pour le **téléphone** (mais marche aussi sur ordinateur).
 
@@ -35,13 +35,13 @@ En bas de l'écran, une **barre de navigation** (identique pour toutes) :
 |---|---|---|
 | 📅 | **Calendrier** | Voir les événements du foyer, mois par mois. |
 | 🍴 | **Repas de la semaine** | Choisir ses repas (midi/soir) et inviter quelqu'un. |
-| 🏠 | **Accueil** | Consulter sa journée (repas du jour, rappels, événements) — **en lecture seule**. |
+| 🏠 | **Accueil** | Consulter sa journée (repas du jour, rappels, événements). Repas et présence en **lecture seule** ; les **invitations** du jour peuvent y être **modifiées / supprimées**. |
 | 🧍 | **Présence foyer** | Déclarer ses absences (nuits à l'extérieur). |
 | 📖 | **Administratif** | Consulter les infos pratiques du foyer (règlement, horaires, contacts, modes d'emploi). |
 
 En **haut à droite** de chaque écran : accès à ton **Profil** 👤 et à la **déconnexion**.
 
-> L'**Accueil** ne sert qu'à **consulter** ta journée. Pour **modifier** tes repas, va sur **🍴 Repas de la semaine** ; pour tes absences, sur **🧍 Présence foyer**.
+> L'**Accueil** sert surtout à **consulter** ta journée. Pour **modifier** tes repas, va sur **🍴 Repas de la semaine** ; pour tes absences, sur **🧍 Présence foyer**. Seule exception : tu peux **modifier ou supprimer une invitation** du jour directement depuis l'Accueil (rubrique « Mes invités »).
 
 ---
 
@@ -93,7 +93,14 @@ Un jour verrouillé est signalé par un cadenas 🔒. En cas de besoin, rapproch
 
 ## 6. Inviter quelqu'un à un repas
 
-Depuis l'onglet 🍴 **Repas de la semaine**, bouton **« Inviter quelqu'un »** : renseigne le nom de la personne et le repas concerné. L'invité·e est ajouté·e au décompte des couverts.
+Depuis l'onglet 🍴 **Repas de la semaine**, bouton **« Inviter quelqu'un »** :
+1. Choisis la personne (un invité déjà connu, ou **« Nouvel invité »** avec nom + prénom).
+2. Choisis **une date**.
+3. Choisis le **repas** dans la liste des options ouvertes ce jour-là (par ex. *Déjeuner · Repas classique*, *Dîner · Pique-nique*…).
+
+L'invité·e est ajouté·e au décompte des couverts de cette option. Sa présence est comptabilisée dans **tes** repas.
+
+Dans la rubrique **« Mes invités »** (sur *Repas de la semaine* **comme sur l'Accueil**), chaque invité est affiché avec son **service et son option** (ex. *Midi · Repas classique*). Tu peux **modifier** (✏️) une invitation — la fenêtre se rouvre pré-remplie — ou la **supprimer** (🗑️).
 
 ---
 

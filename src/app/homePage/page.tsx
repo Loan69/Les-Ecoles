@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import Image from "next/image";
-import { Bell, ChevronLeft, ChevronRight, Home, Moon, Calendar } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Home, Moon, Calendar, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import InviteModal, { EditingInvite } from "../components/inviteModal";
 import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { Residente } from "@/types/Residente";
@@ -42,7 +44,9 @@ export default function HomePage() {
   const [isAbsent, setIsAbsent] = useState(false);
   const [dejeunerLabel, setDejeunerLabel] = useState<string | null>(null);
   const [dinerLabel, setDinerLabel] = useState<string | null>(null);
-  const [invitesRepas, setInvitesRepas] = useState<{ nom: string; prenom: string; type_repas: "dejeuner" | "diner" }[]>([]);
+  const [invitesRepas, setInvitesRepas] = useState<(EditingInvite & { option_label: string | null })[]>([]);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [editingInvite, setEditingInvite] = useState<EditingInvite | null>(null);
 
   // ============================================================
   // UTILITAIRES
@@ -169,23 +173,38 @@ export default function HomePage() {
     fetchAllData();
   }, [user, currentDate, supabase]);
 
-  // Invités repas du jour — effet indépendant : ne bloque jamais l'affichage de la page.
-  useEffect(() => {
+  // Invités repas du jour — chargement indépendant : ne bloque jamais l'affichage de la page.
+  const loadInvites = useCallback(async () => {
     if (!user) return;
     const dateIso = formatDateKeyLocal(currentDate);
-    supabase
+    const { data, error } = await supabase
       .from("invites_repas")
-      .select("nom, prenom, type_repas")
+      .select("id, id_invite, nom, prenom, date_repas, type_repas, option_id, option:meal_options(label)")
       .eq("invite_par", user.id)
-      .eq("date_repas", dateIso)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Erreur invités repas :", error);
-          return;
-        }
-        setInvitesRepas(data ?? []);
-      });
+      .eq("date_repas", dateIso);
+    if (error) {
+      console.error("Erreur invités repas :", error);
+      return;
+    }
+    setInvitesRepas(
+      (data ?? []).map((r) => {
+        const opt = r.option as unknown as { label?: string } | null;
+        return { id: r.id, id_invite: r.id_invite, nom: r.nom, prenom: r.prenom, date_repas: r.date_repas, type_repas: r.type_repas, option_id: r.option_id, option_label: opt?.label ?? null };
+      })
+    );
   }, [user, currentDate, supabase]);
+
+  useEffect(() => {
+    loadInvites();
+  }, [loadInvites]);
+
+  const deleteInvite = async (id: number) => {
+    const res = await fetch("/api/invite-repas", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    const j = await res.json();
+    if (!res.ok) { toast.error(j.error || "Erreur."); return; }
+    setInvitesRepas((prev) => prev.filter((x) => x.id !== id));
+    toast.success("Invitation supprimée.");
+  };
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -476,9 +495,17 @@ export default function HomePage() {
             <div className="mt-3">
               <p className="text-[10px] font-bold uppercase tracking-wide text-purple-500 mb-1">Mes invités</p>
               <div className="space-y-1">
-                {invitesRepas.map((inv, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs bg-purple-50 border border-purple-100 rounded-lg px-2.5 py-1.5">
-                    <span className="text-purple-800 truncate">👤 {inv.prenom} {inv.nom} · {inv.type_repas === "dejeuner" ? "Midi" : "Soir"}</span>
+                {invitesRepas.map((inv) => (
+                  <div key={inv.id} className="flex items-center justify-between gap-2 text-xs bg-purple-50 border border-purple-100 rounded-lg px-2.5 py-1.5">
+                    <span className="text-purple-800 truncate">👤 {inv.prenom} {inv.nom} · {inv.type_repas === "dejeuner" ? "Midi" : "Soir"}{inv.option_label ? ` · ${inv.option_label}` : ""}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => { setEditingInvite(inv); setIsInviteOpen(true); }} title="Modifier l'invitation" className="p-1 rounded text-blue-500 hover:bg-blue-50 cursor-pointer">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => deleteInvite(inv.id)} title="Supprimer l'invitation" className="p-1 rounded text-red-500 hover:bg-red-50 cursor-pointer">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -486,6 +513,13 @@ export default function HomePage() {
           )}
         </section>
       </div>
+
+      <InviteModal
+        isOpen={isInviteOpen}
+        onClose={() => { setIsInviteOpen(false); setEditingInvite(null); }}
+        onInvited={loadInvites}
+        editing={editingInvite}
+      />
     </main>
   );
 }

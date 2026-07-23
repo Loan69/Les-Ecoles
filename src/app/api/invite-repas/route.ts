@@ -1,50 +1,92 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer, createSupabaseAdmin } from "@/lib/supabaseServer";
 
-// --- Créer des invitations repas ---
-// body: { nom, prenom, guestId?, dates: string[], service: "dejeuner"|"diner" }
-// La compta est rattachée à la résidence de l'inviteur (résolue côté serveur).
+type Body = {
+  id?: number;
+  nom?: string;
+  prenom?: string;
+  guestId?: number;
+  date?: string;
+  service?: string;
+  option_id?: string;
+};
+
+// Résout / crée l'invité du carnet, renvoie son id.
+async function resolveGuest(supabase: import("@supabase/supabase-js").SupabaseClient, guestId: number | undefined, nom: string, prenom: string) {
+  if (guestId) return { id: guestId, error: null as string | null };
+  const { data, error } = await supabase
+    .from("invites")
+    .upsert([{ nom, prenom, is_active: true }], { onConflict: "nom, prenom" })
+    .select("id")
+    .single();
+  return { id: data?.id as number | undefined, error: error?.message ?? null };
+}
+
+function validate(b: Body): string | null {
+  if (!b.nom?.trim() || !b.prenom?.trim()) return "Nom et prénom requis.";
+  if (b.service !== "dejeuner" && b.service !== "diner") return "Repas invalide (midi ou soir).";
+  if (!b.date) return "Date requise.";
+  if (!b.option_id) return "Option requise.";
+  return null;
+}
+
+// --- Créer une invitation repas (une date, un service, une option) ---
 export async function POST(req: Request) {
   const supabase = await createSupabaseServer();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
 
-  const body = await req.json();
-  const { nom, prenom, guestId, dates, service } = body as {
-    nom?: string; prenom?: string; guestId?: number; dates?: string[]; service?: string;
-  };
+  const body: Body = await req.json();
+  const v = validate(body);
+  if (v) return NextResponse.json({ error: v }, { status: 400 });
 
-  if (!nom?.trim() || !prenom?.trim()) return NextResponse.json({ error: "Nom et prénom requis." }, { status: 400 });
-  if (service !== "dejeuner" && service !== "diner") return NextResponse.json({ error: "Repas invalide (midi ou soir)." }, { status: 400 });
-  if (!Array.isArray(dates) || dates.length === 0) return NextResponse.json({ error: "Sélectionnez au moins une date." }, { status: 400 });
-
-  // Résidence de compta = celle de l'inviteur.
   const { data: profil } = await supabase.from("residentes").select("residence").eq("user_id", user.id).maybeSingle();
   const comptaResidence = profil?.residence ?? null;
 
-  // Carnet d'invités : réutilise l'existant, sinon crée (et réactive si archivé).
-  let inviteId = guestId;
-  if (!inviteId) {
-    const { data: g, error: gErr } = await supabase
-      .from("invites")
-      .upsert([{ nom: nom.trim(), prenom: prenom.trim(), is_active: true }], { onConflict: "nom, prenom" })
-      .select("id")
-      .single();
-    if (gErr) return NextResponse.json({ error: gErr.message }, { status: 500 });
-    inviteId = g.id;
-  }
+  const g = await resolveGuest(supabase, body.guestId, body.nom!.trim(), body.prenom!.trim());
+  if (g.error || !g.id) return NextResponse.json({ error: g.error ?? "Invité introuvable." }, { status: 500 });
 
-  const rows = dates.map((date) => ({
-    nom: nom.trim(),
-    prenom: prenom.trim(),
-    date_repas: date,
-    type_repas: service,
+  const { error } = await supabase.from("invites_repas").insert({
+    nom: body.nom!.trim(),
+    prenom: body.prenom!.trim(),
+    date_repas: body.date,
+    type_repas: body.service,
+    option_id: body.option_id,
     compta_residence: comptaResidence,
     invite_par: user.id,
-    id_invite: inviteId,
-  }));
+    id_invite: g.id,
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
 
-  const { error } = await supabase.from("invites_repas").insert(rows);
+// --- Modifier une invitation (la sienne) ---
+export async function PUT(req: Request) {
+  const supabase = await createSupabaseServer();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
+
+  const body: Body = await req.json();
+  if (!body.id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
+  const v = validate(body);
+  if (v) return NextResponse.json({ error: v }, { status: 400 });
+
+  const g = await resolveGuest(supabase, body.guestId, body.nom!.trim(), body.prenom!.trim());
+  if (g.error || !g.id) return NextResponse.json({ error: g.error ?? "Invité introuvable." }, { status: 500 });
+
+  const admin = createSupabaseAdmin();
+  const { error } = await admin
+    .from("invites_repas")
+    .update({
+      nom: body.nom!.trim(),
+      prenom: body.prenom!.trim(),
+      date_repas: body.date,
+      type_repas: body.service,
+      option_id: body.option_id,
+      id_invite: g.id,
+    })
+    .eq("id", body.id)
+    .eq("invite_par", user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

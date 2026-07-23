@@ -97,9 +97,9 @@ Depuis cet écran, on trouve aussi :
 
 ### 4.5. Inviter quelqu'un à un repas
 
-Depuis l'accueil, une résidente peut **inviter une personne** à un repas : elle choisit un invité déjà connu ou en crée un nouveau (nom, prénom), précise la **date**, le **service** (déjeuner / dîner) et la **résidence** où le repas sera pris.
+Depuis l'onglet **Repas de la semaine**, une résidente peut **inviter une personne** à un repas : elle choisit un invité déjà connu ou en crée un nouveau (nom, prénom), précise **une date**, puis le **repas** parmi les **options ouvertes ce jour-là** (déjeuner ou dîner × option). Elle peut ensuite **modifier** ou **supprimer** l'invitation depuis « Mes invités ».
 
-L'invité est alors comptabilisé dans les couverts de la résidence concernée.
+L'invité est alors comptabilisé **dans l'option choisie** : il apparaît dans le détail de cette option (vue Organisation de l'intendance) annoté « invité par … », et son repas est imputé à la résidente qui l'a invité pour la comptabilité.
 
 ### 4.6. Le calendrier et les événements
 

@@ -1,32 +1,47 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, UserPlus } from "lucide-react";
 import { useSupabase } from "../providers";
 import { toast } from "sonner";
-import MultiDatePicker from "./MultiDatePicker";
 
 type GuestRow = { id: number; nom: string; prenom: string };
 type Service = "dejeuner" | "diner";
+type DayOption = { service: Service; option_id: string; label: string };
+
+export type EditingInvite = {
+  id: number;
+  id_invite: number | null;
+  nom: string;
+  prenom: string;
+  date_repas: string;
+  type_repas: Service;
+  option_id: string | null;
+};
+
+const SERVICE_LABEL: Record<Service, string> = { dejeuner: "Déjeuner", diner: "Dîner" };
 
 export default function InviteModal({
   isOpen,
   onClose,
   onInvited,
+  editing = null,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onInvited?: () => void;
+  editing?: EditingInvite | null;
 }) {
   const { supabase } = useSupabase();
 
   const [guests, setGuests] = useState<GuestRow[]>([]);
-  const [selectedGuestId, setSelectedGuestId] = useState<string>(""); // "" | "new" | id
+  const [selectedGuestId, setSelectedGuestId] = useState<string>("");
   const [nom, setNom] = useState("");
   const [prenom, setPrenom] = useState("");
-  const [dates, setDates] = useState<string[]>([]);
-  const [service, setService] = useState<Service | "">("");
+  const [date, setDate] = useState("");
+  const [dayOptions, setDayOptions] = useState<DayOption[]>([]);
+  const [pickedKey, setPickedKey] = useState(""); // `${service}|${option_id}`
   const [submitting, setSubmitting] = useState(false);
 
   const isNewGuest = selectedGuestId === "" || selectedGuestId === "new";
@@ -36,9 +51,53 @@ export default function InviteModal({
     setGuests((data ?? []).sort((a, b) => a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom)));
   }, [supabase]);
 
+  // Ouverture : reset ou pré-remplissage (édition).
   useEffect(() => {
-    if (isOpen) loadGuests();
-  }, [isOpen, loadGuests]);
+    if (!isOpen) return;
+    loadGuests();
+    if (editing) {
+      setSelectedGuestId(editing.id_invite ? String(editing.id_invite) : "new");
+      setNom(editing.nom);
+      setPrenom(editing.prenom);
+      setDate(editing.date_repas);
+      setPickedKey(editing.option_id ? `${editing.type_repas}|${editing.option_id}` : "");
+    } else {
+      setSelectedGuestId("");
+      setNom("");
+      setPrenom("");
+      setDate("");
+      setPickedKey("");
+    }
+  }, [isOpen, editing, loadGuests]);
+
+  // Options ouvertes sur la date choisie.
+  useEffect(() => {
+    if (!date) {
+      setDayOptions([]);
+      return;
+    }
+    (async () => {
+      const { data } = await supabase
+        .from("meal_service_options")
+        .select("service, option:meal_options(id, label, is_active, admin_only)")
+        .eq("date", date);
+      const opts: DayOption[] = (data ?? [])
+        .map((so) => {
+          const o = so.option as unknown as { id: string; label: string; is_active: boolean; admin_only: boolean } | null;
+          if (!o || !o.is_active || o.admin_only) return null;
+          return { service: so.service as Service, option_id: o.id, label: o.label };
+        })
+        .filter(Boolean) as DayOption[];
+      // dédoublonne
+      const seen = new Set<string>();
+      setDayOptions(opts.filter((o) => (seen.has(`${o.service}|${o.option_id}`) ? false : seen.add(`${o.service}|${o.option_id}`))));
+    })();
+  }, [date, supabase]);
+
+  const choices = useMemo(
+    () => [...dayOptions].sort((a, b) => a.service.localeCompare(b.service) || a.label.localeCompare(b.label)),
+    [dayOptions]
+  );
 
   const handleSelectGuest = (value: string) => {
     setSelectedGuestId(value);
@@ -74,38 +133,32 @@ export default function InviteModal({
     });
   };
 
-  const resetAndClose = () => {
-    setSelectedGuestId("");
-    setNom("");
-    setPrenom("");
-    setDates([]);
-    setService("");
-    onClose();
-  };
-
   const confirm = async () => {
     if (!nom.trim() || !prenom.trim()) return toast.error("Nom et prénom requis.");
-    if (dates.length === 0) return toast.error("Sélectionnez au moins une date.");
-    if (!service) return toast.error("Sélectionnez midi ou soir.");
+    if (!date) return toast.error("Sélectionnez une date.");
+    if (!pickedKey) return toast.error("Sélectionnez un repas.");
+    const [service, optionId] = pickedKey.split("|") as [Service, string];
 
     setSubmitting(true);
+    const payload = {
+      nom: nom.trim(),
+      prenom: prenom.trim(),
+      guestId: isNewGuest ? undefined : Number(selectedGuestId),
+      date,
+      service,
+      option_id: optionId,
+    };
     const res = await fetch("/api/invite-repas", {
-      method: "POST",
+      method: editing ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nom: nom.trim(),
-        prenom: prenom.trim(),
-        guestId: isNewGuest ? undefined : Number(selectedGuestId),
-        dates,
-        service,
-      }),
+      body: JSON.stringify(editing ? { id: editing.id, ...payload } : payload),
     });
     const j = await res.json();
     setSubmitting(false);
     if (!res.ok) return toast.error(j.error || "Erreur.");
-    toast.success(dates.length > 1 ? `Invité ajouté sur ${dates.length} dates.` : "Invité ajouté !");
+    toast.success(editing ? "Invitation modifiée." : "Invité ajouté !");
     onInvited?.();
-    resetAndClose();
+    onClose();
   };
 
   return (
@@ -114,8 +167,8 @@ export default function InviteModal({
         <motion.div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[88vh] overflow-y-auto" initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}>
             <div className="flex justify-between items-center mb-1">
-              <h2 className="text-lg font-semibold text-blue-800 flex items-center gap-2"><UserPlus className="w-5 h-5" /> Inviter quelqu&apos;un</h2>
-              <button onClick={resetAndClose} className="text-gray-400 hover:text-gray-600 cursor-pointer"><X className="w-5 h-5" /></button>
+              <h2 className="text-lg font-semibold text-blue-800 flex items-center gap-2"><UserPlus className="w-5 h-5" /> {editing ? "Modifier l'invitation" : "Inviter quelqu'un"}</h2>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
             <div className="w-full bg-blue-500 h-[1px] mb-4" />
 
@@ -146,37 +199,36 @@ export default function InviteModal({
                 </div>
               )}
 
-              {/* Dates */}
+              {/* Date */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date(s)</label>
-                <MultiDatePicker value={dates} onChange={setDates} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input type="date" value={date} onChange={(e) => { setDate(e.target.value); setPickedKey(""); }} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-600 focus:outline-none" />
               </div>
 
-              {/* Midi / Soir */}
+              {/* Repas (service + option du jour) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Repas</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["dejeuner", "diner"] as Service[]).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setService(s)}
-                      className={`rounded-lg border-2 px-3 py-2 text-sm font-semibold cursor-pointer transition ${
-                        service === s ? "border-blue-600 bg-blue-50 text-blue-800" : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                      }`}
-                    >
-                      {s === "dejeuner" ? "Midi" : "Soir"}
-                    </button>
-                  ))}
-                </div>
+                {!date ? (
+                  <p className="text-xs text-gray-400 italic">Choisissez d&apos;abord une date.</p>
+                ) : choices.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">Aucun repas ouvert ce jour-là.</p>
+                ) : (
+                  <select value={pickedKey} onChange={(e) => setPickedKey(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                    <option value="">— Sélectionner un repas —</option>
+                    {choices.map((c) => (
+                      <option key={`${c.service}|${c.option_id}`} value={`${c.service}|${c.option_id}`}>{SERVICE_LABEL[c.service]} · {c.label}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <p className="text-xs text-gray-400">Le couvert est rattaché à la comptabilité de ta résidence.</p>
             </div>
 
             <div className="flex justify-end gap-2 mt-6">
-              <button onClick={resetAndClose} className="px-4 py-2 rounded-lg border border-gray-400 text-gray-600 hover:bg-gray-100 cursor-pointer">Annuler</button>
+              <button onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-400 text-gray-600 hover:bg-gray-100 cursor-pointer">Annuler</button>
               <button onClick={confirm} disabled={submitting} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-800 disabled:opacity-50 cursor-pointer">
-                {submitting ? "Ajout…" : "Confirmer"}
+                {submitting ? "Enregistrement…" : editing ? "Enregistrer" : "Confirmer"}
               </button>
             </div>
           </motion.div>

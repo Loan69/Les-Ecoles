@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Lock, Moon, ChevronDown, UserPlus, ClipboardList, Settings, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, Moon, ChevronDown, UserPlus, ClipboardList, Settings, Trash2, Pencil } from "lucide-react";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
 import { ServiceOption, MealOptionCatalog, PresenceV2, Service } from "@/types/MealOption";
@@ -19,7 +19,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
-import InviteModal from "../components/inviteModal";
+import InviteModal, { EditingInvite } from "../components/inviteModal";
 
 const SERVICES: { value: Service; label: string }[] = [
   { value: "dejeuner", label: "Déjeuner" },
@@ -52,7 +52,7 @@ function weekLabel(monday: Date): string {
 }
 
 type Profil = { is_admin?: boolean; residence?: string; etage?: string; chambre?: string };
-type InviteRow = { id: number; nom: string; prenom: string; date_repas: string; type_repas: "dejeuner" | "diner" };
+type InviteRow = { id: number; id_invite: number | null; nom: string; prenom: string; date_repas: string; type_repas: "dejeuner" | "diner"; option_id: string | null };
 
 export default function SemaineRepas() {
   const router = useRouter();
@@ -69,6 +69,7 @@ export default function SemaineRepas() {
   const [ready, setReady] = useState(false);
 
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [editingInvite, setEditingInvite] = useState<EditingInvite | null>(null);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
 
   const [currentMonday, setCurrentMonday] = useState<Date>(() => {
@@ -116,7 +117,7 @@ export default function SemaineRepas() {
       supabase.from("presences_v2").select("*").eq("user_id", user.id).gte("date", start).lte("date", end),
       supabase.from("absences_sejour").select("*").eq("user_id", user.id).lte("date_debut", end).gte("date_fin", start),
       supabase.from("evenements").select("*").overlaps("dates_event", days),
-      supabase.from("invites_repas").select("id, nom, prenom, date_repas, type_repas").eq("invite_par", user.id).gte("date_repas", start).lte("date_repas", end),
+      supabase.from("invites_repas").select("id, id_invite, nom, prenom, date_repas, type_repas, option_id").eq("invite_par", user.id).gte("date_repas", start).lte("date_repas", end),
     ]);
     setServiceOptions((soData as ServiceOption[]) ?? []);
     setPresences((presData as PresenceV2[]) ?? []);
@@ -152,6 +153,11 @@ export default function SemaineRepas() {
   const eventsForDay = (dateKey: string) => weekEvents.filter((e) => e.dates_event?.includes(dateKey) && eventVisibleFor(e, eventViewer));
 
   const invitesForDay = (dateKey: string) => myInvites.filter((i) => i.date_repas === dateKey);
+  const optionLabelById = (id: string | null): string | null => {
+    if (!id) return null;
+    const so = serviceOptions.find((s) => (s.option as MealOptionCatalog | null)?.id === id);
+    return (so?.option as MealOptionCatalog | null)?.label ?? null;
+  };
   const deleteInvite = async (id: number) => {
     const res = await fetch("/api/invite-repas", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     const j = await res.json();
@@ -295,10 +301,15 @@ export default function SemaineRepas() {
                       <div className="space-y-1">
                         {invitesForDay(dateKey).map((inv) => (
                           <div key={inv.id} className="flex items-center justify-between gap-2 text-xs bg-purple-50 border border-purple-100 rounded-lg px-2.5 py-1.5">
-                            <span className="text-purple-800 truncate">👤 {inv.prenom} {inv.nom} · {inv.type_repas === "dejeuner" ? "Midi" : "Soir"}</span>
-                            <button onClick={() => deleteInvite(inv.id)} title="Supprimer l'invitation" className="p-1 rounded text-red-500 hover:bg-red-50 cursor-pointer shrink-0">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <span className="text-purple-800 truncate">👤 {inv.prenom} {inv.nom} · {inv.type_repas === "dejeuner" ? "Midi" : "Soir"}{optionLabelById(inv.option_id) ? ` · ${optionLabelById(inv.option_id)}` : ""}</span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button onClick={() => { setEditingInvite(inv); setIsInviteOpen(true); }} title="Modifier l'invitation" className="p-1 rounded text-blue-500 hover:bg-blue-50 cursor-pointer">
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => deleteInvite(inv.id)} title="Supprimer l'invitation" className="p-1 rounded text-red-500 hover:bg-red-50 cursor-pointer">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -312,12 +323,12 @@ export default function SemaineRepas() {
 
         {/* Inviter quelqu'un */}
         <div className="mt-8 flex justify-center">
-          <button onClick={() => setIsInviteOpen(true)} className="flex items-center gap-2 bg-white border-2 border-blue-200 text-blue-700 rounded-2xl px-6 py-3 text-sm font-semibold shadow-sm hover:bg-blue-50 transition cursor-pointer">
+          <button onClick={() => { setEditingInvite(null); setIsInviteOpen(true); }} className="flex items-center gap-2 bg-white border-2 border-blue-200 text-blue-700 rounded-2xl px-6 py-3 text-sm font-semibold shadow-sm hover:bg-blue-50 transition cursor-pointer">
             <UserPlus className="w-4 h-4" /> Inviter quelqu&apos;un
           </button>
         </div>
 
-        <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} onInvited={loadWeek} />
+        <InviteModal isOpen={isInviteOpen} onClose={() => { setIsInviteOpen(false); setEditingInvite(null); }} onInvited={loadWeek} editing={editingInvite} />
       </div>
     </main>
   );

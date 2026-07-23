@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
 import { useSupabase } from "@/app/providers";
 import { CalendarDays, Table2, Scale, Soup, Moon as MoonIcon, CalendarCheck, Download } from "lucide-react";
 import { toast } from "sonner";
@@ -23,9 +23,9 @@ function formatColDay(dateKey: string): string {
   return parseDateKeyLocal(dateKey).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }).replace(/^./, (c) => c.toUpperCase());
 }
 
-type InviteMeal = { invite_par: string; nom: string; prenom: string; date_repas: string; type_repas: "dejeuner" | "diner" };
+type InviteMeal = { id: number; invite_par: string; nom: string; prenom: string; date_repas: string; type_repas: "dejeuner" | "diner"; option_id: string | null };
 type OpenServiceOption = { date: string; service: Service; option_id: string; label: string; residence: string };
-type OptionGroup = { option_id: string; label: string; people: PersonneDetail[] };
+type OptionGroup = { option_id: string; label: string; people: PersonneDetail[]; notes: Record<string, string> };
 type ServiceDetail = { open: boolean; options: OptionGroup[] };
 
 export default function AdminRepasV2Page() {
@@ -64,7 +64,7 @@ export default function AdminRepasV2Page() {
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("meal_options").select("*"),
         supabase.from("select_options_residence").select("value, label"),
-        supabase.from("invites_repas").select("invite_par, nom, prenom, date_repas, type_repas").gte("date_repas", startDate).lte("date_repas", endDate),
+        supabase.from("invites_repas").select("id, invite_par, nom, prenom, date_repas, type_repas, option_id").gte("date_repas", startDate).lte("date_repas", endDate),
       ]);
     setInvites((invitesData as InviteMeal[]) || []);
 
@@ -154,39 +154,31 @@ export default function AdminRepasV2Page() {
           openOpts.forEach((so) => { if (so.residence === r.value || so.residence === "personne") relevant.set(so.option_id, so); });
           if (relevant.size === 0) return; // service fermé pour cette résidence
           const options: OptionGroup[] = [...relevant.values()]
-            .map((so) => ({
-              option_id: so.option_id,
-              label: so.label,
-              people: presences
+            .map((so) => {
+              const people: PersonneDetail[] = presences
                 .filter((p) => p.date === dateKey && p.service === svc && p.option_id === so.option_id && !isAwayForMeal(absences, p.user_id, p.date) && comptaResidence(p) === r.value)
                 .map((p) => peopleById.get(p.user_id))
-                .filter(Boolean) as PersonneDetail[],
-            }))
+                .filter(Boolean) as PersonneDetail[];
+              // Invités rattachés à cette option, dans ce lieu (option 12/36 → sa résidence ; « personne » → résidence de l'inviteur).
+              const notes: Record<string, string> = {};
+              invites.forEach((inv) => {
+                if (inv.date_repas !== dateKey || inv.type_repas !== svc || inv.option_id !== so.option_id) return;
+                const lieu = so.residence === "personne" ? peopleById.get(inv.invite_par)?.residence : so.residence;
+                if (lieu !== r.value) return;
+                const inviter = peopleById.get(inv.invite_par);
+                const id = `guest-${inv.id}`;
+                people.push({ id, nom: inv.nom, prenom: inv.prenom, isInvite: true });
+                notes[id] = inviter ? `invité par ${inviter.prenom} ${inviter.nom}` : "invité";
+              });
+              return { option_id: so.option_id, label: so.label, people, notes };
+            })
             .sort((a, b) => a.label.localeCompare(b.label));
           res[r.value][svc] = { open: true, options };
         });
       });
       return res;
     },
-    [residences, openServiceOptions, presences, absences, peopleById, comptaResidence]
-  );
-
-  // Invités d'un jour (avec noms), rattachés à la résidence de l'inviteur.
-  const guestsForDay = useCallback(
-    (dateKey: string): Record<string, { dejeuner: PersonneDetail[]; diner: PersonneDetail[] }> => {
-      const res: Record<string, { dejeuner: PersonneDetail[]; diner: PersonneDetail[] }> = {};
-      residences.forEach((r) => (res[r.value] = { dejeuner: [], diner: [] }));
-      invites.forEach((inv, idx) => {
-        if (inv.date_repas !== dateKey) return;
-        const rk = peopleById.get(inv.invite_par)?.residence;
-        if (!rk || !res[rk]) return;
-        const person: PersonneDetail = { id: `guest-${dateKey}-${inv.type_repas}-${idx}`, nom: inv.nom, prenom: inv.prenom, isInvite: true };
-        if (inv.type_repas === "dejeuner") res[rk].dejeuner.push(person);
-        else res[rk].diner.push(person);
-      });
-      return res;
-    },
-    [residences, invites, peopleById]
+    [residences, openServiceOptions, presences, absences, peopleById, comptaResidence, invites]
   );
 
   // Agrégat par personne (compta fin de mois) : nb de déjeuners/dîners mangés sur la période,
@@ -243,12 +235,26 @@ export default function AdminRepasV2Page() {
     { key: `${d}|diner`, label: formatColDay(d), sublabel: "Dîner" },
   ]);
 
-  // Valeur texte d'une cellule du détail (même logique que l'affichage).
+  // Invités rattachés à une cellule (inviteur × date × service).
+  const cellGuests = useCallback(
+    (inviterId: string, date: string, service: string) =>
+      invites.filter((inv) => inv.invite_par === inviterId && inv.date_repas === date && inv.type_repas === service),
+    [invites]
+  );
+
+  // Valeur texte d'une cellule du détail (même logique que l'affichage), invités compris pour l'export.
   const detailCell = (p: PersonneDetail, date: string, service: string): string => {
-    if (isAwayForMeal(absences, p.id, date)) return "Absente";
-    const pres = presences.find((x) => x.user_id === p.id && x.date === date && x.service === service);
-    if (!pres) return "Non";
-    return optionsById.get(pres.option_id)?.label ?? "Oui";
+    const base = isAwayForMeal(absences, p.id, date)
+      ? "Absente"
+      : (() => {
+          const pres = presences.find((x) => x.user_id === p.id && x.date === date && x.service === service);
+          if (!pres) return "Non";
+          return optionsById.get(pres.option_id)?.label ?? "Oui";
+        })();
+    const guests = cellGuests(p.id, date, service);
+    if (guests.length === 0) return base;
+    const gtxt = guests.map((g) => `+ invité: ${g.prenom} ${g.nom}`).join(" ");
+    return `${base} ${gtxt}`;
   };
 
   const exportDetail = () => {
@@ -320,15 +326,13 @@ export default function AdminRepasV2Page() {
             <div className="space-y-3">
               {daysInRange.map((date) => {
                 const optDetail = getDayOptionDetail(date);
-                const guests = guestsForDay(date);
                 return (
                   <div key={date} className="rounded-2xl border-2 border-gray-100 bg-white shadow-sm p-4">
                     <p className="text-sm font-bold text-orange-900 uppercase tracking-wide mb-3">{formatJourLong(date)}</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {residences.map((r) => {
                         const det = optDetail[r.value];
-                        const gst = guests[r.value];
-                        const anyContent = det.dejeuner.open || det.diner.open || gst.dejeuner.length > 0 || gst.diner.length > 0;
+                        const anyContent = det.dejeuner.open || det.diner.open;
                         return (
                           <div key={r.value} className="border border-gray-100 rounded-xl p-3">
                             <p className="font-bold text-gray-700 text-sm uppercase mb-2">{r.label}</p>
@@ -338,8 +342,7 @@ export default function AdminRepasV2Page() {
                               <div className="space-y-3">
                                 {(["dejeuner", "diner"] as Service[]).map((svc) => {
                                   const sd = det[svc];
-                                  const gpeople = gst[svc];
-                                  if (!sd.open && gpeople.length === 0) return null;
+                                  if (!sd.open) return null;
                                   const isMidi = svc === "dejeuner";
                                   return (
                                     <div key={svc}>
@@ -348,7 +351,7 @@ export default function AdminRepasV2Page() {
                                         {sd.options.map((grp) => (
                                           <button
                                             key={grp.option_id}
-                                            onClick={() => setListModal({ title: `${grp.label} (${isMidi ? "Midi" : "Soir"}) — ${r.label} · ${formatJourLong(date)}`, people: grp.people })}
+                                            onClick={() => setListModal({ title: `${grp.label} (${isMidi ? "Midi" : "Soir"}) — ${r.label} · ${formatJourLong(date)}`, people: grp.people, notes: grp.notes })}
                                             className={`flex flex-col items-center rounded-xl py-2 px-1 transition cursor-pointer ${isMidi ? "bg-orange-50 hover:bg-orange-100 text-orange-900" : "bg-blue-50 hover:bg-blue-100 text-blue-900"}`}
                                             title="Voir la liste"
                                           >
@@ -356,16 +359,6 @@ export default function AdminRepasV2Page() {
                                             <span className="text-lg font-black">{grp.people.length}</span>
                                           </button>
                                         ))}
-                                        {gpeople.length > 0 && (
-                                          <button
-                                            onClick={() => setListModal({ title: `Invités (${isMidi ? "Midi" : "Soir"}) — ${r.label} · ${formatJourLong(date)}`, people: gpeople })}
-                                            className="flex flex-col items-center rounded-xl py-2 px-1 bg-purple-50 hover:bg-purple-100 text-purple-800 transition cursor-pointer"
-                                            title="Voir la liste des invités"
-                                          >
-                                            <span className="text-[10px] font-bold uppercase text-center leading-tight">👤 Invités</span>
-                                            <span className="text-lg font-black">{gpeople.length}</span>
-                                          </button>
-                                        )}
                                       </div>
                                     </div>
                                   );
@@ -482,13 +475,25 @@ export default function AdminRepasV2Page() {
               columns={tableColumns}
               renderCell={(p, key) => {
                 const [date, service] = key.split("|");
+                const guests = cellGuests(p.id, date, service);
+                let base: ReactNode;
                 if (isAwayForMeal(absences, p.id, date)) {
-                  return <span className="text-orange-500 flex items-center justify-center gap-0.5"><MoonIcon className="w-3 h-3" /></span>;
+                  base = <span className="text-orange-500 flex items-center justify-center gap-0.5"><MoonIcon className="w-3 h-3" /></span>;
+                } else {
+                  const pres = presences.find((x) => x.user_id === p.id && x.date === date && x.service === service);
+                  base = pres
+                    ? <span className="text-green-700 whitespace-nowrap">{optionsById.get(pres.option_id)?.label ?? "Oui"}</span>
+                    : <span className="text-red-600 font-semibold">Non</span>;
                 }
-                const pres = presences.find((x) => x.user_id === p.id && x.date === date && x.service === service);
-                if (!pres) return <span className="text-red-600 font-semibold">Non</span>;
-                const opt = optionsById.get(pres.option_id);
-                return <span className="text-green-700 whitespace-nowrap">{opt?.label ?? "Oui"}</span>;
+                if (guests.length === 0) return base;
+                return (
+                  <span className="flex flex-col items-center gap-0.5">
+                    {base}
+                    {guests.map((g) => (
+                      <span key={g.id} title={`${g.prenom} ${g.nom}${optionsById.get(g.option_id ?? "")?.label ? ` · ${optionsById.get(g.option_id ?? "")?.label}` : ""}`} className="text-[10px] text-purple-600 whitespace-nowrap">+👤 {g.prenom}</span>
+                    ))}
+                  </span>
+                );
               }}
             />
           </div>

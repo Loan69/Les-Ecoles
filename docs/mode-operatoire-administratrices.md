@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.1 — 2026-07-06.
+> Version 1.2 — 2026-07-23.
 
 Une administratrice est une résidente dont le compte a le statut **admin**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), d'outils d'intendance : le **panneau d'administration**, le **paramétrage des repas**, la **comptabilité**, la **vue des présences** et la **gestion des événements**.
 
@@ -123,7 +123,7 @@ Via l'onglet 🧍 **Présence foyer** → **« Voir les présences »**. Elle in
 Accès : **Espace intendance** → **Voir les inscriptions & la compta**. Deux onglets, sur une **période choisie** (sélecteur de dates en haut).
 
 ### Onglet « Organisation » — repas à préparer
-Les jours sont **empilés** ; pour chaque jour et chaque résidence, le nombre de **midis** et de **soirs**. **Chaque nombre est cliquable** → la **liste des personnes comptées** (avec l'option choisie). Le bouton **« Voir le détail »** ouvre le **tableau** (habitantes × jours/service ; chaque case = l'option choisie, ou 🌙 **lune orange** = absente, ou **Non** en rouge = ne mange pas).
+Les jours sont **empilés** ; pour chaque jour et chaque résidence, les **options ouvertes** au midi et au soir, avec leur nombre d'inscrits. **Chaque option est cliquable** → la **liste des personnes comptées**. Les **invités** ne forment plus une tuile à part : chacun est compté **dans l'option** à laquelle il est rattaché et apparaît dans cette liste, annoté **« invité par Prénom Nom »**. Le bouton **« Voir le détail »** ouvre le **tableau** (habitantes × jours/service ; chaque case = l'option choisie, ou 🌙 **lune orange** = absente, ou **Non** en rouge = ne mange pas). Un invité y apparaît en **petit badge « +👤 Prénom »** dans la case de la personne qui l'a invité (jamais de ligne à part).
 
 ### Onglet « Comptabilité »
 - **Récapitulatif de la période** : total déjeuners / dîners **par résidence**, et un **grand total**.

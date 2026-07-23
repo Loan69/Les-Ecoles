@@ -1,7 +1,7 @@
 # Les Écoles — Note de spécification (règles métier)
 
 > **Document vivant** — toute nouvelle règle, modification ou suppression de règle doit être reportée ici.
-> Dernière mise à jour : 6 juin 2026 · Version 1.0
+> Dernière mise à jour : 23 juillet 2026 · Version 1.13
 
 ## Comment lire ce document
 
@@ -139,11 +139,12 @@ Cet identifiant ne change jamais : on peut donc s'y référer dans les discussio
 
 | ID | Règle |
 |---|---|
-| **R-INV-01** | Une résidente peut inviter une personne extérieure à un repas en précisant : nom, prénom, **date**, **service** (déjeuner / dîner) et **résidence** où le repas est pris. |
+| **R-INV-01** | *(MàJ 2026-07-23.)* Une résidente peut inviter une personne extérieure à **un** repas en précisant : nom, prénom, **une date**, puis le **repas** parmi les **services et options ouverts ce jour-là** (déjeuner/dîner × option). L'invité est donc rattaché à une **option précise** (plus de multi-date, plus de choix de résidence libre : le lieu découle de l'option). |
 | **R-INV-02** | L'invitation peut se faire en **réutilisant un invité déjà enregistré** ou en **créant un nouvel invité**. Un même invité (nom + prénom) n'est pas dupliqué dans le répertoire. |
 | **R-INV-03** | Chaque invitation est rattachée à la **résidente qui invite**. |
-| **R-INV-04** | Un invité est **comptabilisé dans les couverts** de la résidence indiquée, pour le service et la date choisis (côté suivi et comptabilité). |
-| **R-INV-05** | Les invités n'ont pas de logique de pique-nique ni de menu spécial : ils comptent simplement comme un déjeuner ou un dîner. |
+| **R-INV-04** | *(MàJ 2026-07-23.)* Un invité est **comptabilisé dans l'option** à laquelle il est rattaché, dans le **lieu** de cette option (résidence de l'option 12/36 ; pour une option « personne », résidence de l'inviteur). Il apparaît (a) dans le **détail d'une tuile d'option** de la vue Organisation, annoté **« invité par Prénom Nom »**, et (b) dans le **tableau « Voir le détail »** sous forme d'un **badge compact « +👤 Prénom »** dans la **cellule de l'inviteur** au jour/service concerné (jamais de ligne dédiée). Côté **comptabilité**, son repas est **imputé à l'inviteur** (pas de ligne séparée). |
+| **R-INV-05** | L'inviteur peut **modifier** son invitation (invité, date, repas/option) ou la **supprimer** depuis la rubrique « Mes invités », accessible aussi bien sur **« Repas de la semaine »** que sur l'**Accueil** (seule action non-lecture-seule de l'Accueil) ; tout se met à jour en conséquence. La rubrique affiche pour chaque invité le **service et l'option** choisis. |
+| **R-INV-06** | Une ancienne invitation sans option rattachée est encore **comptée en comptabilité** (à l'inviteur) mais **n'apparaît dans aucune tuile d'option** de la vue Organisation. |
 
 ---
 
@@ -176,7 +177,7 @@ Cet identifiant ne change jamais : on peut donc s'y référer dans les discussio
 | **R-COMPTA-05** | Le **total par jour** d'une résidence additionne déjeuners, dîners, plateaux, pique-niques et options spéciales. |
 | **R-COMPTA-06** | La **comptabilité par personne** compte le nombre de déjeuners et de dîners auxquels la personne est inscrite (les « Non » ne comptent pas), **invités inclus** pour la personne qui les a invités. |
 | **R-COMPTA-07** | La comptabilité fournit un **total par résidence** (déjeuners, dîners, total) et un **grand total** toutes résidences. |
-| **R-COMPTA-08** | La vue détaillée permet, pour une résidence et une date, de lister **personne par personne** le repas choisi et le commentaire éventuel, invités compris. |
+| **R-COMPTA-08** | *(MàJ 2026-07-23.)* La vue détaillée de **comptabilité** liste, pour une résidence et une date, **personne par personne** le repas choisi et le commentaire éventuel ; les **invités n'y figurent pas** en ligne séparée (ils sont imputés à l'inviteur, cf. `R-INV-04`). Le détail avec invités annotés « invité par … » relève de la vue **Organisation** (`R-INV-04`), pas de la comptabilité. |
 
 ---
 
@@ -232,6 +233,7 @@ Liste vivante des points à trancher avec le client. À mettre à jour (déplace
 
 | Date | Version | Modification |
 |---|---|---|
+| 2026-07-23 | 1.13 | **[INV]** Retour client sur les invités repas : l'invitation vise **une date + un repas (service × option ouverte)** au lieu d'un multi-date, l'invité est **rattaché à une option** et **comptabilisé dedans** dans la vue Organisation (annoté « invité par … » ; plus de tuile « Invités » séparée) ; en **comptabilité**, son repas est imputé à l'inviteur (jamais de ligne séparée). Ajout de la **modification** d'une invitation. L'**accueil** et **« Mes invités »** affichent le **service + l'option** de chaque invité, et permettent tous deux de **modifier / supprimer** une invitation (seule action non-lecture-seule de l'accueil). Le tableau **« Voir le détail »** montre l'invité en **badge compact « +👤 Prénom »** dans la cellule de l'inviteur. MàJ `R-INV-01/04/05`, ajout `R-INV-06`, MàJ `R-COMPTA-08`. |
 | 2026-07-20 | 1.12 | **[FOYER][EVT]** Retours client : option **« Me noter Non aux repas »** sur une absence (cochée par défaut ; le couplage absence→repas devient optionnel) — MàJ `R-REPAS-10`, `R-FOYER-09`. Événements : **lieu facultatif** ; un événement **sans lieu** s'affiche en **rappel « Aujourd'hui »** sur l'accueil — MàJ `R-EVT-02/08`. Confirmation de participation via **bouton à bascule** lisible — MàJ `R-EVT-09`. |
 | 2026-07-17 | 1.11 | **[CPT]** Lot 3 — gestion des comptes par l'intendance : **chambre/poste = une place** (table `places`), **invitation par email** des résidentes (self-signup résidente supprimé, invitées conservées), **activation** (`/auth/confirm` + `/activation`), **archivage** au départ (historique conservé), **déplacement** interne, **super-admin** hors modèle. Écran ⚙️ Administration → **Chambres**. Ajout section `[CPT]` (`R-CPT-01..10`), MàJ `R-INSC-01/02`, `R-RES-02`. |
 | 2026-06-06 | 1.0 | Création du document : recensement des règles existantes. |
