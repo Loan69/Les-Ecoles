@@ -479,7 +479,16 @@ export default function HomePage() {
 
         {/* Carte REPAS du jour (lecture seule) */}
         <section className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-blue-800 mb-3">Repas du jour</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-bold uppercase tracking-wide text-blue-800">Repas du jour</h3>
+            <button
+              onClick={() => router.push("/repasSemaine")}
+              title="Modifier mes repas"
+              className="p-1.5 rounded-full text-blue-600 hover:bg-blue-50 cursor-pointer"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          </div>
           <div className="grid grid-cols-2 gap-3 text-center">
             <div className="bg-orange-50 rounded-xl p-3">
               <p className="text-[10px] uppercase font-bold text-orange-500 mb-1">Déjeuner</p>

@@ -14,6 +14,7 @@ import AbsenceAdminModal, { MarquagePayload } from "@/app/components/admin/Absen
 import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
 import DetailListModal from "@/app/components/admin/DetailListModal";
 import { useMyRights } from "@/lib/useMyRights";
+import TopBar from "@/app/components/TopBar";
 
 function formatJourLong(dateKey: string): string {
   return parseDateKeyLocal(dateKey)
@@ -156,6 +157,7 @@ export default function AdminFoyerView() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white py-10 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto">
+        <TopBar />
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-blue-800 mb-2">Présences au foyer</h1>
           <p className="text-gray-600">Qui est au foyer ou sortie, par résidence, jour par jour.</p>

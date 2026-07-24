@@ -4,6 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useSupabase } from "@/app/providers";
 import { CalendarDays, Scale, Soup, CalendarCheck, Table2 } from "lucide-react";
+import TopBar from "@/app/components/TopBar";
 import { Personne } from "@/types/Personne";
 import { Repas } from "@/types/repas";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
@@ -287,6 +288,7 @@ export default function AdminRepasView() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-white py-10 px-4 sm:px-6">
       <div className="max-w-6xl mx-auto">
+        <TopBar />
         <h1 className="text-3xl font-bold text-amber-800 text-center mb-10">Inscriptions aux repas</h1>
 
         <Tabs defaultValue="sum" className="w-full">

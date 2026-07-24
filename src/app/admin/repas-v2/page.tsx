@@ -17,6 +17,7 @@ import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
 import DetailListModal from "@/app/components/admin/DetailListModal";
 import MealOptionEditModal from "@/app/components/admin/MealOptionEditModal";
 import { useMyRights } from "@/lib/useMyRights";
+import TopBar from "@/app/components/TopBar";
 
 function formatJourLong(dateKey: string): string {
   return parseDateKeyLocal(dateKey).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }).replace(/^./, (c) => c.toUpperCase());
@@ -341,6 +342,7 @@ export default function AdminRepasV2Page() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-white py-10 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto">
+        <TopBar />
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-amber-800 mb-1">Repas — comptabilité</h1>
           <p className="text-gray-600 text-sm">Inscriptions & comptabilité · absences déduites</p>

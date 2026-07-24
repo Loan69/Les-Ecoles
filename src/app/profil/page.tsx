@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { Residente } from "@/types/Residente";
 import { formatEtage, formatChambre } from "@/lib/adminPeople";
+import TopBar from "../components/TopBar";
 
 // Date de naissance « jolie » (2004-05-12 -> 12 mai 2004), sans décalage de fuseau.
 function formatDateNaissance(d?: string | null): string | null {
@@ -105,6 +106,7 @@ export default function ProfilPage() {
     return (
         <main className="min-h-screen flex flex-col items-center bg-white px-4 pt-6">
         <div className="w-full max-w-md flex flex-col items-center">
+            <TopBar className="w-full" />
             <div className="w-full shadow-lg border border-gray-100 rounded-2xl bg-white overflow-hidden">
                 <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}

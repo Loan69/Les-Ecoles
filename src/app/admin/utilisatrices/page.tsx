@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import AdminSettingsManager from "@/app/components/admin/AdminSettingsManager";
 import PlacesManager from "@/app/components/admin/PlacesManager";
 import { Cog, DoorClosed, UserRoundPen, Users } from "lucide-react";
+import TopBar from "@/app/components/TopBar";
 
 export default async function AdminUsersPage() {
   const supabase = await createSupabaseServer();
@@ -26,6 +27,7 @@ export default async function AdminUsersPage() {
 
   return (
     <main className="max-w-6xl mx-auto py-10 px-4 sm:px-6 space-y-8">
+      <TopBar />
       <h1 className="text-2xl sm:text-3xl font-semibold text-center mb-6">
         Espace d&apos;administration
       </h1>
