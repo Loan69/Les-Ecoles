@@ -210,9 +210,6 @@ export default function SemaineRepas() {
                 <button onClick={() => router.push("/admin/repas-options")} className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer">
                   <Settings className="w-4 h-4" /> Paramétrer les repas
                 </button>
-                <button onClick={() => router.push("/admin/repas")} className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 px-5 py-1 transition cursor-pointer">
-                  <ClipboardList className="w-3.5 h-3.5" /> Compta (historique — avant bascule)
-                </button>
               </div>
             )}
           </div>

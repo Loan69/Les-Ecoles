@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.4 — 2026-07-24.
+> Version 1.5 — 2026-07-24.
 
 Une administratrice est une résidente dont le **niveau de droits** est ≥ 2. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), d'outils d'intendance : le **panneau d'administration**, le **paramétrage des repas**, la **comptabilité**, la **vue des présences** et la **gestion des événements**.
 
@@ -28,7 +28,7 @@ Chaque résidente a un **niveau** qui détermine ce qu'elle peut faire :
 ## 2. Où trouver les fonctions d'intendance
 
 - **Panneau d'administration** : bouton **roue crantée ⚙️** en **haut à droite** des écrans (visible uniquement pour les admins). Il ouvre la gestion des **utilisatrices**, des **invités** et des **paramètres** du foyer.
-- **Espace intendance (repas)** : sur l'onglet 🍴 **Repas de la semaine**, un bloc **« Espace intendance »** est affiché **tout en haut**. Il donne accès aux **inscriptions & comptabilité**, au **paramétrage des repas**, et à la **compta historique** (données d'avant la refonte).
+- **Espace intendance (repas)** : sur l'onglet 🍴 **Repas de la semaine**, un bloc **« Espace intendance »** est affiché **tout en haut**. Il donne accès aux **inscriptions & comptabilité** et au **paramétrage des repas**.
 - **Présences au foyer (vue staff)** : via l'onglet 🧍 **Présence foyer** → bouton **« Voir les présences »**.
 
 ---
