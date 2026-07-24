@@ -20,6 +20,7 @@ import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import InviteModal, { EditingInvite } from "../components/inviteModal";
+import { useMyRights } from "@/lib/useMyRights";
 
 const SERVICES: { value: Service; label: string }[] = [
   { value: "dejeuner", label: "Déjeuner" },
@@ -81,7 +82,7 @@ export default function SemaineRepas() {
   });
 
   const days = useMemo(() => weekDates(currentMonday), [currentMonday]);
-  const isAdmin = profil?.is_admin ?? false;
+  const canRepas = useMyRights().canView("repas"); // accès à l'Espace intendance repas
 
   // Semaine de référence (date sélectionnée dans l'appli)
   const storedDate = typeof window !== "undefined" ? localStorage.getItem("dateSelectionnee") : null;
@@ -195,8 +196,8 @@ export default function SemaineRepas() {
           <p className="text-blue-500 text-sm mt-1">Choisissez votre repas parmi les options proposées</p>
         </div>
 
-        {/* Espace intendance (admin) — tout en haut pour éviter le scroll */}
-        {isAdmin && (
+        {/* Espace intendance (admin repas) — tout en haut pour éviter le scroll */}
+        {canRepas && (
           <div className="mb-6">
             <button onClick={() => setAdminPanelOpen((o) => !o)} className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-5 py-3 text-sm font-bold text-blue-900 hover:bg-blue-50 transition cursor-pointer">
               <span className="flex items-center gap-2"><Settings className="w-4 h-4" /> Espace intendance</span>

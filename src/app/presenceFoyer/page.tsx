@@ -6,10 +6,10 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Eye, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
-import { Residente } from "@/types/Residente";
 import { Absence, AbsencePayload } from "@/types/Absence";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import { useSupabase } from "../providers";
+import { useMyRights } from "@/lib/useMyRights";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
@@ -46,9 +46,9 @@ function formatJour(dateKey: string): string {
 export default function PresenceFoyerPage() {
   const router = useRouter();
   const { supabase } = useSupabase();
+  const canAbsences = useMyRights().canView("absences"); // accès à la vue staff des présences
 
   const [user, setUser] = useState<User | null>(null);
-  const [profil, setProfil] = useState<Residente | null>(null);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [isReady, setIsReady] = useState(false);
 
@@ -82,20 +82,6 @@ export default function PresenceFoyerPage() {
     };
     fetchUser();
   }, [router, supabase]);
-
-  useEffect(() => {
-    const fetchProfil = async () => {
-      if (!user) return;
-      const { data, error } = await supabase
-        .from("residentes")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) console.error("Erreur profil :", error);
-      if (data) setProfil(data);
-    };
-    fetchProfil();
-  }, [user, supabase]);
 
   // ============================================================
   // ABSENCES
@@ -311,8 +297,8 @@ export default function PresenceFoyerPage() {
           )}
         </div>
 
-        {/* Vue staff (admin) */}
-        {profil?.is_admin && (
+        {/* Vue staff (admin absences) */}
+        {canAbsences && (
           <button
             onClick={() => router.push("/admin/foyer")}
             className="flex items-center gap-2 border border-blue-700 text-blue-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-50 cursor-pointer mb-10"

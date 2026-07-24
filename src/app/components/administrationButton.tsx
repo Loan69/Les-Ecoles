@@ -2,29 +2,15 @@
 
 import { useRouter } from 'next/navigation'
 import { Settings } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useSupabase } from '@/app/providers'
+import { useMyRights } from '@/lib/useMyRights'
 
-// Accès au panneau d'administration (réservé aux admins), en haut à droite.
+// Accès au panneau d'administration (section « Comptes »), en haut à droite.
+// Visible pour qui a au moins la lecture sur la section Comptes (ou super-admin / technique).
 export default function AdministrationButton() {
   const router = useRouter()
-  const { supabase } = useSupabase()
-  const [isAdmin, setIsAdmin] = useState(false)
+  const { canView, loading } = useMyRights()
 
-  useEffect(() => {
-    ;(async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: profile } = await supabase
-        .from('residentes')
-        .select('is_admin')
-        .eq('user_id', user.id)
-        .maybeSingle()
-      setIsAdmin(profile?.is_admin ?? false)
-    })()
-  }, [supabase])
-
-  if (!isAdmin) return null
+  if (loading || !canView('comptes')) return null
 
   return (
     <button

@@ -20,7 +20,7 @@ import { useMyRights } from '@/lib/useMyRights'
 export default function MealOptionsManager() {
   const { supabase } = useSupabase()
   const router = useRouter()
-  const { canEdit } = useMyRights()
+  const canEdit = useMyRights().canEdit("repas")
   const [user, setUser] = useState<User | null>(null)
   const [service, setService] = useState<'dejeuner' | 'diner'>('dejeuner')
   const [startDate, setStartDate] = useState('')

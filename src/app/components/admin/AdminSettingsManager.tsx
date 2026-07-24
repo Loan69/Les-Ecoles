@@ -14,7 +14,7 @@ type Setting = {
 
 export default function AdminSettingsManager() {
     const { supabase } = useSupabase();
-    const { canEdit } = useMyRights()
+    const canEdit = useMyRights().canEdit("comptes")
     const [settings, setSettings] = useState<Setting[]>([])
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)

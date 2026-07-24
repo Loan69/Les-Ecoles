@@ -33,7 +33,7 @@ type ServiceDetail = { open: boolean; options: OptionGroup[] };
 
 export default function AdminRepasV2Page() {
   const { supabase } = useSupabase();
-  const { canEdit } = useMyRights();
+  const canEdit = useMyRights().canEdit("repas");
   const [people, setPeople] = useState<PersonneDetail[]>([]);
   const [residences, setResidences] = useState<Residence[]>([]);
   const [presences, setPresences] = useState<PresenceV2[]>([]);

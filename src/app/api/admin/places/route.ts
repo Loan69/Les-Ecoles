@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, requireAdminView } from "@/lib/apiAuth";
+import { requireSectionView, requireSectionEdit } from "@/lib/apiAuth";
 import type { PlaceKind } from "@/types/Place";
 
 type Body = {
@@ -34,7 +34,7 @@ function validate(body: Body): string | null {
 
 // --- Liste des places + état d'occupation (occupant actif / invitation en attente) ---
 export async function GET() {
-  const { supabase, error } = await requireAdminView();
+  const { supabase, error } = await requireSectionView('comptes');
   if (error) return error;
 
   const { data: places, error: e1 } = await supabase
@@ -72,7 +72,7 @@ export async function GET() {
 
 // --- Créer une place ---
 export async function POST(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('comptes');
   if (error) return error;
 
   const body: Body = await req.json();
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
 
 // --- Modifier une place (nom affiché, étage, activation) — le code interne reste stable ---
 export async function PUT(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('comptes');
   if (error) return error;
 
   const body: Body = await req.json();
@@ -120,7 +120,7 @@ export async function PUT(req: NextRequest) {
 
 // --- Supprimer une place (uniquement si jamais utilisée) ---
 export async function DELETE(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('comptes');
   if (error) return error;
 
   const { id } = (await req.json()) as { id?: string };

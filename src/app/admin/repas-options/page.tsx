@@ -3,6 +3,7 @@ import { createSupabaseServer } from "@/lib/supabaseServer";
 import RepasOptionsManager from "@/app/components/admin/RepasOptionsManager";
 import MealLockSettings from "@/app/components/admin/MealLockSettings";
 import TopBar from "@/app/components/TopBar";
+import { rightsFromRow, canViewSection, RIGHTS_COLUMNS } from "@/lib/roles";
 
 export default async function RepasOptionsPage() {
   const supabase = await createSupabaseServer();
@@ -14,11 +15,11 @@ export default async function RepasOptionsPage() {
 
   const { data: res } = await supabase
     .from("residentes")
-    .select("is_admin")
+    .select(RIGHTS_COLUMNS)
     .eq("user_id", user.id)
     .single();
 
-  if (!res?.is_admin) redirect("/homePage");
+  if (!canViewSection(rightsFromRow(res as Record<string, unknown> | null), "repas")) redirect("/homePage");
 
   return (
     <main className="max-w-4xl mx-auto py-10 px-4 sm:px-6">

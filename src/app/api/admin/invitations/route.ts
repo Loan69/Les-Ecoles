@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/apiAuth";
+import { requireSectionEdit } from "@/lib/apiAuth";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -29,7 +29,7 @@ async function sendInvite(
 
 // --- Envoyer une invitation pour une place libre ---
 export async function POST(req: NextRequest) {
-  const { supabase, userId, error } = await requireAdmin();
+  const { supabase, userId, error } = await requireSectionEdit('comptes');
   if (error) return error;
 
   const { place_id, email } = (await req.json()) as { place_id?: string; email?: string };
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
 
 // --- Relancer l'invitation en attente d'une place (renvoie l'email) ---
 export async function PATCH(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('comptes');
   if (error) return error;
 
   const { place_id } = (await req.json()) as { place_id?: string };
@@ -117,7 +117,7 @@ export async function PATCH(req: NextRequest) {
 
 // --- Annuler l'invitation en attente d'une place ---
 export async function DELETE(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('comptes');
   if (error) return error;
 
   const { place_id } = (await req.json()) as { place_id?: string };

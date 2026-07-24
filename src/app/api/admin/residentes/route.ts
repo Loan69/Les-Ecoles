@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, requireAdminView } from "@/lib/apiAuth";
+import { requireSectionView, requireSectionEdit } from "@/lib/apiAuth";
 
 // --- Liste des comptes archivés (pour réassignation rapide) : GET ---
 export async function GET() {
-  const { supabase, error } = await requireAdminView();
+  const { supabase, error } = await requireSectionView('comptes');
   if (error) return error;
 
   const { data } = await supabase
@@ -21,7 +21,7 @@ export async function GET() {
 // Le compte est désactivé (plus de connexion) mais conservé pour la compta ;
 // la place redevient libre (plus de compte actif rattaché).
 export async function PATCH(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('comptes');
   if (error) return error;
 
   const { user_id } = (await req.json()) as { user_id?: string };
@@ -45,7 +45,7 @@ export async function PATCH(req: NextRequest) {
 
 // --- Déplacer une résidente active vers une autre place libre : POST { user_id, place_id } ---
 export async function POST(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('comptes');
   if (error) return error;
 
   const { user_id, place_id } = (await req.json()) as { user_id?: string; place_id?: string };

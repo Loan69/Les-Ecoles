@@ -1,27 +1,37 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.5 — 2026-07-24.
+> Version 1.6 — 2026-07-25.
 
-Une administratrice est une résidente dont le **niveau de droits** est ≥ 2. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), d'outils d'intendance : le **panneau d'administration**, le **paramétrage des repas**, la **comptabilité**, la **vue des présences** et la **gestion des événements**.
+Une administratrice est une résidente qui a **au moins un droit d'intendance sur une section**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), des outils d'intendance correspondant à ses droits.
 
 ---
 
-## 1. Niveaux de droits
+## 1. Droits par section
 
-Chaque résidente a un **niveau** qui détermine ce qu'elle peut faire :
+Les droits se règlent **section par section** de l'appli. Sur chaque section, une personne a l'un de ces niveaux :
 
-| Niveau | Rôle | Ce qu'elle peut faire |
-|---|---|---|
-| **1** | Résidente | Aucun accès admin (usage normal de l'appli). |
-| **2** | Admin — lecture | **Consulte** les écrans d'intendance, mais **ne peut rien modifier**. |
-| **3** | Admin — édition | Consulte **et modifie** (paramétrage repas, présences, événements, comptes…). |
-| **4** | Super-admin | Tout le niveau 3, **plus** le réglage du **niveau des autres** utilisatrices. |
+| Niveau | Ce qu'elle peut faire sur la section |
+|---|---|
+| **Aucun** | Pas d'accès. |
+| **Lecture** | **Consulte** l'écran, sans rien modifier. |
+| **Édition** | Consulte **et modifie**. |
 
-- Le niveau est **global** : il vaut pour toutes les pages d'administration.
-- **Seul un super-admin (niveau 4)** peut changer le niveau des autres, depuis l'onglet **Utilisatrices** (voir §3). Il **ne peut pas** changer son propre niveau (sécurité anti-blocage).
-- Les droits sont **contrôlés côté serveur** : un niveau 2 ne peut rien enregistrer, même en essayant de contourner l'écran.
-- Un **compte technique** (maintenance) existe en coulisse : il est **caché**, n'apparaît dans aucune liste et n'est pas modifiable.
+Les **5 sections** :
+
+| Section | Écrans concernés |
+|---|---|
+| **Repas** | Visu des repas (compta + organisation), paramétrage & options de repas, verrouillage, édition des inscriptions. |
+| **Événements** | Créer / modifier / supprimer des événements (calendrier). |
+| **Absences** | Vue « Présence foyer » (staff) + marquage des absences. |
+| **Comptes** | Comptes, chambres/places, invitations, paramètres généraux. |
+| **Infos pratiques** | Rubriques de l'onglet Administratif. |
+
+S'ajoute un rôle **Super-admin** (global) : **tous les droits partout**, **plus** le réglage des **droits des autres** et la **suppression** de comptes.
+
+- **Seul un super-admin** peut régler les droits des autres, depuis l'onglet **Utilisatrices** → bouton **« Droits »** (voir §3). Il **ne peut pas** changer ses propres droits (anti-blocage).
+- Un **compte technique** (maintenance) existe en coulisse : **caché**, non listé, non modifiable, accès total.
+- Le bouton ⚙️ **Administration** n'apparaît qu'aux personnes ayant la section **Comptes** ; les autres écrans s'atteignent depuis leur onglet (repas, présence foyer, calendrier, administratif).
 
 ---
 
@@ -37,7 +47,7 @@ Chaque résidente a un **niveau** qui détermine ce qu'elle peut faire :
 
 Panneau ⚙️ **Administration** → onglet **Utilisatrices** :
 
-- **Régler le niveau** d'une résidente : colonne **Niveau**, menu déroulant (Résidente · Admin lecture · Admin édition · Super-admin). Réservé au **super-admin** ; pour les autres admins, le niveau s'affiche en simple badge non modifiable. On ne peut pas régler **son propre** niveau.
+- **Régler les droits** d'une résidente : bouton **« Droits »** sur sa ligne → un panneau permet de cocher **Super-admin** ou de choisir, **par section** (Repas, Événements, Absences, Comptes, Infos pratiques), le niveau **Aucun / Lecture / Édition**. Réservé au **super-admin** ; pour les autres, les droits s'affichent en simples badges non modifiables. On ne peut pas régler **ses propres** droits.
 - **Supprimer** un compte : action **irréversible**, réservée au **super-admin (niveau 4)** — trop dangereuse pour l'édition courante. (Pour libérer une place sans perdre l'historique, préférer l'**archivage** dans l'onglet Chambres.)
 - Le compte **technique** (caché) n'apparaît pas dans la liste et ne peut être ni modifié ni supprimé.
 

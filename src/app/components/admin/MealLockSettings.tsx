@@ -10,7 +10,7 @@ import { useMyRights } from "@/lib/useMyRights";
 // que dans Administration → Paramètres, pour n'avoir qu'un seul endroit.
 export default function MealLockSettings() {
   const { supabase } = useSupabase();
-  const { canEdit } = useMyRights();
+  const canEdit = useMyRights().canEdit("repas");
   const [lockTime, setLockTime] = useState("21:00");
   const [weekend, setWeekend] = useState(false);
   const [loading, setLoading] = useState(true);

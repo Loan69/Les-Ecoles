@@ -14,7 +14,7 @@ type GuestRow = {
 
 export default function GuestsTable() {
   const { supabase } = useSupabase()
-  const { canEdit } = useMyRights()
+  const canEdit = useMyRights().canEdit("comptes")
   const [invites, setInvites] = useState<GuestRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

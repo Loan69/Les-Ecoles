@@ -1,36 +1,89 @@
-// Hiérarchie de droits des utilisatrices (résidentes).
-// Voir supabase/roles-niveaux.sql pour le modèle en base.
+// Droits par SECTION de l'appli (voir supabase/roles-sections.sql).
 
-export const NIVEAU = {
-  RESIDENTE: 1, // aucun droit admin (résidentes et invitées)
-  ADMIN_VIEW: 2, // admin en lecture seule
-  ADMIN_EDIT: 3, // admin avec droits de modification
-  SUPER: 4, // super-admin : édition + réglage des niveaux des autres
-} as const;
+export type Section = "repas" | "evenements" | "absences" | "comptes" | "infos";
 
-export type Niveau = 1 | 2 | 3 | 4;
+export const SECTIONS: Section[] = ["repas", "evenements", "absences", "comptes", "infos"];
 
-export const NIVEAU_LABEL: Record<Niveau, string> = {
-  1: "Résidente",
-  2: "Admin — lecture",
-  3: "Admin — édition",
-  4: "Super-admin",
+export const SECTION_LABEL: Record<Section, string> = {
+  repas: "Repas",
+  evenements: "Événements",
+  absences: "Absences",
+  comptes: "Comptes",
+  infos: "Infos pratiques",
 };
 
-// Ordre d'affichage pour un sélecteur segmenté.
-export const NIVEAUX: Niveau[] = [1, 2, 3, 4];
+// Niveau par section : 1 Aucun · 2 Lecture · 3 Édition
+export const NIV = { AUCUN: 1, LECTURE: 2, EDITION: 3 } as const;
+export type NiveauSection = 1 | 2 | 3;
+export const NIVEAU_LABEL: Record<NiveauSection, string> = {
+  1: "Aucun",
+  2: "Lecture",
+  3: "Édition",
+};
+export const NIVEAUX_SECTION: NiveauSection[] = [1, 2, 3];
 
-export function asNiveau(n: number | null | undefined): Niveau {
-  return n === 2 || n === 3 || n === 4 ? n : 1;
+export function asNiveauSection(n: number | null | undefined): NiveauSection {
+  return n === 2 ? 2 : n === 3 ? 3 : 1;
 }
 
-// Le compte technique caché (is_technique) a tous les droits, hors hiérarchie.
-export function canView(niveau: number, isTechnique = false): boolean {
-  return isTechnique || niveau >= NIVEAU.ADMIN_VIEW;
+// Droits d'une personne : un niveau par section + rôles globaux.
+export type Rights = {
+  repas: number;
+  evenements: number;
+  absences: number;
+  comptes: number;
+  infos: number;
+  is_super_admin: boolean;
+  is_technique: boolean;
+};
+
+export const EMPTY_RIGHTS: Rights = {
+  repas: 1, evenements: 1, absences: 1, comptes: 1, infos: 1,
+  is_super_admin: false, is_technique: false,
+};
+
+// Le super-admin (et le compte technique) ont tous les droits, hors hiérarchie de sections.
+export function isSuperAdmin(r: Rights): boolean {
+  return r.is_super_admin || r.is_technique;
 }
-export function canEdit(niveau: number, isTechnique = false): boolean {
-  return isTechnique || niveau >= NIVEAU.ADMIN_EDIT;
+export function canViewSection(r: Rights, s: Section): boolean {
+  return isSuperAdmin(r) || (r[s] ?? 1) >= NIV.LECTURE;
 }
-export function canManageRoles(niveau: number, isTechnique = false): boolean {
-  return isTechnique || niveau >= NIVEAU.SUPER;
+export function canEditSection(r: Rights, s: Section): boolean {
+  return isSuperAdmin(r) || (r[s] ?? 1) >= NIV.EDITION;
 }
+// A un accès admin quelconque (au moins lecture sur une section, ou super/technique).
+export function hasAnyAdmin(r: Rights): boolean {
+  return isSuperAdmin(r) || SECTIONS.some((s) => (r[s] ?? 1) >= NIV.LECTURE);
+}
+
+// Construit un objet Rights depuis une ligne `residentes`.
+// Rétro-compatible : si les colonnes par section n'existent pas encore
+// (migration roles-sections.sql non appliquée), retombe sur l'ancien `niveau` global (1..4).
+export function rightsFromRow(row: Partial<Record<string, unknown>> | null | undefined): Rights {
+  if (!row) return EMPTY_RIGHTS;
+  const is_technique = !!row.is_technique;
+  const hasSections = row.niveau_repas !== undefined && row.niveau_repas !== null;
+
+  if (hasSections) {
+    const n = (k: string) => asNiveauSection(Number(row[`niveau_${k}`]));
+    return {
+      repas: n("repas"),
+      evenements: n("evenements"),
+      absences: n("absences"),
+      comptes: n("comptes"),
+      infos: n("infos"),
+      is_super_admin: !!row.is_super_admin,
+      is_technique,
+    };
+  }
+
+  // Ancien schéma : niveau global 1..4 recopié sur toutes les sections ; 4 → super-admin.
+  const g = Number(row.niveau ?? 1);
+  const lvl = asNiveauSection(Math.min(Math.max(g, 1), 3));
+  return { repas: lvl, evenements: lvl, absences: lvl, comptes: lvl, infos: lvl, is_super_admin: g >= 4, is_technique };
+}
+
+// Colonnes à lire pour reconstituer les droits.
+// « * » : on lit toutes les colonnes pour être tolérant au schéma (avant/après migration).
+export const RIGHTS_COLUMNS = "*";

@@ -38,7 +38,7 @@ export default function AdminFoyerView() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const { canEdit } = useMyRights();
+  const canEdit = useMyRights().canEdit("absences");
   const [modalOpen, setModalOpen] = useState(false); // ajout absence
   const [tableOpen, setTableOpen] = useState(false); // tableau de détail (loupe unique)
   const [listModal, setListModal] = useState<{ title: string; people: PersonneDetail[] } | null>(null);

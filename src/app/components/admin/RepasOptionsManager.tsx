@@ -56,7 +56,7 @@ function ResBadge({ r }: { r: string }) {
 }
 
 export default function RepasOptionsManager() {
-  const { canEdit } = useMyRights();
+  const canEdit = useMyRights().canEdit("repas");
   const [catalog, setCatalog] = useState<MealOptionCatalog[]>([]);
   const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
   const [loading, setLoading] = useState(true);

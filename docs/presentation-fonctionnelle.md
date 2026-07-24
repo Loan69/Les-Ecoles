@@ -26,7 +26,7 @@ Le foyer est organisé en **deux résidences** : la **Résidence 12** et la **R�
 |---|---|---|
 | **Résidente** | Une habitante du foyer | Déclarer ses présences (nuit + repas), inviter des personnes aux repas, consulter le calendrier, confirmer sa participation aux événements, consulter son profil. |
 | **Invitée** | Un compte simplifié (ex. étudiante de passage) | S'inscrire aux repas et consulter les événements qui lui sont ouverts. |
-| **Administratrice** | Une résidente de **niveau ≥ 2** | Tout ce qu'une résidente peut faire, **plus** l'accès au panneau d'administration. Le niveau précise le degré : **2** = lecture seule, **3** = édition, **4** = super-admin (règle le niveau des autres). |
+| **Administratrice** | Une résidente ayant des droits d'intendance | Tout ce qu'une résidente peut faire, **plus** des outils d'intendance selon ses **droits par section** (Repas · Événements · Absences · Comptes · Infos pratiques), chacun en **Lecture** ou **Édition**. Un **super-admin** a tous les droits + règle ceux des autres. |
 
 > Une administratrice est techniquement une résidente à qui on a activé le droit « admin ». Il n'y a pas de compte admin séparé.
 
@@ -124,7 +124,7 @@ Le panneau d'administration est organisé en quatre onglets : **Utilisatrices**,
 ### 5.1. Gestion des utilisatrices
 
 - Lister toutes les résidentes (le compte technique caché est exclu).
-- **Régler le niveau de droits** d'une résidente (1 à 4) — réservé au **super-admin** ; sinon le niveau est affiché en lecture seule.
+- **Régler les droits** d'une résidente (par section : Aucun / Lecture / Édition, ou Super-admin) via le bouton **« Droits »** — réservé au **super-admin** ; sinon les droits sont affichés en lecture seule.
 - **Supprimer** un compte (action irréversible, réservée au **super-admin niveau 4**).
 
 ### 5.2. Gestion des invités

@@ -1,30 +1,26 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabaseServer";
-import { canView, canEdit, canManageRoles, asNiveau } from "@/lib/roles";
+import { rightsFromRow, isSuperAdmin, canViewSection, canEditSection } from "@/lib/roles";
 
-// Liste des utilisatrices pour l'écran d'administration.
-// - Lecture réservée aux admins (niveau >= 2, ou compte technique).
+// Liste des utilisatrices pour l'écran d'administration (section « Comptes »).
+// - Lecture réservée à Comptes >= 2 (ou super-admin / technique).
 // - Le compte technique caché est exclu de la liste.
-// - Le réglage des niveaux (côté UI) n'est proposé qu'au super-admin / compte technique.
+// - Le réglage des droits (côté UI) n'est proposé qu'au super-admin.
 export async function GET() {
   const supabase = await createSupabaseServer();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: me } = await supabase
-    .from("residentes")
-    .select("niveau, is_technique")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const { data: me } = await supabase.from("residentes").select("*").eq("user_id", user.id).maybeSingle();
+  const myRights = rightsFromRow(me as Record<string, unknown> | null);
+  if (!canViewSection(myRights, "comptes")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const myNiveau = (me?.niveau ?? 1) as number;
-  const isTechnique = !!me?.is_technique;
-  if (!canView(myNiveau, isTechnique)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const isTechnique = myRights.is_technique;
 
   const { data: residentes, error: err1 } = await supabase
     .from("residentes")
-    .select("user_id, nom, prenom, email, niveau")
+    .select("*")
     .eq("is_technique", false) // compte technique caché : jamais listé
     .order("nom", { ascending: true });
 
@@ -33,8 +29,7 @@ export async function GET() {
     .select("user_id, nom, prenom, email")
     .order("nom", { ascending: true });
 
-  if (err1 || err2)
-    return NextResponse.json({ error: err1?.message || err2?.message }, { status: 500 });
+  if (err1 || err2) return NextResponse.json({ error: err1?.message || err2?.message }, { status: 500 });
 
   // Dernière connexion : enrichissement réservé au compte technique.
   const authUsers: Record<string, string | null> = {};
@@ -56,21 +51,24 @@ export async function GET() {
   }
 
   const users = [
-    ...(residentes ?? []).map((r) => ({
-      id: r.user_id,
-      name: `${r.prenom} ${r.nom}`,
-      email: r.email,
-      role: "résidente" as const,
-      niveau: asNiveau(r.niveau),
-      source_pk: r.user_id,
-      ...(isTechnique && { last_sign_in_at: authUsers[r.user_id] || null }),
-    })),
+    ...(residentes ?? []).map((r) => {
+      const rights = rightsFromRow(r as Record<string, unknown>);
+      return {
+        id: r.user_id,
+        name: `${r.prenom} ${r.nom}`,
+        email: r.email,
+        role: "résidente" as const,
+        rights,
+        source_pk: r.user_id,
+        ...(isTechnique && { last_sign_in_at: authUsers[r.user_id] || null }),
+      };
+    }),
     ...(invitees ?? []).map((i) => ({
       id: `inv_${i.user_id}`,
       name: `${i.prenom} ${i.nom}`,
       email: i.email,
       role: "invitée" as const,
-      niveau: 1 as const,
+      rights: null,
       source_pk: i.user_id,
       ...(isTechnique && { last_sign_in_at: authUsers[i.user_id] || null }),
     })),
@@ -86,8 +84,8 @@ export async function GET() {
 
   return NextResponse.json({
     users,
-    canEdit: canEdit(myNiveau, isTechnique),
-    canManageRoles: canManageRoles(myNiveau, isTechnique),
+    canManageRoles: isSuperAdmin(myRights),
+    canEditComptes: canEditSection(myRights, "comptes"),
     isTechnique,
   });
 }

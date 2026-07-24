@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, requireAdminView } from "@/lib/apiAuth";
+import { requireSectionView, requireSectionEdit } from "@/lib/apiAuth";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -19,7 +19,7 @@ function validateDates(date_debut?: string, date_fin?: string): string | null {
 
 // --- Absences chevauchant une période [start, end] ---
 export async function GET(req: NextRequest) {
-  const { supabase, error } = await requireAdminView();
+  const { supabase, error } = await requireSectionView('absences');
   if (error) return error;
 
   const start = req.nextUrl.searchParams.get("start");
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 
 // --- Marquer absente (création) OU présente (annulation sur la période) ---
 export async function POST(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('absences');
   if (error) return error;
 
   const body = await req.json();
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
 
 // --- Modifier un séjour ---
 export async function PUT(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('absences');
   if (error) return error;
 
   const body = await req.json();
@@ -153,7 +153,7 @@ export async function PUT(req: NextRequest) {
 
 // --- Supprimer un séjour ---
 export async function DELETE(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('absences');
   if (error) return error;
 
   const body = await req.json();

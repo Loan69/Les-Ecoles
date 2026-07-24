@@ -13,7 +13,7 @@ import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import LoadingSpinner from "../components/LoadingSpinner";
-import { canEdit as canEditRights } from "@/lib/roles";
+import { useMyRights } from "@/lib/useMyRights";
 
 function getContacts(section: AdminSection): Contact[] {
   const c = section.content as { contacts?: Contact[] } | null;
@@ -210,7 +210,7 @@ function ContactsEditor({ contacts, setContacts }: { contacts: Contact[]; setCon
 export default function AdministratifPage() {
   const router = useRouter();
   const { supabase } = useSupabase();
-  const [canEdit, setCanEdit] = useState(false);
+  const canEdit = useMyRights().canEdit("infos");
   const [sections, setSections] = useState<AdminSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -233,8 +233,6 @@ export default function AdministratifPage() {
         router.replace("/signin");
         return;
       }
-      const { data: profil } = await supabase.from("residentes").select("niveau, is_technique").eq("user_id", data.user.id).maybeSingle();
-      setCanEdit(canEditRights(profil?.niveau ?? 1, !!profil?.is_technique));
       await fetchSections();
       setLoading(false);
     })();

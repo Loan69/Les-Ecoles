@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireAdminView } from "@/lib/apiAuth";
+import { requireSectionView } from "@/lib/apiAuth";
 
 export async function POST(req: Request) {
-  const { supabase, error } = await requireAdminView();
+  const { supabase, error } = await requireSectionView('absences');
   if (error) return error;
 
   const { date } = await req.json();

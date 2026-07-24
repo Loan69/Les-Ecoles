@@ -1,51 +1,43 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer, createSupabaseAdmin } from "@/lib/supabaseServer";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { canView, canEdit, canManageRoles } from "@/lib/roles";
+import { rightsFromRow, isSuperAdmin, canViewSection, canEditSection, RIGHTS_COLUMNS, type Rights, type Section, EMPTY_RIGHTS } from "@/lib/roles";
 
-type RequireAdminResult =
-  | { supabase: SupabaseClient; userId: string; niveau: number; isTechnique: boolean; error: null }
-  | { supabase: null; userId: null; niveau: null; isTechnique: null; error: NextResponse };
+type GuardResult =
+  | { supabase: SupabaseClient; userId: string; rights: Rights; error: null }
+  | { supabase: null; userId: null; rights: null; error: NextResponse };
 
-const unauth = () => ({ supabase: null, userId: null, niveau: null, isTechnique: null, error: NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 }) } as const);
-const forbidden = () => ({ supabase: null, userId: null, niveau: null, isTechnique: null, error: NextResponse.json({ error: "Accès non autorisé" }, { status: 403 }) } as const);
+const unauth = () => ({ supabase: null, userId: null, rights: null, error: NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 }) } as const);
+const forbidden = () => ({ supabase: null, userId: null, rights: null, error: NextResponse.json({ error: "Accès non autorisé" }, { status: 403 }) } as const);
 
-// Profil de droits de l'appelant (niveau + compte technique).
-async function callerProfile() {
+// Droits de l'appelant (par section + rôles globaux).
+async function callerRights(): Promise<{ userId: string | null; rights: Rights }> {
   const session = await createSupabaseServer();
   const { data: { user }, error: userError } = await session.auth.getUser();
-  if (userError || !user) return { user: null, niveau: 1, isTechnique: false };
-  const { data } = await session
-    .from("residentes")
-    .select("niveau, is_technique")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  return { user, niveau: (data?.niveau ?? 1) as number, isTechnique: !!data?.is_technique };
+  if (userError || !user) return { userId: null, rights: EMPTY_RIGHTS };
+  const { data } = await session.from("residentes").select(RIGHTS_COLUMNS).eq("user_id", user.id).maybeSingle();
+  return { userId: user.id, rights: rightsFromRow(data as Record<string, unknown> | null) };
 }
 
-// Garde générique : renvoie un client **service role** (RLS bypassée) si l'appelant
-// satisfait `predicate`. L'autorisation est faite ici, le service role est donc sûr.
-async function guard(predicate: (niveau: number, isTechnique: boolean) => boolean): Promise<RequireAdminResult> {
-  const { user, niveau, isTechnique } = await callerProfile();
-  if (!user) return unauth();
-  if (!predicate(niveau, isTechnique)) return forbidden();
-  return { supabase: createSupabaseAdmin(), userId: user.id, niveau, isTechnique, error: null };
+// Garde générique : renvoie un client **service role** (RLS bypassée) si `predicate` est satisfait.
+async function guard(predicate: (r: Rights) => boolean): Promise<GuardResult> {
+  const { userId, rights } = await callerRights();
+  if (!userId) return unauth();
+  if (!predicate(rights)) return forbidden();
+  return { supabase: createSupabaseAdmin(), userId, rights, error: null };
 }
 
-// Lecture admin : niveau >= 2 (ou compte technique).
-export function requireAdminView(): Promise<RequireAdminResult> {
-  return guard(canView);
+// Lecture d'une section : niveau >= 2 (ou super-admin / technique).
+export function requireSectionView(section: Section): Promise<GuardResult> {
+  return guard((r) => canViewSection(r, section));
 }
 
-// Écriture admin : niveau >= 3 (ou compte technique).
-export function requireAdminEdit(): Promise<RequireAdminResult> {
-  return guard(canEdit);
+// Écriture d'une section : niveau >= 3 (ou super-admin / technique).
+export function requireSectionEdit(section: Section): Promise<GuardResult> {
+  return guard((r) => canEditSection(r, section));
 }
 
-// Réglage des niveaux : super-admin (niveau 4) ou compte technique uniquement.
-export function requireSuperAdmin(): Promise<RequireAdminResult> {
-  return guard(canManageRoles);
+// Réservé au super-admin (attribution des droits, suppression de compte…) ou au compte technique.
+export function requireSuperAdmin(): Promise<GuardResult> {
+  return guard(isSuperAdmin);
 }
-
-// Rétro-compat : ancien `requireAdmin` = accès admin en écriture (niveau >= 3).
-export const requireAdmin = requireAdminEdit;

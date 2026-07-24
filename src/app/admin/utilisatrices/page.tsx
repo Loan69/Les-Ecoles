@@ -7,6 +7,7 @@ import AdminSettingsManager from "@/app/components/admin/AdminSettingsManager";
 import PlacesManager from "@/app/components/admin/PlacesManager";
 import { Cog, DoorClosed, UserRoundPen, Users } from "lucide-react";
 import TopBar from "@/app/components/TopBar";
+import { rightsFromRow, canViewSection, RIGHTS_COLUMNS } from "@/lib/roles";
 
 export default async function AdminUsersPage() {
   const supabase = await createSupabaseServer();
@@ -19,11 +20,11 @@ export default async function AdminUsersPage() {
 
   const { data: res } = await supabase
     .from("residentes")
-    .select("is_admin")
+    .select(RIGHTS_COLUMNS)
     .eq("user_id", user.id)
     .single();
 
-  if (!res?.is_admin) redirect("/homePage");
+  if (!canViewSection(rightsFromRow(res as Record<string, unknown> | null), "comptes")) redirect("/homePage");
 
   return (
     <main className="max-w-6xl mx-auto py-10 px-4 sm:px-6 space-y-8">

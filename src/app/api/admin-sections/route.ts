@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabaseServer";
-import { requireAdmin } from "@/lib/apiAuth";
+import { requireSectionEdit } from "@/lib/apiAuth";
 
 // --- Lecture : sections visibles pour l'utilisatrice connectée ---
 // Les rubriques admin_only ne sont transmises qu'aux administratrices.
@@ -31,7 +31,7 @@ export async function GET() {
 
 // --- Créer une section (admin) ---
 export async function POST(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('infos');
   if (error) return error;
 
   const body = await req.json();
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
 // --- Modifier une section (titre et/ou contenu) (admin) ---
 export async function PUT(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('infos');
   if (error) return error;
 
   const body = await req.json();
@@ -83,7 +83,7 @@ export async function PUT(req: NextRequest) {
 
 // --- Réordonner (admin) : corps { order: [id, id, ...] } ---
 export async function PATCH(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('infos');
   if (error) return error;
 
   const body = await req.json();
@@ -99,7 +99,7 @@ export async function PATCH(req: NextRequest) {
 
 // --- Supprimer une section (admin) ---
 export async function DELETE(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('infos');
   if (error) return error;
 
   const body = await req.json();

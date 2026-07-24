@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdminEdit } from "@/lib/apiAuth";
+import { requireSectionEdit } from "@/lib/apiAuth";
 import { logMealEdit } from "@/lib/mealAudit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -17,7 +17,7 @@ async function resolveGuest(supabase: SupabaseClient, nom: string, prenom: strin
 
 // --- Créer une invitation repas au nom d'une résidente (admin édition) ---
 export async function POST(req: Request) {
-  const { supabase, userId, error } = await requireAdminEdit();
+  const { supabase, userId, error } = await requireSectionEdit('repas');
   if (error) return error;
 
   const body = await req.json();
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
 
 // --- Changer l'option d'une invitation (option_id null = retirer) — admin édition ---
 export async function PUT(req: Request) {
-  const { supabase, userId, error } = await requireAdminEdit();
+  const { supabase, userId, error } = await requireSectionEdit('repas');
   if (error) return error;
 
   const { id, option_id } = (await req.json()) as { id?: number; option_id?: string | null };
@@ -90,7 +90,7 @@ export async function PUT(req: Request) {
 
 // --- Supprimer une invitation — admin édition ---
 export async function DELETE(req: Request) {
-  const { supabase, userId, error } = await requireAdminEdit();
+  const { supabase, userId, error } = await requireSectionEdit('repas');
   if (error) return error;
 
   const { id } = (await req.json()) as { id?: number };

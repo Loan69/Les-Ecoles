@@ -42,7 +42,7 @@ function etageNumber(etage?: string | null): string {
 }
 
 export default function PlacesManager() {
-  const { canEdit } = useMyRights();
+  const canEdit = useMyRights().canEdit("comptes");
   const [places, setPlaces] = useState<PlaceWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<Form>(EMPTY_FORM);

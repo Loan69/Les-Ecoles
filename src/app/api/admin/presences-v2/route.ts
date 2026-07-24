@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminView, requireAdminEdit } from "@/lib/apiAuth";
+import { requireSectionView, requireSectionEdit } from "@/lib/apiAuth";
 import { logMealEdit } from "@/lib/mealAudit";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // --- Toutes les inscriptions repas (nouveau modèle) sur une période (admin) ---
 export async function GET(req: NextRequest) {
-  const { supabase, error } = await requireAdminView();
+  const { supabase, error } = await requireSectionView('repas');
   if (error) return error;
 
   const start = req.nextUrl.searchParams.get("start");
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 // option_id null = « Non » (retire l'inscription). L'admin passe outre le verrouillage
 // et les restrictions d'option (admin_only / inactive) : correction d'intendance.
 export async function POST(req: NextRequest) {
-  const { supabase, userId, error } = await requireAdminEdit();
+  const { supabase, userId, error } = await requireSectionEdit('repas');
   if (error) return error;
 
   const body = await req.json();

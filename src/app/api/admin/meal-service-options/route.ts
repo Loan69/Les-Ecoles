@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, requireAdminView } from "@/lib/apiAuth";
+import { requireSectionView, requireSectionEdit } from "@/lib/apiAuth";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -7,7 +7,7 @@ type Assignment = { date: string; service: "dejeuner" | "diner"; option_ids: str
 
 // --- Options ouvertes sur une période (hydratées avec l'option) ---
 export async function GET(req: NextRequest) {
-  const { supabase, error } = await requireAdminView();
+  const { supabase, error } = await requireSectionView('repas');
   if (error) return error;
 
   const start = req.nextUrl.searchParams.get("start");
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 // --- Définir l'ensemble des options ouvertes pour un ou plusieurs (jour, service) ---
 // Corps : { assignments: [{ date, service, option_ids: [...] }] }  (remplace l'existant)
 export async function POST(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireSectionEdit('repas');
   if (error) return error;
 
   const body = (await req.json()) as { assignments?: Assignment[] };
