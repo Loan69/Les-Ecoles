@@ -264,7 +264,7 @@ export default function AdminFoyerView() {
 
       {/* Tableau de détail (loupe unique) */}
       <Dialog open={tableOpen} onOpenChange={() => setTableOpen(false)}>
-        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-6xl lg:max-w-[92vw] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Détail des présences — période</DialogTitle>
           </DialogHeader>

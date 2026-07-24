@@ -19,7 +19,7 @@ export default function DetailListModal({ open, onClose, title, people, emptyLab
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {title} <span className="text-sm font-normal text-gray-500">({sorted.length})</span>
@@ -33,17 +33,17 @@ export default function DetailListModal({ open, onClose, title, people, emptyLab
             {sorted.map((p) => (
               <li
                 key={p.id}
-                className="flex items-center justify-between bg-white border border-gray-100 rounded-lg px-3 py-2 text-sm shadow-sm"
+                className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between bg-white border border-gray-100 rounded-lg px-3 py-2 text-sm shadow-sm"
               >
-                <span className="flex items-center gap-2 min-w-0">
-                  <span className="font-medium text-gray-800 truncate">
+                <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
+                  <span className="font-medium text-gray-800 break-words">
                     {p.nom} {p.prenom}
                   </span>
                   {notes?.[p.id] && (
-                    <span className="text-xs bg-green-50 text-green-700 rounded px-1.5 py-0.5 flex-shrink-0">{notes[p.id]}</span>
+                    <span className="text-xs bg-green-50 text-green-700 rounded px-1.5 py-0.5">{notes[p.id]}</span>
                   )}
                 </span>
-                <span className="text-[11px] text-gray-400 flex-shrink-0">{personneSublabel(p)}</span>
+                <span className="text-[11px] text-gray-400 sm:flex-shrink-0 sm:pl-2">{personneSublabel(p)}</span>
               </li>
             ))}
           </ul>

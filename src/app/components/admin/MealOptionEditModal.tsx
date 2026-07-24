@@ -86,7 +86,7 @@ export default function MealOptionEditModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {title} <span className="text-sm font-normal text-gray-500">({sorted.length})</span>
@@ -98,16 +98,16 @@ export default function MealOptionEditModal({
         ) : (
           <ul className="space-y-1.5">
             {sorted.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-2 bg-white border border-gray-100 rounded-lg px-3 py-2 text-sm shadow-sm">
-                <span className="flex items-center gap-2 min-w-0">
-                  <span className="font-medium text-gray-800 truncate">{p.nom} {p.prenom}</span>
-                  {notes?.[p.id] && <span className="text-xs bg-purple-50 text-purple-700 rounded px-1.5 py-0.5 flex-shrink-0">{notes[p.id]}</span>}
+              <li key={p.id} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2 bg-white border border-gray-100 rounded-lg px-3 py-2 text-sm shadow-sm">
+                <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
+                  <span className="font-medium text-gray-800 break-words">{p.nom} {p.prenom}</span>
+                  {notes?.[p.id] && <span className="text-xs bg-purple-50 text-purple-700 rounded px-1.5 py-0.5">{notes[p.id]}</span>}
                 </span>
                 <select
                   value={optionId}
                   disabled={busy}
                   onChange={(e) => changeFor(p, e.target.value)}
-                  className="shrink-0 border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none cursor-pointer disabled:opacity-50"
+                  className="w-full sm:w-auto sm:shrink-0 border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none cursor-pointer disabled:opacity-50"
                 >
                   {dayServiceOptions.map((o) => (
                     <option key={o.option_id} value={o.option_id}>{o.label}</option>
