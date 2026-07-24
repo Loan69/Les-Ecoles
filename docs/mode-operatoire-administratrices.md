@@ -1,15 +1,27 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.2 — 2026-07-23.
+> Version 1.4 — 2026-07-24.
 
-Une administratrice est une résidente dont le compte a le statut **admin**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), d'outils d'intendance : le **panneau d'administration**, le **paramétrage des repas**, la **comptabilité**, la **vue des présences** et la **gestion des événements**.
+Une administratrice est une résidente dont le **niveau de droits** est ≥ 2. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), d'outils d'intendance : le **panneau d'administration**, le **paramétrage des repas**, la **comptabilité**, la **vue des présences** et la **gestion des événements**.
 
 ---
 
-## 1. Devenir / nommer une administratrice
+## 1. Niveaux de droits
 
-Le statut admin se donne depuis la **gestion des utilisatrices** (voir §3). La première administratrice est créée à l'installation du foyer (super-admin).
+Chaque résidente a un **niveau** qui détermine ce qu'elle peut faire :
+
+| Niveau | Rôle | Ce qu'elle peut faire |
+|---|---|---|
+| **1** | Résidente | Aucun accès admin (usage normal de l'appli). |
+| **2** | Admin — lecture | **Consulte** les écrans d'intendance, mais **ne peut rien modifier**. |
+| **3** | Admin — édition | Consulte **et modifie** (paramétrage repas, présences, événements, comptes…). |
+| **4** | Super-admin | Tout le niveau 3, **plus** le réglage du **niveau des autres** utilisatrices. |
+
+- Le niveau est **global** : il vaut pour toutes les pages d'administration.
+- **Seul un super-admin (niveau 4)** peut changer le niveau des autres, depuis l'onglet **Utilisatrices** (voir §3). Il **ne peut pas** changer son propre niveau (sécurité anti-blocage).
+- Les droits sont **contrôlés côté serveur** : un niveau 2 ne peut rien enregistrer, même en essayant de contourner l'écran.
+- Un **compte technique** (maintenance) existe en coulisse : il est **caché**, n'apparaît dans aucune liste et n'est pas modifiable.
 
 ---
 
@@ -25,9 +37,9 @@ Le statut admin se donne depuis la **gestion des utilisatrices** (voir §3). La 
 
 Panneau ⚙️ **Administration** → onglet **Utilisatrices** :
 
-- **Promouvoir / révoquer** une administratrice : bouton dédié sur la ligne de la personne.
-- **Supprimer** un compte : action de suppression (avec confirmation). À utiliser avec précaution.
-- Le compte **super-admin** ne peut pas être rétrogradé/supprimé par les autres.
+- **Régler le niveau** d'une résidente : colonne **Niveau**, menu déroulant (Résidente · Admin lecture · Admin édition · Super-admin). Réservé au **super-admin** ; pour les autres admins, le niveau s'affiche en simple badge non modifiable. On ne peut pas régler **son propre** niveau.
+- **Supprimer** un compte : action **irréversible**, réservée au **super-admin (niveau 4)** — trop dangereuse pour l'édition courante. (Pour libérer une place sans perdre l'historique, préférer l'**archivage** dans l'onglet Chambres.)
+- Le compte **technique** (caché) n'apparaît pas dans la liste et ne peut être ni modifié ni supprimé.
 
 ---
 
@@ -123,7 +135,9 @@ Via l'onglet 🧍 **Présence foyer** → **« Voir les présences »**. Elle in
 Accès : **Espace intendance** → **Voir les inscriptions & la compta**. Deux onglets, sur une **période choisie** (sélecteur de dates en haut).
 
 ### Onglet « Organisation » — repas à préparer
-Les jours sont **empilés** ; pour chaque jour et chaque résidence, les **options ouvertes** au midi et au soir, avec leur nombre d'inscrits. **Chaque option est cliquable** → la **liste des personnes comptées**. Les **invités** ne forment plus une tuile à part : chacun est compté **dans l'option** à laquelle il est rattaché et apparaît dans cette liste, annoté **« invité par Prénom Nom »**. Le bouton **« Voir le détail »** ouvre le **tableau** (habitantes × jours/service ; chaque case = l'option choisie, ou 🌙 **lune orange** = absente, ou **Non** en rouge = ne mange pas). Un invité y apparaît en **petit badge « +👤 Prénom »** dans la case de la personne qui l'a invité (jamais de ligne à part).
+Les jours sont **empilés** ; pour chaque jour et chaque résidence, les **options ouvertes** au midi et au soir, avec leur nombre d'inscrits. **Chaque option est cliquable** → la **liste des personnes comptées**. Les **invités** ne forment plus une tuile à part : chacun est compté **dans l'option** à laquelle il est rattaché et apparaît dans cette liste, annoté **« invité par Prénom Nom »**.
+
+> **Édition (niveau ≥ 3).** Dans cette liste, une admin **édition** peut corriger les inscriptions, même après l'heure de verrouillage : **changer l'option** de chaque inscrit (ou la passer à **« Non »**), **ajouter une résidente** (déplacée automatiquement si elle était inscrite ailleurs pour ce service), et **ajouter / retirer un invité** — au choix **depuis le carnet** (invité déjà connu) ou **nouveau** — en indiquant la **résidente qui invite** (pour la comptabilité). Tout se reporte aussitôt sur le **détail** et la **compta**. En **niveau 2**, la liste reste en **lecture seule**. Le bouton **« Voir le détail »** ouvre le **tableau** (habitantes × jours/service ; chaque case = l'option choisie, ou 🌙 **lune orange** = absente, ou **Non** en rouge = ne mange pas). Un invité y apparaît en **petit badge « +👤 Prénom »** dans la case de la personne qui l'a invité (jamais de ligne à part).
 
 ### Onglet « Comptabilité »
 - **Récapitulatif de la période** : total déjeuners / dîners **par résidence**, et un **grand total**.

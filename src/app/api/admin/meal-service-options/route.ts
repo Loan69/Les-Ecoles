@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/apiAuth";
+import { requireAdmin, requireAdminView } from "@/lib/apiAuth";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -7,7 +7,7 @@ type Assignment = { date: string; service: "dejeuner" | "diner"; option_ids: str
 
 // --- Options ouvertes sur une période (hydratées avec l'option) ---
 export async function GET(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireAdminView();
   if (error) return error;
 
   const start = req.nextUrl.searchParams.get("start");

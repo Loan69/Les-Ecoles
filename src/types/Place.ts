@@ -1,4 +1,4 @@
-// Lot 3 — Places : chambres (résidences 12/36) et postes (corail, prestataires).
+// Lot 3 — Places : chambres (résidences 12/36) et postes (corail, intendance).
 // L'occupation n'est pas stockée : elle est déduite d'un compte résidente actif.
 
 export type PlaceKind = "chambre" | "poste";

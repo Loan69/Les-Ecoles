@@ -1,48 +1,42 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/supabaseServer";
+import { requireSuperAdmin } from "@/lib/apiAuth";
+import { asNiveau } from "@/lib/roles";
 
+// Règle le niveau de droits d'une résidente (1..4).
+// Réservé au super-admin (niveau 4) ou au compte technique.
 export async function POST(req: Request) {
   try {
+    const { supabase, userId, error } = await requireSuperAdmin();
+    if (error) return error;
+
     const body = await req.json();
-    const { role, pk, setTo } = body;
+    const pk: string | undefined = body.pk;
+    const niveau = asNiveau(Number(body.niveau));
 
-    if (role !== "résidente" || typeof setTo !== "boolean" || !pk) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    if (!pk || ![1, 2, 3, 4].includes(niveau)) {
+      return NextResponse.json({ error: "Requête invalide (pk + niveau 1..4)." }, { status: 400 });
     }
 
-    const supabase = await createSupabaseServer();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    // Anti-lockout : on ne change pas son propre niveau.
+    if (pk === userId) {
+      return NextResponse.json({ error: "Vous ne pouvez pas modifier votre propre niveau." }, { status: 400 });
     }
 
-    const { data: currentRes, error: resErr } = await supabase
-      .from("residentes")
-      .select("is_admin")
-      .eq("user_id", user.id)
-      .single();
-
-    if (resErr || !currentRes?.is_admin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // Le compte technique caché reste hors hiérarchie.
+    const { data: tgt } = await supabase.from("residentes").select("is_technique").eq("user_id", pk).maybeSingle();
+    if (tgt?.is_technique) {
+      return NextResponse.json({ error: "Ce compte ne peut pas être modifié." }, { status: 403 });
     }
 
-    if (!setTo && pk === user.id) {
-      return NextResponse.json({ error: "Impossible de se révoquer soi-même" }, { status: 400 });
-    }
-
-    const { error: updateError } = await supabase
-      .from("residentes")
-      .update({ is_admin: setTo })
-      .eq("user_id", pk);
-
+    // is_admin est resynchronisé automatiquement par trigger (niveau >= 2).
+    const { error: updateError } = await supabase.from("residentes").update({ niveau }).eq("user_id", pk);
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Unexpected server error";
+    const message = e instanceof Error ? e.message : "Erreur serveur inattendue";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/apiAuth";
+import { requireAdmin, requireAdminView } from "@/lib/apiAuth";
 
 type Body = {
   id?: string;
@@ -22,7 +22,7 @@ function validate(body: Body): string | null {
 
 // --- Liste du catalogue (toutes options, actives ou non) ---
 export async function GET() {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireAdminView();
   if (error) return error;
 
   const { data, error: dbError } = await supabase

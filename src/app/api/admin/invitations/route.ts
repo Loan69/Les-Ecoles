@@ -44,9 +44,9 @@ export async function POST(req: NextRequest) {
   if (pending) return NextResponse.json({ error: "Une invitation est déjà en attente pour cette place." }, { status: 409 });
 
   // Compte déjà existant pour cet email ? → réactivation + réassignation (sans nouvel email).
-  const { data: existing } = await supabase.from("residentes").select("user_id, is_super_admin").eq("email", mail).maybeSingle();
+  const { data: existing } = await supabase.from("residentes").select("user_id, is_technique").eq("email", mail).maybeSingle();
   if (existing) {
-    if (existing.is_super_admin) return NextResponse.json({ error: "Ce compte est le super-admin et n'occupe pas de place." }, { status: 400 });
+    if (existing.is_technique) return NextResponse.json({ error: "Ce compte est le super-admin et n'occupe pas de place." }, { status: 400 });
     const { data: place } = await supabase.from("places").select("*").eq("id", place_id).maybeSingle();
     if (!place) return NextResponse.json({ error: "Place introuvable." }, { status: 404 });
 

@@ -3,13 +3,14 @@
 import React, { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { NIVEAU_LABEL, NIVEAUX, asNiveau, type Niveau } from '@/lib/roles'
 
 type UserRow = {
   id: string
   name: string | null
   email: string | null
   role: 'résidente' | 'invitée'
-  is_admin: boolean
+  niveau: Niveau
   source_pk: string | number
   last_sign_in_at?: string | null
 }
@@ -20,9 +21,10 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [canManageRoles, setCanManageRoles] = useState(false)
+  const [isTechnique, setIsTechnique] = useState(false)
 
-  const showLastLogin = isSuperAdmin
+  const showLastLogin = isTechnique
 
   async function fetchUsers() {
     setLoading(true)
@@ -31,7 +33,8 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed')
       setUsers(json.users)
-      setIsSuperAdmin(json.isSuperAdmin ?? false)
+      setCanManageRoles(json.canManageRoles ?? false)
+      setIsTechnique(json.isTechnique ?? false)
     } catch (e) {
       if (e instanceof Error) setError(e.message)
       else setError(String(e))
@@ -44,28 +47,26 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
     fetchUsers()
   }, [])
 
-  async function toggleAdmin(u: UserRow, setTo: boolean) {
+  async function changeNiveau(u: UserRow, niveau: Niveau) {
     if (u.role !== 'résidente') return
-    if (u.id === currentUserId && !setTo) return
+    if (u.id === currentUserId) return // anti-lockout côté client aussi
 
     const prev = users
-    setUsers(users.map(x => x.id === u.id ? { ...x, is_admin: setTo } : x))
+    setUsers(users.map(x => x.id === u.id ? { ...x, niveau } : x))
 
     try {
-      const body = { role: u.role, pk: u.source_pk, setTo }
       const res = await fetch('/api/admin/users/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ pk: u.source_pk, niveau }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Update failed')
+      setSuccess("Niveau de l'utilisatrice mis à jour")
     } catch (e) {
       if (e instanceof Error) setError(e.message)
       else setError(String(e))
       setUsers(prev)
-    } finally {
-      setSuccess("Rôle de l'utilisateur modifié avec succès")
     }
   }
 
@@ -138,6 +139,8 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
     })
   }
 
+  const colCount = 4 + (showLastLogin ? 1 : 0) + (canManageRoles ? 1 : 0)
+
   return (
     <div className="bg-white shadow-sm rounded-lg p-4">
       {success && (
@@ -158,24 +161,27 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rôle</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Niveau</th>
               {showLastLogin && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Dernière connexion
                 </th>
               )}
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              {canManageRoles && <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
-              <tr><td colSpan={showLastLogin ? 6 : 5} className="px-6 py-4">Chargement...</td></tr>
+              <tr><td colSpan={colCount} className="px-6 py-4">Chargement...</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={showLastLogin ? 6 : 5} className="px-6 py-4">Aucune utilisatrice trouvée.</td></tr>
+              <tr><td colSpan={colCount} className="px-6 py-4">Aucune utilisatrice trouvée.</td></tr>
             ) : (
               users.map(u => {
                 const isSelf = u.id === currentUserId
                 const isDeleting = deletingUserId === u.id
+                const isResidente = u.role === 'résidente'
+                // Le super-admin peut régler le niveau d'une résidente (sauf la sienne).
+                const canSetNiveau = canManageRoles && isResidente && !isSelf
 
                 return (
                   <tr key={u.id} className={isDeleting ? 'opacity-50' : ''}>
@@ -184,47 +190,48 @@ export default function UsersTable({ currentUserId }: { currentUserId: string })
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.email || '—'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{u.role}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.is_admin ? 'Oui' : 'Non'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {!isResidente ? (
+                        <span className="text-gray-400">—</span>
+                      ) : canSetNiveau ? (
+                        <select
+                          value={u.niveau}
+                          onChange={(e) => changeNiveau(u, asNiveau(Number(e.target.value)))}
+                          disabled={isDeleting}
+                          className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none cursor-pointer disabled:opacity-50"
+                        >
+                          {NIVEAUX.map((n) => (
+                            <option key={n} value={n}>{NIVEAU_LABEL[n]}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+                          {NIVEAU_LABEL[u.niveau]}
+                        </span>
+                      )}
+                    </td>
                     {showLastLogin && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatLastLogin(u.last_sign_in_at)}
                       </td>
                     )}
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-2">
-                        {u.role === 'résidente' && !isSelf && (
-                          u.is_admin ? (
+                    {canManageRoles && (
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2">
+                          {isResidente && !isSelf && (
                             <button
-                              onClick={() => toggleAdmin(u, false)}
+                              onClick={() => deleteUser(u)}
                               disabled={isDeleting}
-                              className="inline-flex items-center px-3 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50"
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50"
+                              title="Supprimer cette utilisatrice"
                             >
-                              Révoquer
+                              <Trash2 size={14} />
+                              {isDeleting ? 'Suppression...' : 'Supprimer'}
                             </button>
-                          ) : (
-                            <button
-                              onClick={() => toggleAdmin(u, true)}
-                              disabled={isDeleting}
-                              className="inline-flex items-center px-3 py-1 rounded-md bg-green-50 text-green-700 hover:bg-green-100 cursor-pointer disabled:opacity-50"
-                            >
-                              Promouvoir
-                            </button>
-                          )
-                        )}
-
-                        {u.role === 'résidente' && !isSelf && (
-                          <button
-                            onClick={() => deleteUser(u)}
-                            disabled={isDeleting}
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50"
-                            title="Supprimer cette utilisatrice"
-                          >
-                            <Trash2 size={14} />
-                            {isDeleting ? 'Suppression...' : 'Supprimer'}
-                          </button>
-                        )}
-                      </div>
-                    </td>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 )
               })

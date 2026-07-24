@@ -1,7 +1,7 @@
 # Les Écoles — Note de spécification (règles métier)
 
 > **Document vivant** — toute nouvelle règle, modification ou suppression de règle doit être reportée ici.
-> Dernière mise à jour : 23 juillet 2026 · Version 1.13
+> Dernière mise à jour : 24 juillet 2026 · Version 1.16
 
 ## Comment lire ce document
 
@@ -9,7 +9,7 @@ Chaque règle porte un **identifiant stable** de la forme `R-THEME-NN` (ex. `R-R
 Cet identifiant ne change jamais : on peut donc s'y référer dans les discussions, les évolutions et les tickets. Quand une règle est modifiée, on garde son identifiant et on met à jour son contenu (en notant la date).
 
 **Thèmes :**
-[ROLE] Rôles & accès · [INSC] Inscription & authentification · [FOYER] Présence au foyer ·
+[ROLE] Rôles & accès · [NIV] Niveaux de droits · [INSC] Inscription & authentification · [FOYER] Présence au foyer ·
 [REPAS] Présence aux repas · [OPT] Options de repas · [LOCK] Verrouillages ·
 [INV] Invités aux repas · [EVT] Événements & calendrier · [COMPTA] Comptabilité & suivi ·
 [RES] Résidences
@@ -21,10 +21,24 @@ Cet identifiant ne change jamais : on peut donc s'y référer dans les discussio
 | ID | Règle |
 |---|---|
 | **R-ROLE-01** | Il existe trois rôles : **résidente**, **invitée** et **administratrice**. |
-| **R-ROLE-02** | Une **administratrice** est une résidente dont l'attribut « admin » est activé. Il n'existe pas de compte administratrice indépendant. |
-| **R-ROLE-03** | Seules les administratrices accèdent au panneau d'administration et aux vues opérationnelles (suivi repas, présence foyer). Une non-admin qui tente d'y accéder est redirigée vers l'accueil. |
-| **R-ROLE-04** | L'entrée « Administration » de la barre de navigation n'apparaît que pour les administratrices. |
+| **R-ROLE-02** | *(MàJ 2026-07-24.)* Une **administratrice** est une résidente dont le **niveau de droits** est ≥ 2 (voir `[NIV]`). Il n'existe pas de compte administratrice indépendant. L'attribut historique « admin » (`is_admin`) est conservé comme **miroir** de « niveau ≥ 2 » (compatibilité). |
+| **R-ROLE-03** | Seules les administratrices (niveau ≥ 2) accèdent au panneau d'administration et aux vues opérationnelles (suivi repas, présence foyer). Une non-admin qui tente d'y accéder est redirigée vers l'accueil. |
+| **R-ROLE-04** | L'entrée « Administration » de la barre de navigation n'apparaît que pour les administratrices (niveau ≥ 2). |
 | **R-ROLE-05** | Les options de repas et les événements **réservés aux admins** ne sont visibles que par les administratrices. |
+
+### Niveaux de droits — `[NIV]`
+
+| ID | Règle |
+|---|---|
+| **R-NIV-01** | *(Nouveau 2026-07-24.)* Chaque résidente porte un **niveau de droits** de **1 à 4** : **1** = résidente (aucun droit admin) · **2** = admin **lecture** (accès aux écrans admin en consultation) · **3** = admin **édition** (peut modifier) · **4** = **super-admin** (édition + réglage des niveaux des autres). Les **invitées** sont hors hiérarchie (équivalent niveau 1). |
+| **R-NIV-02** | Le niveau est **global** : il s'applique de la même façon à toutes les pages admin (pas de réglage page par page). |
+| **R-NIV-03** | Les droits sont appliqués **côté serveur** : les lectures admin exigent niveau ≥ 2, les écritures admin niveau ≥ 3, le réglage des niveaux niveau = 4. Un niveau 2 ne peut donc **rien modifier**, même en contournant l'interface. |
+| **R-NIV-04** | **Seul le super-admin (niveau 4)** peut modifier le niveau des autres utilisatrices, depuis l'écran **Utilisatrices**. Une super-admin **ne peut pas changer son propre niveau** (anti-blocage). |
+| **R-NIV-05** | Le **compte technique** (`is_technique`, ex-`is_super_admin`) est **caché** : jamais listé, non archivable, non supprimable, non modifiable via l'écran ; il conserve un accès total à vocation de maintenance, **hors hiérarchie**. |
+| **R-NIV-06** | Migration : les administratrices existantes passent au **niveau 3** (édition) ; toutes les autres résidentes au **niveau 1**. |
+| **R-NIV-07** | *(Nouveau 2026-07-24.)* La **suppression définitive d'un compte** résidente est **réservée au super-admin (niveau 4)** ou au compte technique — action irréversible jugée trop dangereuse pour l'édition courante (niveau 3). L'**archivage** d'un compte (libération de place, historique conservé) reste, lui, accessible à l'édition (niveau ≥ 3). |
+| **R-NIV-08** | *(Nouveau 2026-07-24.)* Depuis la vue **Organisation** des repas, au clic sur une option, un admin **niveau ≥ 3** peut **éditer les inscriptions** de cette option : **changer l'option** d'un inscrit (parmi les options ouvertes ce jour/service, ou « Non »), **ajouter une résidente** (déplacée si elle était inscrite ailleurs pour ce service), et **ajouter / retirer un invité** (invité du **carnet** ou **nouveau**, en précisant la résidente qui invite, pour l'imputation compta). L'admin **passe outre le verrouillage**. Les changements se répercutent sur la **vue détaillée** et la **comptabilité** (mêmes données). Un niveau 2 garde la popup en **lecture seule**. |
+| **R-NIV-09** | *(Nouveau 2026-07-24 ; révisé.)* **Traçabilité** des corrections d'intendance via un **journal d'audit append-only** (`meal_audit_log`) : chaque modification d'inscription par un admin (changer l'option, retirer, ajouter/retirer un invité) y enregistre **qui** (`actor_user_id` + nom snapshot), **quand** (`created_at`), **quoi** (action, personne/invité concerné, jour/service) et **l'option avant → après** (libellés snapshot). Le journal **conserve l'historique complet**, y compris après une mise à « Non » (suppression de ligne). Il n'enregistre **pas** les choix **self-service** des résidentes. Table **sensible** (RLS active, sans policy → accès service role uniquement). |
 
 ---
 
@@ -233,6 +247,9 @@ Liste vivante des points à trancher avec le client. À mettre à jour (déplace
 
 | Date | Version | Modification |
 |---|---|---|
+| 2026-07-24 | 1.14 | **[NIV][ROLE]** Introduction d'une **hiérarchie de droits à 4 niveaux** sur les résidentes (1 résidente · 2 admin lecture · 3 admin édition · 4 super-admin), **globale** (pas par page) et **appliquée côté serveur** (`requireAdminView`/`requireAdminEdit`/`requireSuperAdmin`). Seul le **niveau 4** règle les niveaux des autres (écran Utilisatrices), jamais le sien. `is_super_admin` renommé **`is_technique`** (compte caché, hors hiérarchie) ; `is_admin` devient un **miroir** de « niveau ≥ 2 » (trigger). Migration : admins → niveau 3, autres → niveau 1. La **suppression définitive d'un compte** est réservée au **niveau 4** (l'archivage reste au niveau 3). Ajout section `[NIV]` (`R-NIV-01..07`), MàJ `R-ROLE-02/03/04`. |
+| 2026-07-24 | 1.15 | **[NIV][REPAS]** Édition des inscriptions repas par l'intendance : depuis la popup d'une option (vue Organisation), un **niveau ≥ 3** peut changer l'option d'un inscrit (ou « Non »), ajouter une résidente, et ajouter/retirer un invité (avec résidente invitante pour la compta), **en passant outre le verrouillage** ; report automatique sur le détail et la compta. Niveau 2 = lecture seule. Ajout `R-NIV-08`. Endpoints `/api/admin/presences-v2` (POST) et `/api/admin/invite-repas`. |
+| 2026-07-24 | 1.16 | **[NIV]** Traçabilité des corrections d'intendance via un **journal d'audit append-only** `meal_audit_log` (qui / quand / quoi / option avant→après, snapshots), garde l'historique même après suppression (« Non ») ; hors choix self-service. Ajout `R-NIV-09`. SQL `supabase/meal-audit-log.sql`. *(Remplace l'approche « colonnes sur la ligne » un temps envisagée.)* |
 | 2026-07-23 | 1.13 | **[INV]** Retour client sur les invités repas : l'invitation vise **une date + un repas (service × option ouverte)** au lieu d'un multi-date, l'invité est **rattaché à une option** et **comptabilisé dedans** dans la vue Organisation (annoté « invité par … » ; plus de tuile « Invités » séparée) ; en **comptabilité**, son repas est imputé à l'inviteur (jamais de ligne séparée). Ajout de la **modification** d'une invitation. L'**accueil** et **« Mes invités »** affichent le **service + l'option** de chaque invité, et permettent tous deux de **modifier / supprimer** une invitation (seule action non-lecture-seule de l'accueil). Le tableau **« Voir le détail »** montre l'invité en **badge compact « +👤 Prénom »** dans la cellule de l'inviteur. MàJ `R-INV-01/04/05`, ajout `R-INV-06`, MàJ `R-COMPTA-08`. |
 | 2026-07-20 | 1.12 | **[FOYER][EVT]** Retours client : option **« Me noter Non aux repas »** sur une absence (cochée par défaut ; le couplage absence→repas devient optionnel) — MàJ `R-REPAS-10`, `R-FOYER-09`. Événements : **lieu facultatif** ; un événement **sans lieu** s'affiche en **rappel « Aujourd'hui »** sur l'accueil — MàJ `R-EVT-02/08`. Confirmation de participation via **bouton à bascule** lisible — MàJ `R-EVT-09`. |
 | 2026-07-17 | 1.11 | **[CPT]** Lot 3 — gestion des comptes par l'intendance : **chambre/poste = une place** (table `places`), **invitation par email** des résidentes (self-signup résidente supprimé, invitées conservées), **activation** (`/auth/confirm` + `/activation`), **archivage** au départ (historique conservé), **déplacement** interne, **super-admin** hors modèle. Écran ⚙️ Administration → **Chambres**. Ajout section `[CPT]` (`R-CPT-01..10`), MàJ `R-INSC-01/02`, `R-RES-02`. |

@@ -10,6 +10,7 @@ import LoadingSpinner from "@/app/components/LoadingSpinner";
 import MultiDatePicker from "@/app/components/MultiDatePicker";
 import EventVisibilitySelector from "@/app/components/EventVisibilitySelector";
 import { Switch } from "@/components/ui/switch";
+import { useMyRights } from "@/lib/useMyRights";
 
 const SERVICES: { value: Service; label: string }[] = [
   { value: "dejeuner", label: "Déjeuner" },
@@ -55,6 +56,7 @@ function ResBadge({ r }: { r: string }) {
 }
 
 export default function RepasOptionsManager() {
+  const { canEdit } = useMyRights();
   const [catalog, setCatalog] = useState<MealOptionCatalog[]>([]);
   const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -261,12 +263,14 @@ export default function RepasOptionsManager() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-800">Catalogue d&apos;options</h2>
-          <button
-            onClick={openAddOption}
-            className="flex items-center gap-1 bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Ajouter une option
-          </button>
+          {canEdit && (
+            <button
+              onClick={openAddOption}
+              className="flex items-center gap-1 bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Ajouter une option
+            </button>
+          )}
         </div>
 
         <p className="text-sm text-gray-500 mb-4">
@@ -293,16 +297,22 @@ export default function RepasOptionsManager() {
                   {o.admin_only && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">admin</span>}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <label className="flex items-center gap-1.5 cursor-pointer" title="Proposer cette option à la sélection">
-                    <Switch checked={o.is_active} onCheckedChange={() => toggleActive(o)} className="data-[state=checked]:bg-green-600" />
-                    <span className="text-xs text-gray-500 w-12">{o.is_active ? "Active" : "Inactive"}</span>
-                  </label>
-                  <button onClick={() => openEditOption(o)} className="text-blue-600 hover:bg-blue-50 rounded-full p-2 cursor-pointer" title="Modifier">
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => deleteOption(o)} className="text-red-600 hover:bg-red-50 rounded-full p-2 cursor-pointer" title="Supprimer">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {canEdit ? (
+                    <>
+                      <label className="flex items-center gap-1.5 cursor-pointer" title="Proposer cette option à la sélection">
+                        <Switch checked={o.is_active} onCheckedChange={() => toggleActive(o)} className="data-[state=checked]:bg-green-600" />
+                        <span className="text-xs text-gray-500 w-12">{o.is_active ? "Active" : "Inactive"}</span>
+                      </label>
+                      <button onClick={() => openEditOption(o)} className="text-blue-600 hover:bg-blue-50 rounded-full p-2 cursor-pointer" title="Modifier">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => deleteOption(o)} className="text-red-600 hover:bg-red-50 rounded-full p-2 cursor-pointer" title="Supprimer">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-gray-500 w-16 text-right">{o.is_active ? "Active" : "Inactive"}</span>
+                  )}
                 </div>
               </li>
             ))}
@@ -314,12 +324,14 @@ export default function RepasOptionsManager() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-800">Ouverture des services</h2>
-          <button
-            onClick={openDup}
-            className="flex items-center gap-1 border border-blue-700 text-blue-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-50 cursor-pointer"
-          >
-            <Copy className="w-4 h-4" /> Dupliquer sur une plage
-          </button>
+          {canEdit && (
+            <button
+              onClick={openDup}
+              className="flex items-center gap-1 border border-blue-700 text-blue-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-50 cursor-pointer"
+            >
+              <Copy className="w-4 h-4" /> Dupliquer sur une plage
+            </button>
+          )}
         </div>
 
         {/* Navigation semaine */}
@@ -344,9 +356,11 @@ export default function RepasOptionsManager() {
                     <div key={s.value} className="border border-gray-100 rounded-xl p-3">
                       <div className="flex items-center justify-between mb-2">
                         <p className="font-bold text-gray-700 text-sm">{s.label}</p>
-                        <button onClick={() => openPicker(date, s.value)} className="text-xs text-blue-700 hover:underline cursor-pointer">
-                          Modifier
-                        </button>
+                        {canEdit && (
+                          <button onClick={() => openPicker(date, s.value)} className="text-xs text-blue-700 hover:underline cursor-pointer">
+                            Modifier
+                          </button>
+                        )}
                       </div>
                       {opts.length === 0 ? (
                         <p className="text-xs text-gray-400 italic">Service fermé (aucune option)</p>
@@ -382,7 +396,7 @@ export default function RepasOptionsManager() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Résidence (compta)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Rattachée à la résidence</label>
                     <select value={optForm.residence} onChange={(e) => setOptForm((f) => ({ ...f, residence: e.target.value }))} className="w-full border border-gray-300 rounded-lg p-2 text-gray-700 focus:ring-2 focus:ring-blue-600 focus:outline-none">
                       <option value="12">Résidence 12</option>
                       <option value="36">Résidence 36</option>

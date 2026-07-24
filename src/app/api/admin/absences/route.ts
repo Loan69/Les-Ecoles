@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/apiAuth";
+import { requireAdmin, requireAdminView } from "@/lib/apiAuth";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -19,7 +19,7 @@ function validateDates(date_debut?: string, date_fin?: string): string | null {
 
 // --- Absences chevauchant une période [start, end] ---
 export async function GET(req: NextRequest) {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireAdminView();
   if (error) return error;
 
   const start = req.nextUrl.searchParams.get("start");

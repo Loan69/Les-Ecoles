@@ -8,11 +8,13 @@ import { useSupabase } from "../providers";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
+import { canEdit as canEditRights } from "@/lib/roles";
 
 export default function CalendrierPage() {
   const { supabase } = useSupabase();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [is_admin, setIsAdmin] = useState<boolean | null>(false);
+  const [canEdit, setCanEdit] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 
   // Récupération de l'utilisateur
@@ -36,12 +38,15 @@ export default function CalendrierPage() {
 
       const { data, error } = await supabase
         .from("residentes")
-        .select("is_admin")
+        .select("is_admin, niveau, is_technique")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (error) console.error(error);
-      else setIsAdmin(data?.is_admin);
+      else {
+        setIsAdmin(data?.is_admin);
+        setCanEdit(canEditRights(data?.niveau ?? 1, !!data?.is_technique));
+      }
     };
     fetchProfile();
   }, [user]);
@@ -160,6 +165,7 @@ export default function CalendrierPage() {
           onEditEvent={handleEditEvent}
           onDeleteEvent={handleDeleteEvent}
           is_admin={is_admin ?? false}
+          canEdit={canEdit}
         />
       </div>
     </main>

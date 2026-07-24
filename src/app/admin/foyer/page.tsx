@@ -13,6 +13,7 @@ import { PersonneDetail } from "@/lib/adminPeople";
 import AbsenceAdminModal, { MarquagePayload } from "@/app/components/admin/AbsenceAdminModal";
 import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
 import DetailListModal from "@/app/components/admin/DetailListModal";
+import { useMyRights } from "@/lib/useMyRights";
 
 function formatJourLong(dateKey: string): string {
   return parseDateKeyLocal(dateKey)
@@ -36,6 +37,7 @@ export default function AdminFoyerView() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  const { canEdit } = useMyRights();
   const [modalOpen, setModalOpen] = useState(false); // ajout absence
   const [tableOpen, setTableOpen] = useState(false); // tableau de détail (loupe unique)
   const [listModal, setListModal] = useState<{ title: string; people: PersonneDetail[] } | null>(null);
@@ -58,7 +60,7 @@ export default function AdminFoyerView() {
     const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }] =
       await Promise.all([
         supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
-        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre").eq("statut", "active").eq("is_super_admin", false),
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre").eq("statut", "active").eq("is_technique", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("select_options_residence").select("value, label"),
       ]);
@@ -185,12 +187,14 @@ export default function AdminFoyerView() {
             >
               <Table2 className="w-4 h-4" /> Voir le détail
             </button>
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-1 bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" /> Ajouter une absence
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => setModalOpen(true)}
+                className="flex items-center gap-1 bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-900 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" /> Ajouter une absence
+              </button>
+            )}
           </div>
         </div>
 

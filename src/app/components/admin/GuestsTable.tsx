@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { useSupabase } from '@/app/providers'
 import { toast } from 'sonner'
+import { useMyRights } from '@/lib/useMyRights'
 
 type GuestRow = {
   id: number;
@@ -13,6 +14,7 @@ type GuestRow = {
 
 export default function GuestsTable() {
   const { supabase } = useSupabase()
+  const { canEdit } = useMyRights()
   const [invites, setInvites] = useState<GuestRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -96,14 +98,14 @@ export default function GuestsTable() {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prénom</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              {canEdit && <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
-              <tr><td colSpan={3} className="px-6 py-4">Chargement...</td></tr>
+              <tr><td colSpan={canEdit ? 3 : 2} className="px-6 py-4">Chargement...</td></tr>
             ) : invites.length === 0 ? (
-              <tr><td colSpan={3} className="px-6 py-4">Aucun invité trouvé.</td></tr>
+              <tr><td colSpan={canEdit ? 3 : 2} className="px-6 py-4">Aucun invité trouvé.</td></tr>
             ) : (
               invites.sort((a, b) => a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom))
                 .map(u => {
@@ -114,17 +116,19 @@ export default function GuestsTable() {
                         {u.nom}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.prenom || '—'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                        <button
-                          onClick={() => deleteGuest(u)}
-                          disabled={isDeleting}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50"
-                          title="Supprimer cet invité"
-                        >
-                          <Trash2 size={14} />
-                          {isDeleting ? 'Suppression...' : 'Supprimer'}
-                        </button>
-                      </td>
+                      {canEdit && (
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                          <button
+                            onClick={() => deleteGuest(u)}
+                            disabled={isDeleting}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-red-50 text-red-700 hover:bg-red-100 cursor-pointer disabled:opacity-50"
+                            title="Supprimer cet invité"
+                          >
+                            <Trash2 size={14} />
+                            {isDeleting ? 'Suppression...' : 'Supprimer'}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   )
                 })

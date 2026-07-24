@@ -16,6 +16,7 @@ type CalendrierViewProps = {
     onEditEvent: (id: number, updates: Partial<CalendarEvent>) => Promise<void>;
     onDeleteEvent: (id: number, deleteType: "occurrence" | "all", selectedDate?: string) => Promise<void>;
     is_admin: boolean;
+    canEdit?: boolean; // niveau >= 3 : autorise création/édition/suppression d'événements
 };
 
 export default function CalendrierView({
@@ -24,6 +25,7 @@ export default function CalendrierView({
     onEditEvent,
     onDeleteEvent,
     is_admin,
+    canEdit = false,
     }: CalendrierViewProps) {
 
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -167,7 +169,7 @@ export default function CalendrierView({
                     </div>
 
                     <div className="flex items-center space-x-2">
-                        {is_admin && (
+                        {canEdit && (
                         <button
                             onClick={() => {
                             setEventToEdit(e);
@@ -181,7 +183,7 @@ export default function CalendrierView({
                         </button>
                         )}
 
-                        {is_admin && (
+                        {canEdit && (
                         <button
                             onClick={() => {
                             setModalEvent({
@@ -214,7 +216,7 @@ export default function CalendrierView({
         </div>
 
         {/* Bouton d’ajout */}
-        {is_admin && (
+        {canEdit && (
             <button
             onClick={() => {
                 setEventToEdit(null);

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSupabase } from '@/app/providers'
 import { Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useMyRights } from '@/lib/useMyRights'
 
 type Setting = {
   key: string
@@ -13,6 +14,7 @@ type Setting = {
 
 export default function AdminSettingsManager() {
     const { supabase } = useSupabase();
+    const { canEdit } = useMyRights()
     const [settings, setSettings] = useState<Setting[]>([])
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -75,8 +77,9 @@ export default function AdminSettingsManager() {
                     <input
                       type="checkbox"
                       checked={s.value === 'true'}
+                      disabled={!canEdit}
                       onChange={(e) => updateSettingValue(s.key, e.target.checked ? 'true' : 'false')}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                     />
                     <span className="text-sm text-gray-700">
                       Activer le verrouillage anticipé
@@ -86,8 +89,9 @@ export default function AdminSettingsManager() {
                 <input
                   type="time"
                   value={s.value}
+                  disabled={!canEdit}
                   onChange={(e) => updateSettingValue(s.key, e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:bg-gray-50"
                 />)}
               {s.key === 'verrouillage_weekend' && (
               <p className="text-xs text-gray-500 mt-2">
@@ -98,6 +102,7 @@ export default function AdminSettingsManager() {
             ))}
         </div>
 
+        {canEdit && (
         <div className="flex items-center justify-end">
             <Button
             onClick={saveSettings}
@@ -108,6 +113,7 @@ export default function AdminSettingsManager() {
             {saving ? 'Sauvegarde...' : 'Sauvegarder les paramètres'}
             </Button>
         </div>
+        )}
 
         {message && (
             <p

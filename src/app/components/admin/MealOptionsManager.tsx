@@ -15,10 +15,12 @@ import { User } from '@supabase/supabase-js'
 import { Plus, Trash2, Lock, Eye, Save, Pencil, Soup, Sandwich, Power } from 'lucide-react'
 import { Rule } from '@/types/Rule'
 import { Option } from '@/types/Option'
+import { useMyRights } from '@/lib/useMyRights'
 
 export default function MealOptionsManager() {
   const { supabase } = useSupabase()
   const router = useRouter()
+  const { canEdit } = useMyRights()
   const [user, setUser] = useState<User | null>(null)
   const [service, setService] = useState<'dejeuner' | 'diner'>('dejeuner')
   const [startDate, setStartDate] = useState('')
@@ -228,7 +230,8 @@ export default function MealOptionsManager() {
         <p className="text-gray-500 text-sm">Créez, modifiez et gérez les options de repas disponibles pour chaque service.</p>
       </motion.div>
 
-      {/* --- FORM --- */}
+      {/* --- FORM --- (édition réservée aux niveaux >= 3) */}
+      {canEdit && (
       <Card className="shadow-lg border border-gray-200">
         <CardHeader>
           <h2 className="text-lg font-semibold text-gray-800">
@@ -382,6 +385,7 @@ export default function MealOptionsManager() {
           </Button>
         </CardContent>
       </Card>
+      )}
 
       {/* Liste des règles */}
       <div className="space-y-4">
@@ -421,14 +425,16 @@ export default function MealOptionsManager() {
                   {r.conflict && <Badge className="bg-red-500 text-white ml-2">Inactive</Badge>}
                 </div>
               </div>
-              <div className="flex gap-2 mt-3 md:mt-0">
-                <Button variant="outline" className="text-blue-500 hover:bg-blue-50 cursor-pointer" onClick={() => handleEditRule(r)}>
-                  <Pencil size={18} />
-                </Button>
-                <Button variant="outline" className="text-red-500 hover:bg-red-100 cursor-pointer" onClick={() => handleDeleteRule(r.id)}>
-                  <Trash2 size={18} />
-                </Button>
-              </div>
+              {canEdit && (
+                <div className="flex gap-2 mt-3 md:mt-0">
+                  <Button variant="outline" className="text-blue-500 hover:bg-blue-50 cursor-pointer" onClick={() => handleEditRule(r)}>
+                    <Pencil size={18} />
+                  </Button>
+                  <Button variant="outline" className="text-red-500 hover:bg-red-100 cursor-pointer" onClick={() => handleDeleteRule(r.id)}>
+                    <Trash2 size={18} />
+                  </Button>
+                </div>
+              )}
             </motion.div>
           ))
         )}

@@ -15,6 +15,8 @@ import { downloadCSV } from "@/lib/csvExport";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
 import DetailListModal from "@/app/components/admin/DetailListModal";
+import MealOptionEditModal from "@/app/components/admin/MealOptionEditModal";
+import { useMyRights } from "@/lib/useMyRights";
 
 function formatJourLong(dateKey: string): string {
   return parseDateKeyLocal(dateKey).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }).replace(/^./, (c) => c.toUpperCase());
@@ -30,6 +32,7 @@ type ServiceDetail = { open: boolean; options: OptionGroup[] };
 
 export default function AdminRepasV2Page() {
   const { supabase } = useSupabase();
+  const { canEdit } = useMyRights();
   const [people, setPeople] = useState<PersonneDetail[]>([]);
   const [residences, setResidences] = useState<Residence[]>([]);
   const [presences, setPresences] = useState<PresenceV2[]>([]);
@@ -41,7 +44,8 @@ export default function AdminRepasV2Page() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [tableOpen, setTableOpen] = useState(false);
-  const [listModal, setListModal] = useState<{ title: string; people: PersonneDetail[]; notes?: Record<string, string> } | null>(null);
+  // Contexte de la popup d'une option (people/notes calculés en direct depuis les données).
+  const [listModal, setListModal] = useState<{ date: string; service: Service; residence: string; option_id: string; title: string } | null>(null);
 
   useEffect(() => {
     const today = formatDateKeyLocal(new Date());
@@ -60,7 +64,7 @@ export default function AdminRepasV2Page() {
       await Promise.all([
         supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
         // Exclut le super-admin (compte technique) ; garde les archivées pour l'historique de compta.
-        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre").eq("is_super_admin", false),
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre").eq("is_technique", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("meal_options").select("*"),
         supabase.from("select_options_residence").select("value, label"),
@@ -282,6 +286,54 @@ export default function AdminRepasV2Page() {
     downloadCSV(`compta_${startDate}_${endDate}.csv`, rows);
   };
 
+  // --- Édition d'une option depuis la popup (niveau >= 3) ---
+  // Groupe live de l'option ouverte dans la popup (recalculé après chaque modif).
+  const modalGroup = useMemo(() => {
+    if (!listModal) return null;
+    const det = getDayOptionDetail(listModal.date)[listModal.residence];
+    return det?.[listModal.service].options.find((o) => o.option_id === listModal.option_id) ?? null;
+  }, [listModal, getDayOptionDetail]);
+
+  // Options ouvertes (déduplot) pour le jour + service de la popup.
+  const modalDayOptions = useMemo(() => {
+    if (!listModal) return [];
+    const seen = new Set<string>();
+    return openServiceOptions
+      .filter((so) => so.date === listModal.date && so.service === listModal.service)
+      .filter((so) => (seen.has(so.option_id) ? false : seen.add(so.option_id)))
+      .map((so) => ({ option_id: so.option_id, label: so.label }));
+  }, [listModal, openServiceOptions]);
+
+  // Vivier de résidentes (comptes résidentes, hors comptes invitées) pour l'ajout / l'invitant.
+  const residentesForAdd = useMemo(
+    () => people.filter((p) => !p.isInvite).map((p) => ({ id: p.id, nom: p.nom, prenom: p.prenom })).sort((a, b) => a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom)),
+    [people]
+  );
+
+  const postJson = async (url: string, method: string, body: unknown) => {
+    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await res.json();
+    if (!res.ok) { toast.error(j.error || "Erreur."); return false; }
+    await fetchData();
+    return true;
+  };
+
+  const setResidentOption = async (userId: string, optionId: string | null) => {
+    if (!listModal) return;
+    await postJson("/api/admin/presences-v2", "POST", { user_id: userId, date: listModal.date, service: listModal.service, option_id: optionId });
+  };
+  const setGuestOption = async (inviteId: number, optionId: string | null) => {
+    await postJson("/api/admin/invite-repas", "PUT", { id: inviteId, option_id: optionId });
+  };
+  const addResidentToOption = async (userId: string) => {
+    if (!listModal) return;
+    if (await postJson("/api/admin/presences-v2", "POST", { user_id: userId, date: listModal.date, service: listModal.service, option_id: listModal.option_id })) toast.success("Inscription ajoutée.");
+  };
+  const addGuestToOption = async (nom: string, prenom: string, invitePar: string) => {
+    if (!listModal) return;
+    if (await postJson("/api/admin/invite-repas", "POST", { nom, prenom, invite_par: invitePar, date: listModal.date, service: listModal.service, option_id: listModal.option_id })) toast.success("Invité ajouté.");
+  };
+
   if (loading) {
     return <main className="flex items-center justify-center min-h-screen bg-white"><LoadingSpinner /></main>;
   }
@@ -351,7 +403,7 @@ export default function AdminRepasV2Page() {
                                         {sd.options.map((grp) => (
                                           <button
                                             key={grp.option_id}
-                                            onClick={() => setListModal({ title: `${grp.label} (${isMidi ? "Midi" : "Soir"}) — ${r.label} · ${formatJourLong(date)}`, people: grp.people, notes: grp.notes })}
+                                            onClick={() => setListModal({ date, service: svc, residence: r.value, option_id: grp.option_id, title: `${grp.label} (${isMidi ? "Midi" : "Soir"}) — ${r.label} · ${formatJourLong(date)}` })}
                                             className={`flex flex-col items-center rounded-xl py-2 px-1 transition cursor-pointer ${isMidi ? "bg-orange-50 hover:bg-orange-100 text-orange-900" : "bg-blue-50 hover:bg-blue-100 text-blue-900"}`}
                                             title="Voir la liste"
                                           >
@@ -500,7 +552,24 @@ export default function AdminRepasV2Page() {
         </div>
       )}
 
-      <DetailListModal open={!!listModal} onClose={() => setListModal(null)} title={listModal?.title ?? ""} people={listModal?.people ?? []} notes={listModal?.notes} />
+      {canEdit ? (
+        <MealOptionEditModal
+          open={!!listModal}
+          onClose={() => setListModal(null)}
+          title={listModal?.title ?? ""}
+          people={modalGroup?.people ?? []}
+          notes={modalGroup?.notes}
+          optionId={listModal?.option_id ?? ""}
+          dayServiceOptions={modalDayOptions}
+          residentes={residentesForAdd}
+          onSetResidentOption={setResidentOption}
+          onSetGuestOption={setGuestOption}
+          onAddResident={addResidentToOption}
+          onAddGuest={addGuestToOption}
+        />
+      ) : (
+        <DetailListModal open={!!listModal} onClose={() => setListModal(null)} title={listModal?.title ?? ""} people={modalGroup?.people ?? []} notes={modalGroup?.notes} />
+      )}
     </div>
   );
 }

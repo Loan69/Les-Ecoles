@@ -13,6 +13,7 @@ import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { canEdit as canEditRights } from "@/lib/roles";
 
 function getContacts(section: AdminSection): Contact[] {
   const c = section.content as { contacts?: Contact[] } | null;
@@ -209,7 +210,7 @@ function ContactsEditor({ contacts, setContacts }: { contacts: Contact[]; setCon
 export default function AdministratifPage() {
   const router = useRouter();
   const { supabase } = useSupabase();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
   const [sections, setSections] = useState<AdminSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -232,8 +233,8 @@ export default function AdministratifPage() {
         router.replace("/signin");
         return;
       }
-      const { data: profil } = await supabase.from("residentes").select("is_admin").eq("user_id", data.user.id).maybeSingle();
-      setIsAdmin(profil?.is_admin ?? false);
+      const { data: profil } = await supabase.from("residentes").select("niveau, is_technique").eq("user_id", data.user.id).maybeSingle();
+      setCanEdit(canEditRights(profil?.niveau ?? 1, !!profil?.is_technique));
       await fetchSections();
       setLoading(false);
     })();
@@ -286,7 +287,7 @@ export default function AdministratifPage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-blue-800">Administratif</h1>
           <div className="flex items-center gap-2">
-            {isAdmin && (
+            {canEdit && (
               <button
                 onClick={() => setEditMode((e) => !e)}
                 className={`flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium cursor-pointer transition ${

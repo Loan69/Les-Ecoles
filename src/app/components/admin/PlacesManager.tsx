@@ -6,11 +6,12 @@ import { Plus, Pencil, Trash2, Power, DoorClosed, Briefcase, UserCheck, Mail, Sa
 import { PlaceWithStatus, PlaceKind } from "@/types/Place";
 import { formatEtage, formatChambre } from "@/lib/adminPeople";
 import LoadingSpinner from "../LoadingSpinner";
+import { useMyRights } from "@/lib/useMyRights";
 
 const RESIDENCES: { value: string; label: string; kind: PlaceKind }[] = [
   { value: "12", label: "Résidence 12", kind: "chambre" },
   { value: "36", label: "Résidence 36", kind: "chambre" },
-  { value: "corail", label: "Corail (prestataires)", kind: "poste" },
+  { value: "corail", label: "Corail (Intendance)", kind: "poste" },
 ];
 
 type Form = {
@@ -41,6 +42,7 @@ function etageNumber(etage?: string | null): string {
 }
 
 export default function PlacesManager() {
+  const { canEdit } = useMyRights();
   const [places, setPlaces] = useState<PlaceWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<Form>(EMPTY_FORM);
@@ -231,9 +233,11 @@ export default function PlacesManager() {
                 <span className="truncate">{r.label}</span>
                 <span className="text-xs sm:text-sm font-normal text-gray-400 shrink-0">· {rPlaces.length}</span>
               </h2>
-              <button onClick={() => openCreate(r.value, r.kind)} className="self-start sm:self-auto shrink-0 flex items-center gap-1 bg-blue-600 text-white rounded-lg px-3 py-2 text-sm font-medium hover:bg-blue-800 cursor-pointer whitespace-nowrap">
-                <Plus className="w-4 h-4" /> Ajouter
-              </button>
+              {canEdit && (
+                <button onClick={() => openCreate(r.value, r.kind)} className="self-start sm:self-auto shrink-0 flex items-center gap-1 bg-blue-600 text-white rounded-lg px-3 py-2 text-sm font-medium hover:bg-blue-800 cursor-pointer whitespace-nowrap">
+                  <Plus className="w-4 h-4" /> Ajouter
+                </button>
+              )}
             </div>
 
             {rPlaces.length === 0 ? (
@@ -242,6 +246,7 @@ export default function PlacesManager() {
               <PlaceGroups
                 places={rPlaces}
                 isPoste={r.kind === "poste"}
+                canEdit={canEdit}
                 onEdit={openEdit}
                 onToggle={toggleActive}
                 onDelete={remove}
@@ -292,7 +297,7 @@ type RowActions = {
   onMove: (p: PlaceWithStatus) => void;
 };
 
-function PlaceGroups({ places, isPoste, ...actions }: { places: PlaceWithStatus[]; isPoste: boolean } & RowActions) {
+function PlaceGroups({ places, isPoste, canEdit, ...actions }: { places: PlaceWithStatus[]; isPoste: boolean; canEdit: boolean } & RowActions) {
   const groups = useMemo(() => {
     if (isPoste) return [{ label: null as string | null, items: places }];
     // Clé = étage normalisé (« Étage 4 ») → fusionne r12_etage4, etage_4, 4…
@@ -312,7 +317,7 @@ function PlaceGroups({ places, isPoste, ...actions }: { places: PlaceWithStatus[
           {!isPoste && <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">{g.label}</p>}
           <div className="grid gap-2">
             {g.items.map((p) => (
-              <PlaceRow key={p.id} p={p} {...actions} />
+              <PlaceRow key={p.id} p={p} canEdit={canEdit} {...actions} />
             ))}
           </div>
         </div>
@@ -321,7 +326,7 @@ function PlaceGroups({ places, isPoste, ...actions }: { places: PlaceWithStatus[
   );
 }
 
-function PlaceRow({ p, onEdit, onToggle, onDelete, onInvite, onResend, onCancelInvite, onArchive, onMove }: { p: PlaceWithStatus } & RowActions) {
+function PlaceRow({ p, canEdit, onEdit, onToggle, onDelete, onInvite, onResend, onCancelInvite, onArchive, onMove }: { p: PlaceWithStatus; canEdit: boolean } & RowActions) {
   const free = p.is_active && !p.occupant && !p.invitation;
   return (
     <div className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border px-4 py-3 ${p.is_active ? "border-gray-100 bg-white" : "border-gray-200 bg-gray-50 opacity-70"}`}>
@@ -329,6 +334,7 @@ function PlaceRow({ p, onEdit, onToggle, onDelete, onInvite, onResend, onCancelI
         <p className="font-medium text-gray-800 truncate">{placeName(p)}</p>
         <StatusBadge p={p} />
       </div>
+      {canEdit && (
       <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
         {free && (
           <button onClick={() => onInvite(p)} className="flex items-center gap-1 bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-800 cursor-pointer" title="Inviter une résidente">
@@ -365,6 +371,7 @@ function PlaceRow({ p, onEdit, onToggle, onDelete, onInvite, onResend, onCancelI
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
+      )}
     </div>
   );
 }

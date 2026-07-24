@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/apiAuth";
+import { requireAdmin, requireAdminView } from "@/lib/apiAuth";
 import type { PlaceKind } from "@/types/Place";
 
 type Body = {
@@ -34,7 +34,7 @@ function validate(body: Body): string | null {
 
 // --- Liste des places + état d'occupation (occupant actif / invitation en attente) ---
 export async function GET() {
-  const { supabase, error } = await requireAdmin();
+  const { supabase, error } = await requireAdminView();
   if (error) return error;
 
   const { data: places, error: e1 } = await supabase
