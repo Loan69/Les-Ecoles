@@ -263,25 +263,6 @@ export default function ModalAjoutEvenement({
             onChange={(v) => handleSelectChange("visibilite", v)}
           />
 
-          {/* Visible invitées */}
-          <label className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-gray-100 transition">
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-gray-800">
-                Visible par les invitées
-              </span>
-              <span className="text-xs text-gray-500">
-                Rendez cet évènement accessible aux invitées.
-              </span>
-            </div>
-            <input
-              type="checkbox"
-              name="visible_invites"
-              checked={form.visible_invites || false}
-              onChange={handleChange}
-              className="w-5 h-5 accent-blue-600 rounded-md cursor-pointer"
-            />
-          </label>
-
           {/* Demander confirmation */}
           <label className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-gray-100 transition">
             <div className="flex flex-col">

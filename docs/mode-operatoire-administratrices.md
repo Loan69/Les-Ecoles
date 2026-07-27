@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.6 — 2026-07-25.
+> Version 1.7 — 2026-07-27.
 
 Une administratrice est une résidente qui a **au moins un droit d'intendance sur une section**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), des outils d'intendance correspondant à ses droits.
 
@@ -37,7 +37,7 @@ S'ajoute un rôle **Super-admin** (global) : **tous les droits partout**, **plus
 
 ## 2. Où trouver les fonctions d'intendance
 
-- **Panneau d'administration** : bouton **roue crantée ⚙️** en **haut à droite** des écrans (visible uniquement pour les admins). Il ouvre la gestion des **utilisatrices**, des **invités** et des **paramètres** du foyer.
+- **Panneau d'administration** : bouton **roue crantée ⚙️** en **haut à droite** des écrans (visible pour la section **Comptes**). Il ouvre la gestion des **utilisatrices**, des **chambres** et des **invités**.
 - **Espace intendance (repas)** : sur l'onglet 🍴 **Repas de la semaine**, un bloc **« Espace intendance »** est affiché **tout en haut**. Il donne accès aux **inscriptions & comptabilité** et au **paramétrage des repas**.
 - **Présences au foyer (vue staff)** : via l'onglet 🧍 **Présence foyer** → bouton **« Voir les présences »**.
 
@@ -86,17 +86,12 @@ Panneau ⚙️ **Administration** → onglet **Invités** : consulter et gérer 
 
 ---
 
-## 5. Paramètres du foyer
+## 5. Réglages (heures de verrouillage)
 
-Panneau ⚙️ **Administration** → onglet **Paramètres** :
+Il n'y a plus d'onglet **Paramètres** séparé : les réglages sont désormais **au plus près de leur usage**.
 
-| Paramètre | Effet | Défaut |
-|---|---|---|
-| `verrouillage_repas` | Heure après laquelle les repas **du jour** ne sont plus modifiables (réglable ; voir §6) | 21:00 |
-| `verrouillage_weekend` | Verrouille les repas du week-end dès le vendredi | selon réglage |
-| `verrouillage_foyer` | *(Hérité)* Heure de verrouillage de la présence foyer | 23:00 |
-
-> Avec le modèle d'absences par **séjours**, le verrouillage foyer n'est **pas appliqué** : les résidentes peuvent ajouter/modifier/supprimer une absence à tout moment. L'opportunité d'un verrou de dernière minute reste à trancher.
+- **Verrouillage des repas** (heure limite du jour + option week-end) → dans **Paramétrer les repas** (§6).
+- **Verrouillage des présences** (heure limite pour modifier sa présence au foyer) → en haut de la **vue Présences** (§7).
 
 ---
 
@@ -108,7 +103,7 @@ Accès : onglet 🍴 **Repas de la semaine** → **Espace intendance** → **Par
 La liste des **options** que le foyer peut proposer (ex. « Repas classique », « Apéro dînatoire », « Pique-nique »). Pour chaque option :
 
 - **Libellé** (ce que voit la résidente) ;
-- **Résidence de rattachement** : **12**, **36**, ou **« Résidence de la personne »** (le couvert est alors compté dans la résidence de l'inscrite) — c'est ce qui détermine à quelle résidence le repas est **facturé** ;
+- **Lieu** : **12**, **36**, ou **« Résidence de la personne »** (le couvert est alors compté dans la résidence de l'inscrite) — c'est ce qui détermine dans quelle résidence le repas est **regroupé/facturé** ;
 - **Délai (jours avant)** : `0` = clôture **le jour même** à l'heure de verrouillage ; `+1` par jour d'avance (ex. un pique-nique en `1` ferme **la veille**) ;
 - **Réservée à l'intendance** : l'option n'apparaît qu'aux admins ;
 - **Active / inactive** : une option inactive n'est jamais proposée (sans être supprimée).
@@ -130,7 +125,9 @@ Via l'onglet 🧍 **Présence foyer** → **« Voir les présences »**. Elle in
 
 **Lire les jours** : les jours sont **empilés**. Pour chaque jour et chaque résidence, deux compteurs — **Au foyer** (vert) et **Sorties** (rouge). **Chaque nombre est cliquable** : il ouvre la **liste des personnes** derrière ce nombre.
 
-**Vue d'ensemble** : le bouton **« Voir le détail »** ouvre un **tableau** — en lignes les habitantes (classées **résidence → étage → chambre → nom**, invitées en fin de résidence), en colonnes les jours, chaque case indiquant **P** (au foyer) ou **A** (sortie). *Cette structure de tableau est réutilisée partout (présences, repas) pour ne pas se perdre.*
+**Vue d'ensemble** : le bouton **« Voir le détail »** ouvre un **tableau** — en lignes les habitantes (classées **résidence → étage → chambre → nom**, invitées en fin de résidence), en colonnes les jours, chaque case indiquant **P** (au foyer) ou **A** (sortie). *Cette structure de tableau est réutilisée partout (présences, repas) pour ne pas se perdre.* Le bouton **« Exporter (CSV) »** y télécharge le tableau (comme pour les repas).
+
+**Modifier une présence (Absences — Édition)** : dans la liste ouverte au clic sur un compteur, chaque personne peut être basculée **Au foyer ↔ Sortie** pour ce jour, et on peut **ajouter** quelqu'un — sur le même principe que l'édition des inscriptions repas. Le réglage de l'**heure limite** pour modifier une présence se trouve **en haut de cette vue**.
 
 **Marquer une absence ou une présence** : bouton **« Ajouter une absence »**.
 1. Choisis la **résidence**, puis la **personne** (résidente ou invitée à compte).

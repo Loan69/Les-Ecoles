@@ -2,17 +2,20 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useSupabase } from "@/app/providers";
-import { CalendarDays, Home, Moon, Plus, Table2 } from "lucide-react";
+import { CalendarDays, Home, Moon, Plus, Table2, Download } from "lucide-react";
 import { toast } from "sonner";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { Residence } from "@/types/Residence";
 import { Absence } from "@/types/Absence";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
-import { PersonneDetail } from "@/lib/adminPeople";
+import { PersonneDetail, sortAdminPeople, formatEtage } from "@/lib/adminPeople";
+import { downloadCSV } from "@/lib/csvExport";
 import AbsenceAdminModal, { MarquagePayload } from "@/app/components/admin/AbsenceAdminModal";
 import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
 import DetailListModal from "@/app/components/admin/DetailListModal";
+import AbsenceEditModal from "@/app/components/admin/AbsenceEditModal";
+import FoyerLockSettings from "@/app/components/admin/FoyerLockSettings";
 import { useMyRights } from "@/lib/useMyRights";
 import TopBar from "@/app/components/TopBar";
 
@@ -41,7 +44,8 @@ export default function AdminFoyerView() {
   const canEdit = useMyRights().canEdit("absences");
   const [modalOpen, setModalOpen] = useState(false); // ajout absence
   const [tableOpen, setTableOpen] = useState(false); // tableau de détail (loupe unique)
-  const [listModal, setListModal] = useState<{ title: string; people: PersonneDetail[] } | null>(null);
+  // Contexte de la popup (people calculés en direct depuis les données).
+  const [listModal, setListModal] = useState<{ date: string; residence: string; residenceLabel: string; kind: "present" | "absent"; title: string } | null>(null);
 
   // --- Période par défaut : aujourd'hui → +7 jours ---
   useEffect(() => {
@@ -154,6 +158,34 @@ export default function AdminFoyerView() {
 
   const tableColumns: DetailColumn[] = daysInRange.map((d) => ({ key: d, label: formatColDay(d) }));
 
+  const exportDetail = () => {
+    const header = ["Résidence", "Étage", "Nom", "Prénom", ...tableColumns.map((c) => c.label)];
+    const rows: (string | number)[][] = [header];
+    sortAdminPeople(people).forEach((p) => {
+      const cells = tableColumns.map((c) => (isAbsentOn(p.id, c.key) ? "Sortie" : "Au foyer"));
+      rows.push([p.residence ?? "", formatEtage(p.etage) ?? "", p.nom, p.prenom, ...cells]);
+    });
+    downloadCSV(`presences_${startDate}_${endDate}.csv`, rows);
+  };
+
+  // Popup : personnes de la liste courante + personnes du statut opposé (pour l'ajout).
+  const inModalRes = listModal ? people.filter((p) => p.residence === listModal.residence) : [];
+  const modalPeople = listModal ? inModalRes.filter((p) => (listModal.kind === "absent" ? isAbsentOn(p.id, listModal.date) : !isAbsentOn(p.id, listModal.date))) : [];
+  const modalAddable = listModal ? inModalRes.filter((p) => (listModal.kind === "absent" ? !isAbsentOn(p.id, listModal.date) : isAbsentOn(p.id, listModal.date))) : [];
+
+  // Bascule présence/absence d'une personne pour UN jour (via l'API absences).
+  const setAbsentOnDay = async (userId: string, absent: boolean) => {
+    if (!listModal) return;
+    const res = await fetch("/api/admin/absences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: absent ? "absent" : "present", user_id: userId, date_debut: listModal.date, date_fin: listModal.date }),
+    });
+    const j = await res.json();
+    if (!res.ok) { toast.error(j.error || "Erreur."); return; }
+    await fetchData();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white py-10 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto">
@@ -162,6 +194,8 @@ export default function AdminFoyerView() {
           <h1 className="text-3xl font-bold text-blue-800 mb-2">Présences au foyer</h1>
           <p className="text-gray-600">Qui est au foyer ou sortie, par résidence, jour par jour.</p>
         </div>
+
+        <FoyerLockSettings />
 
         {/* Période + actions */}
         <div className="flex flex-col md:flex-row items-center justify-center gap-3 mb-8">
@@ -227,8 +261,8 @@ export default function AdminFoyerView() {
                             <button
                               onClick={() =>
                                 setListModal({
+                                  date, residence: res.value, residenceLabel: res.label, kind: "present",
                                   title: `Au foyer — ${res.label} · ${formatJourLong(date)}`,
-                                  people: present,
                                 })
                               }
                               className="flex-1 flex items-center justify-center gap-1.5 bg-green-50 hover:bg-green-100 text-green-800 rounded-xl py-2 transition cursor-pointer"
@@ -241,8 +275,8 @@ export default function AdminFoyerView() {
                             <button
                               onClick={() =>
                                 setListModal({
+                                  date, residence: res.value, residenceLabel: res.label, kind: "absent",
                                   title: `Sorties — ${res.label} · ${formatJourLong(date)}`,
-                                  people: absent,
                                 })
                               }
                               className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-800 rounded-xl py-2 transition cursor-pointer"
@@ -268,7 +302,12 @@ export default function AdminFoyerView() {
       <Dialog open={tableOpen} onOpenChange={() => setTableOpen(false)}>
         <DialogContent className="sm:max-w-6xl lg:max-w-[92vw] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Détail des présences — période</DialogTitle>
+            <div className="flex items-center justify-between gap-2 pr-8">
+              <DialogTitle>Détail des présences — période</DialogTitle>
+              <button onClick={exportDetail} className="flex items-center gap-1 border border-blue-600 text-blue-700 rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-50 cursor-pointer shrink-0">
+                <Download className="w-4 h-4" /> Exporter (CSV)
+              </button>
+            </div>
           </DialogHeader>
           <p className="text-xs text-gray-500 mb-3">
             <span className="font-bold text-green-600">P</span> = au foyer ·{" "}
@@ -288,13 +327,25 @@ export default function AdminFoyerView() {
         </DialogContent>
       </Dialog>
 
-      {/* Liste derrière un nombre */}
-      <DetailListModal
-        open={!!listModal}
-        onClose={() => setListModal(null)}
-        title={listModal?.title ?? ""}
-        people={listModal?.people ?? []}
-      />
+      {/* Liste derrière un nombre — éditable (section Absences ≥ Édition) ou lecture seule */}
+      {canEdit ? (
+        <AbsenceEditModal
+          open={!!listModal}
+          onClose={() => setListModal(null)}
+          title={listModal?.title ?? ""}
+          kind={listModal?.kind ?? "present"}
+          people={modalPeople}
+          addable={modalAddable}
+          onSet={setAbsentOnDay}
+        />
+      ) : (
+        <DetailListModal
+          open={!!listModal}
+          onClose={() => setListModal(null)}
+          title={listModal?.title ?? ""}
+          people={modalPeople}
+        />
+      )}
 
       <AbsenceAdminModal
         isOpen={modalOpen}

@@ -396,7 +396,7 @@ export default function RepasOptionsManager() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rattachée à la résidence</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Lieu</label>
                     <select value={optForm.residence} onChange={(e) => setOptForm((f) => ({ ...f, residence: e.target.value }))} className="w-full border border-gray-300 rounded-lg p-2 text-gray-700 focus:ring-2 focus:ring-blue-600 focus:outline-none">
                       <option value="12">Résidence 12</option>
                       <option value="36">Résidence 36</option>

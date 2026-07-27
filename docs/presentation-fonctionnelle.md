@@ -119,7 +119,7 @@ Un écran **profil** récapitule les informations de l'habitante : nom, prénom,
 
 ## 5. Côté administratrice (panneau d'administration)
 
-Le panneau d'administration est organisé en quatre onglets : **Utilisatrices**, **Invités**, **Repas**, **Paramétrage**. S'y ajoutent deux vues opérationnelles : le **suivi des inscriptions repas** et la **vue présence foyer**.
+Le panneau d'administration (⚙️, section **Comptes**) réunit la gestion des **Utilisatrices**, des **Chambres** et des **Invités**. Les autres écrans d'intendance s'atteignent depuis leur onglet : **suivi des inscriptions repas** et **paramétrage repas** (via Repas de la semaine), **vue présence foyer** (via Présence foyer), **événements** (via Calendrier).
 
 ### 5.1. Gestion des utilisatrices
 
@@ -141,12 +141,11 @@ Les administratrices peuvent définir des **menus spéciaux** qui remplacent les
 
 Les règles existantes sont listées, avec mise en évidence des **conflits** (quand deux règles se chevauchent, la plus récente l'emporte et l'autre est signalée comme inactive). Les règles peuvent être **modifiées** ou **supprimées**.
 
-### 5.4. Paramétrage
+### 5.4. Réglages (heures de verrouillage)
 
-Réglage des paramètres généraux de l'application :
-- **heure de verrouillage des repas** ;
-- **heure de verrouillage de la présence foyer** ;
-- **verrouillage anticipé du week-end** (activé / désactivé).
+Il n'y a plus d'onglet « Paramétrage » séparé ; les réglages sont au plus près de leur usage :
+- **heure de verrouillage des repas** + **week-end anticipé** → dans *Paramétrer les repas* ;
+- **heure de verrouillage de la présence foyer** → en haut de la *vue présence foyer*.
 
 ### 5.5. Suivi des inscriptions aux repas
 
@@ -178,8 +177,7 @@ Les administratrices créent et gèrent les événements du calendrier. Pour cha
 - **une ou plusieurs dates** ;
 - **horaire** ;
 - **lieu(x)** : une ou plusieurs résidences ;
-- **visibilité ciblée** : par résidence, par étage et/ou par chambre ;
-- **visible par les invitées** (oui / non) ;
+- **visibilité ciblée** : par résidence (Corail inclus), par étage et/ou par chambre — la liste des personnes est celle des comptes actifs ;
 - **réservé au staff** (aucun / staff 12 / staff 36 / tout le staff) ;
 - **demande de confirmation** de participation (oui / non) ;
 - **rappel** : nombre de jours avant l'événement où afficher un rappel.

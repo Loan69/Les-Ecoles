@@ -23,7 +23,9 @@ export function eventVisibleFor(event: CalendarEvent, p: EventViewer): boolean {
   const exclusions = event.visibilite?.exclusions ?? [];
   if (p.user_id && exclusions.includes(p.user_id)) return false;
 
-  if (!p.residence) return event.visible_invites === true;
+  // Les comptes sans résidence (invitées) ne voient plus les événements :
+  // la visibilité se gère uniquement par le ciblage résidence / étage / chambre.
+  if (!p.residence) return false;
 
   const residences = event.visibilite?.residence ?? [];
   const etages = event.visibilite?.etage ?? [];
