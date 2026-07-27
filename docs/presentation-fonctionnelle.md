@@ -93,7 +93,7 @@ On navigue de semaine en semaine et l'on peut revenir d'un clic à la semaine de
 
 Depuis cet écran, on trouve aussi :
 - un bouton **« Inviter quelqu'un »** (ajouter un invité à un repas) ;
-- pour l'intendance, un **« Espace intendance »** repliable donnant accès aux **inscriptions/comptabilité** et au **paramétrage des repas** (menus spéciaux) — désormais regroupés ici plutôt que dispersés.
+- pour l'intendance, une **barre de navigation repas** (pastilles) donnant accès directement aux **inscriptions/comptabilité** et au **paramétrage des repas** (menus spéciaux) — la même barre est présente sur ces écrans pour revenir à la visualisation sans repasser par l'accueil.
 
 ### 4.5. Inviter quelqu'un à un repas
 
@@ -119,17 +119,20 @@ Un écran **profil** récapitule les informations de l'habitante : nom, prénom,
 
 ## 5. Côté administratrice (panneau d'administration)
 
-Le panneau d'administration (⚙️, section **Comptes**) réunit la gestion des **Utilisatrices**, des **Chambres** et des **Invités**. Les autres écrans d'intendance s'atteignent depuis leur onglet : **suivi des inscriptions repas** et **paramétrage repas** (via Repas de la semaine), **vue présence foyer** (via Présence foyer), **événements** (via Calendrier).
+Le panneau d'administration (⚙️, section **Comptes**) affiche **directement** la gestion des **Utilisatrices** (personnes **et** chambres réunies) — **plus d'onglets**. Les autres écrans d'intendance s'atteignent depuis leur onglet : **suivi des inscriptions repas** et **paramétrage repas** (via Repas de la semaine), **vue présence foyer** (via Présence foyer), **événements** (via Calendrier).
 
 ### 5.1. Gestion des utilisatrices
 
-- Lister toutes les résidentes (le compte technique caché est exclu).
-- **Régler les droits** d'une résidente (par section : Aucun / Lecture / Édition, ou Super-admin) via le bouton **« Droits »** — réservé au **super-admin** ; sinon les droits sont affichés en lecture seule.
-- **Supprimer** un compte (action irréversible, réservée au **super-admin niveau 4**).
+Une **liste unique** rassemble les personnes et leurs chambres, classée **résidence → étage → chambre** :
 
-### 5.2. Gestion des invités
+- Chaque ligne montre la **chambre**, son **occupante** (ou **Libre** / **Invitation envoyée**) et le **résumé de ses droits**.
+- **Inviter** une résidente sur une chambre libre (nouvelle personne par email, ou réactivation d'un **compte désactivé**). Si le compte réactivé avait des droits admin, on choisit de **repartir de zéro** ou de **garder ses anciens droits**.
+- **Régler les droits** d'une occupante (par section : Aucun / Lecture / Édition, ou Super-admin) via **« Droits »** — réservé au **super-admin**.
+- **Déplacer** une résidente vers une autre chambre, ou **Libérer / désactiver** son compte (historique conservé).
+- Deux panneaux repliables : **Comptes désactivés** (réactivables) et **Gérer les chambres & étages** (structure physique du foyer).
+- **Supprimer** définitivement un compte reste possible (irréversible, réservé au **super-admin**).
 
-Consultation et gestion de la liste des personnes invitées aux repas.
+> Les **invitées** (comptes simplifiés pour les repas) ne sont plus gérées depuis un onglet dédié : on les invite directement à un repas depuis **Repas de la semaine**. Elles conservent l'inscription libre.
 
 ### 5.3. Repas spéciaux
 

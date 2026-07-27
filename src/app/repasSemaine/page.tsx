@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Lock, Moon, ChevronDown, UserPlus, ClipboardList, Settings, Trash2, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, Moon, UserPlus, Trash2, Pencil } from "lucide-react";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
 import { ServiceOption, MealOptionCatalog, PresenceV2, Service } from "@/types/MealOption";
@@ -20,6 +20,7 @@ import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import InviteModal, { EditingInvite } from "../components/inviteModal";
+import RepasNav from "../components/admin/RepasNav";
 import { useMyRights } from "@/lib/useMyRights";
 
 const SERVICES: { value: Service; label: string }[] = [
@@ -71,7 +72,6 @@ export default function SemaineRepas() {
 
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [editingInvite, setEditingInvite] = useState<EditingInvite | null>(null);
-  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
 
   const [currentMonday, setCurrentMonday] = useState<Date>(() => {
     if (typeof window !== "undefined") {
@@ -196,25 +196,8 @@ export default function SemaineRepas() {
           <p className="text-blue-500 text-sm mt-1">Choisissez votre repas parmi les options proposées</p>
         </div>
 
-        {/* Espace intendance (admin repas) — tout en haut pour éviter le scroll */}
-        {canRepas && (
-          <div className="mb-6">
-            <button onClick={() => setAdminPanelOpen((o) => !o)} className="w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-5 py-3 text-sm font-bold text-blue-900 hover:bg-blue-50 transition cursor-pointer">
-              <span className="flex items-center gap-2"><Settings className="w-4 h-4" /> Espace intendance</span>
-              <ChevronDown className={`w-5 h-5 transition-transform ${adminPanelOpen ? "rotate-180" : ""}`} />
-            </button>
-            {adminPanelOpen && (
-              <div className="mt-3 grid gap-2">
-                <button onClick={() => router.push("/admin/repas-v2")} className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer">
-                  <ClipboardList className="w-4 h-4" /> Voir les inscriptions & la compta
-                </button>
-                <button onClick={() => router.push("/admin/repas-options")} className="flex items-center gap-2 bg-white border border-blue-100 rounded-xl px-5 py-3 text-sm font-medium text-blue-800 hover:bg-blue-50 transition cursor-pointer">
-                  <Settings className="w-4 h-4" /> Paramétrer les repas
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Navigation repas (admin) — même barre de pastilles que les écrans d'intendance */}
+        {canRepas && <RepasNav />}
 
         {/* Navigation semaine */}
         <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-4">

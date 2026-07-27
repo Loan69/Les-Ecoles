@@ -35,16 +35,36 @@ export default function EventVisibilitySelector({ value, onChange, disabled = fa
   onChangeRef.current = onChange;
   const inited = useRef(false);
 
-  // --- Chargement des options + résidentes ---
+  // --- Chargement de la structure (résidences/étages dérivés de `places`,
+  // la source de vérité : toute chambre/étage ajouté remonte automatiquement)
+  // + résidentes actives. Les postes Corail forment une section sans étages. ---
   useEffect(() => {
     (async () => {
-      const [{ data: resData }, { data: etData }, { data: rData }] = await Promise.all([
-        supabase.from("select_options_residence").select("value, label, parent_value").eq("category", "residence").is("parent_value", null).order("label"),
-        supabase.from("select_options_residence").select("value, label, parent_value").eq("category", "etage").order("label"),
+      const [{ data: placesData }, { data: rData }] = await Promise.all([
+        supabase.from("places").select("residence, etage").eq("is_active", true),
         supabase.from("residentes").select("user_id, nom, prenom, residence, etage").eq("statut", "active").eq("is_technique", false),
       ]);
-      setResidences(resData || []);
-      setEtages(etData || []);
+
+      const resSet = new Set<string>();
+      const etageSeen = new Set<string>();
+      const etageOpts: Opt[] = [];
+      (placesData || []).forEach((p) => {
+        const residence = String(p.residence);
+        resSet.add(residence);
+        if (p.etage) {
+          const key = `${residence}::${p.etage}`;
+          if (!etageSeen.has(key)) {
+            etageSeen.add(key);
+            etageOpts.push({ value: p.etage, label: formatEtage(p.etage) ?? p.etage, parent_value: residence });
+          }
+        }
+      });
+      const residenceLabel = (r: string) => (r === "corail" ? "Corail" : /^\d+$/.test(r) ? `Résidence ${r}` : r);
+      const resOpts: Opt[] = [...resSet].sort().map((r) => ({ value: r, label: residenceLabel(r) }));
+      etageOpts.sort((a, b) => a.label.localeCompare(b.label, "fr", { numeric: true }));
+
+      setResidences(resOpts);
+      setEtages(etageOpts);
       setResidentes((rData || []).map((r) => ({ ...r, residence: String(r.residence) })));
       setLoaded(true);
     })();

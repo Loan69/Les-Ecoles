@@ -37,69 +37,59 @@ S'ajoute un rôle **Super-admin** (global) : **tous les droits partout**, **plus
 
 ## 2. Où trouver les fonctions d'intendance
 
-- **Panneau d'administration** : bouton **roue crantée ⚙️** en **haut à droite** des écrans (visible pour la section **Comptes**). Il ouvre la gestion des **utilisatrices**, des **chambres** et des **invités**.
-- **Espace intendance (repas)** : sur l'onglet 🍴 **Repas de la semaine**, un bloc **« Espace intendance »** est affiché **tout en haut**. Il donne accès aux **inscriptions & comptabilité** et au **paramétrage des repas**.
+- **Panneau d'administration** : bouton **roue crantée ⚙️** en **haut à droite** des écrans (visible pour la section **Comptes**). Il ouvre **directement** la gestion des **utilisatrices** (personnes + chambres réunies ; plus d'onglets).
+- **Navigation repas (admin)** : sur l'onglet 🍴 **Repas de la semaine** et les écrans d'intendance repas, une **barre de pastilles** en haut permet de basculer entre **Repas de la semaine**, **Inscriptions & comptabilité** et **Paramétrer les repas** (la pastille de l'écran courant est mise en avant), sans repasser par l'accueil.
 - **Présences au foyer (vue staff)** : via l'onglet 🧍 **Présence foyer** → bouton **« Voir les présences »**.
 
 ---
 
 ## 3. Gérer les utilisatrices
 
-Panneau ⚙️ **Administration** → onglet **Utilisatrices** :
+Panneau ⚙️ **Administration**. L'écran affiche **directement** la gestion des utilisatrices — **plus d'onglets** (« Chambres » et « Invités » supprimés). **Une seule liste** rassemble les personnes **et** leurs chambres. Principe : **une chambre = une place = un compte**. Les résidentes **ne s'inscrivent plus elles-mêmes** — elles sont **invitées** par l'intendance.
 
-- **Régler les droits** d'une résidente : bouton **« Droits »** sur sa ligne → un panneau permet de cocher **Super-admin** ou de choisir, **par section** (Repas, Événements, Absences, Comptes, Infos pratiques), le niveau **Aucun / Lecture / Édition**. Réservé au **super-admin** ; pour les autres, les droits s'affichent en simples badges non modifiables. On ne peut pas régler **ses propres** droits.
-- **Supprimer** un compte : action **irréversible**, réservée au **super-admin (niveau 4)** — trop dangereuse pour l'édition courante. (Pour libérer une place sans perdre l'historique, préférer l'**archivage** dans l'onglet Chambres.)
-- Le compte **technique** (caché) n'apparaît pas dans la liste et ne peut être ni modifié ni supprimé.
+**La liste des utilisatrices** est classée par **résidence → étage → chambre**. Chaque ligne montre la **place**, son **occupante** (ou **Libre** / **Invitation envoyée**) et, pour une occupante, le **résumé de ses droits**. Selon l'état de la place :
 
----
+- **Libre** → bouton **« Inviter »**.
+- **Invitation envoyée · email** → **relancer** (↻) ou **annuler** (✕).
+- **Occupée · Nom Prénom** → **« Droits »** (super-admin uniquement), **« Déplacer »** (⇄) et **« Libérer / désactiver »** (⤴).
 
-## 3 bis. Chambres, postes & invitations (comptes résidentes)
+**Régler les droits** d'une occupante : bouton **« Droits »** → cocher **Super-admin** ou choisir, **par section** (Repas, Événements, Absences, Comptes, Infos pratiques), le niveau **Aucun / Lecture / Édition**. Réservé au **super-admin**. On ne peut pas régler **ses propres** droits (anti-blocage).
 
-Panneau ⚙️ **Administration** → onglet **Chambres**. C'est ici qu'on gère les **places** et les **comptes résidentes**. Principe : **une chambre = une place = un compte**. Les résidentes **ne s'inscrivent plus elles-mêmes** — elles sont **invitées** par l'intendance.
-
-**Le référentiel des places**
-- Résidences **12 / 36** → des **chambres** (regroupées par étage). Corail → des **postes** (prestataires : Cuisine, Ménage… ; libellé libre, sans chambre).
-- **Ajouter / modifier / désactiver** une place (un seul champ « Nom » ; le reste est automatique). L'ajout est rare : les chambres sont normalement déjà toutes là.
-- État de chaque place : **Libre**, **Occupée · Nom Prénom**, ou **Invitation envoyée · email**.
-
-**Inviter une résidente**
-1. Sur une place **libre**, clique **« Inviter »**.
+**Inviter une résidente** (sur une place **libre**) :
+1. Clique **« Inviter »**.
 2. Deux possibilités :
    - **Nouvelle personne** : saisis son **email** → elle reçoit un email d'activation.
-   - **Ancienne résidente** (déjà eu un compte) : choisis-la dans la liste **« Réassigner une ancienne résidente »** → son compte est **réactivé et réassigné sans nouvel email**.
+   - **Compte désactivé** (déjà eu un compte) : choisis-le dans la liste **« Réassigner une ancienne résidente »** → son compte est **réactivé et réassigné sans nouvel email**. **Si cette personne avait des droits admin**, un choix apparaît : **repartir de zéro** (simple résidente, recommandé) ou **garder ses anciens droits**.
 3. Elle définit son mot de passe et complète son profil (résidence/chambre **imposées**) ; la place passe à **« Occupée »**.
-- Une invitation en attente peut être **relancée** (↻) ou **annulée** (✕).
 
-> Inviter un email qui a **déjà** un compte le **réactive et le réassigne** automatiquement (utile pour replacer une personne archivée).
+**Départ d'une résidente** : bouton **« Libérer / désactiver »** (⤴) → le compte est **désactivé** (il ne peut plus se connecter, mais son **historique de repas/présence est conservé** pour la compta) et la **place se libère** (réattribuable).
 
-**Départ d'une résidente** : bouton **« Libérer / archiver »** (⤴) sur sa place → le compte est **archivé** (il ne peut plus se connecter, mais son **historique de repas/présence est conservé** pour la compta) et la **place se libère** (réattribuable).
+**Comptes désactivés** : un panneau repliable en bas liste les anciens comptes (avec leurs droits en sommeil). Ils se réactivent via **« Inviter »** sur une chambre libre.
 
-**Déménagement interne** : bouton **« Déplacer »** (⇄) → choisir une place libre de destination.
+**Gérer les chambres & étages** : un second panneau repliable (super-admin/section Comptes en édition) permet d'**ajouter / modifier / désactiver / supprimer** les chambres et postes — la **structure physique** du foyer, séparée de la liste des personnes. L'ajout est rare : les chambres sont normalement déjà toutes là. Résidences **12 / 36** → des **chambres** (par étage) ; Corail → des **postes** (Cuisine, Ménage… ; sans chambre).
 
-> Le compte **super-admin** (technique) n'occupe aucune place et n'apparaît pas dans les listes.
+**Supprimer** un compte reste possible mais **irréversible** (réservé au super-admin) : pour un simple départ, préférer la **désactivation** ci-dessus.
 
----
+> Le compte **super-admin** (technique) n'occupe aucune place et n'apparaît pas dans les listes. Un encart **« Sans chambre attribuée »** (situation anormale) n'est visible que du **compte technique** (maintenance) : il permet d'**attribuer une chambre**, régler les **droits** ou **supprimer** le compte concerné.
 
-## 4. Gérer les invités
-
-Panneau ⚙️ **Administration** → onglet **Invités** : consulter et gérer les comptes invités (comptes simplifiés). Les **invitées** conservent l'**inscription libre** (« Inscription invitée » sur l'écran de connexion) — elles n'occupent pas de place.
+> Les **invitées** (comptes simplifiés pour les repas) conservent l'**inscription libre** (« Inscription invitée » sur l'écran de connexion) et n'occupent pas de place. Elles ne sont plus gérées depuis un onglet dédié ; on les invite directement à un repas depuis **Repas de la semaine**.
 
 ---
 
-## 5. Réglages (heures de verrouillage)
+## 4. Réglages (heures de verrouillage)
 
 Il n'y a plus d'onglet **Paramètres** séparé : les réglages sont désormais **au plus près de leur usage**.
 
-- **Verrouillage des repas** (heure limite du jour + option week-end) → dans **Paramétrer les repas** (§6).
-- **Verrouillage des présences** (heure limite pour modifier sa présence au foyer) → en haut de la **vue Présences** (§7).
+- **Verrouillage des repas** (heure limite du jour + option week-end) → dans **Paramétrer les repas** (§5).
+- **Verrouillage des présences** (heure limite pour modifier sa présence au foyer) → en haut de la **vue Présences** (§6).
 
 ---
 
-## 6. Paramétrer les repas
+## 5. Paramétrer les repas
 
-Accès : onglet 🍴 **Repas de la semaine** → **Espace intendance** → **Paramétrer les repas**. L'écran comporte deux parties.
+Accès : depuis la **barre de navigation repas** (pastilles présentes sur tous les écrans repas) → **Paramétrer les repas**. L'écran comporte deux parties.
 
-### 6.1. Catalogue d'options
+### 5.1. Catalogue d'options
 La liste des **options** que le foyer peut proposer (ex. « Repas classique », « Apéro dînatoire », « Pique-nique »). Pour chaque option :
 
 - **Libellé** (ce que voit la résidente) ;
@@ -108,7 +98,7 @@ La liste des **options** que le foyer peut proposer (ex. « Repas classique », 
 - **Réservée à l'intendance** : l'option n'apparaît qu'aux admins ;
 - **Active / inactive** : une option inactive n'est jamais proposée (sans être supprimée).
 
-### 6.2. Ouverture des services
+### 5.2. Ouverture des services
 C'est ici qu'on décide, **jour par jour et par service** (déjeuner / dîner), **quelles options sont proposées** aux résidentes. Un service **sans aucune option ouverte** s'affiche **« fermé »** côté résidente.
 
 - **Dupliquer sur une plage** : reporter les options d'un jour sur plusieurs dates en une fois (sélecteur multi-dates), pour ouvrir toute une semaine rapidement.
@@ -117,7 +107,7 @@ C'est ici qu'on décide, **jour par jour et par service** (déjeuner / dîner), 
 
 ---
 
-## 7. Présences au foyer (vue staff)
+## 6. Présences au foyer (vue staff)
 
 Via l'onglet 🧍 **Présence foyer** → **« Voir les présences »**. Elle indique **qui est au foyer ou sorti**, **par résidence**, déduit des **séjours d'absence**.
 
@@ -137,9 +127,9 @@ Via l'onglet 🧍 **Présence foyer** → **« Voir les présences »**. Elle in
 
 ---
 
-## 8. Inscriptions aux repas & comptabilité
+## 7. Inscriptions aux repas & comptabilité
 
-Accès : **Espace intendance** → **Voir les inscriptions & la compta**. Deux onglets, sur une **période choisie** (sélecteur de dates en haut).
+Accès : **barre de navigation repas** → **Inscriptions & compta**. Deux onglets, sur une **période choisie** (sélecteur de dates en haut).
 
 ### Onglet « Organisation » — repas à préparer
 Les jours sont **empilés** ; pour chaque jour et chaque résidence, les **options ouvertes** au midi et au soir, avec leur nombre d'inscrits. **Chaque option est cliquable** → la **liste des personnes comptées**. Les **invités** ne forment plus une tuile à part : chacun est compté **dans l'option** à laquelle il est rattaché et apparaît dans cette liste, annoté **« invité par Prénom Nom »**.
@@ -154,7 +144,7 @@ Les jours sont **empilés** ; pour chaque jour et chaque résidence, les **optio
 
 ---
 
-## 9. Événements & calendrier
+## 8. Événements & calendrier
 
 Depuis le calendrier, une administratrice peut **créer, modifier et supprimer** des événements :
 - titre, dates (une ou plusieurs), horaires, lieu (résidence·s), couleur ;
@@ -164,7 +154,7 @@ Depuis le calendrier, une administratrice peut **créer, modifier et supprimer**
 
 ---
 
-## 10. Espace Administratif (infos pratiques)
+## 9. Espace Administratif (infos pratiques)
 
 L'onglet 📖 **Administratif** (barre du bas) est **consultable par toutes** mais **modifiable par les admins** (bouton **« Modifier »**). On y gère des **rubriques libres** :
 

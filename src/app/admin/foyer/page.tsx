@@ -62,12 +62,13 @@ export default function AdminFoyerView() {
     if (!startDate || !endDate) return;
     setLoading(true);
 
-    const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }] =
+    const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: placesData }] =
       await Promise.all([
         supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
-        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre").eq("statut", "active").eq("is_technique", false),
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id").eq("statut", "active").eq("is_technique", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("select_options_residence").select("value, label"),
+        supabase.from("places").select("id, label"),
       ]);
 
     // Code chambre/étage → libellé lisible (ex. "grand_palais" → "Grand Palais")
@@ -75,6 +76,10 @@ export default function AdminFoyerView() {
     (optionsData || []).forEach((o) => {
       if (o.value) optionLabels[o.value] = o.label;
     });
+    // Libellé de chambre propre depuis `places` (source de vérité), via place_id :
+    // residentes.chambre peut contenir un code brut legacy (« r36_etage6_la_rochelle »).
+    const placeLabels: Record<string, string> = {};
+    (placesData || []).forEach((p) => { if (p.id && p.label) placeLabels[p.id] = p.label; });
 
     setResidences(residencesData || []);
     setPeople([
@@ -84,7 +89,7 @@ export default function AdminFoyerView() {
         prenom: r.prenom,
         residence: r.residence != null ? String(r.residence) : undefined,
         etage: r.etage,
-        chambre: r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre,
+        chambre: (r.place_id && placeLabels[r.place_id]) || (r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre),
         isInvite: false,
       })) || []),
       ...(inviteesData?.map((i) => ({

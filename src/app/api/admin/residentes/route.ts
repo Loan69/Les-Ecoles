@@ -1,20 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSectionView, requireSectionEdit } from "@/lib/apiAuth";
+import { rightsFromRow } from "@/lib/roles";
 
 // --- Liste des comptes archivés (pour réassignation rapide) : GET ---
+// On renvoie aussi les droits en sommeil, pour que la réassignation puisse
+// afficher les anciens droits et laisser l'admin choisir de les garder ou repartir de zéro.
 export async function GET() {
   const { supabase, error } = await requireSectionView('comptes');
   if (error) return error;
 
   const { data } = await supabase
     .from("residentes")
-    .select("user_id, nom, prenom, email")
+    .select("*")
     .eq("statut", "archivee")
     .eq("is_technique", false)
     .order("nom", { ascending: true })
     .order("prenom", { ascending: true });
 
-  return NextResponse.json({ archived: data ?? [] });
+  const archived = (data ?? []).map((r) => ({
+    user_id: r.user_id,
+    nom: r.nom,
+    prenom: r.prenom,
+    email: r.email,
+    rights: rightsFromRow(r as Record<string, unknown>),
+  }));
+
+  return NextResponse.json({ archived });
 }
 
 // --- Archiver (libérer la place) une résidente : PATCH { user_id } ---

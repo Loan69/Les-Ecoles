@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   const { supabase, userId, error } = await requireSectionEdit('comptes');
   if (error) return error;
 
-  const { place_id, email } = (await req.json()) as { place_id?: string; email?: string };
+  const { place_id, email, resetRights } = (await req.json()) as { place_id?: string; email?: string; resetRights?: boolean };
   if (!place_id) return NextResponse.json({ error: "Place manquante." }, { status: 400 });
   if (!email || !EMAIL_RE.test(email.trim())) return NextResponse.json({ error: "Email invalide." }, { status: 400 });
   const mail = email.trim().toLowerCase();
@@ -51,6 +51,11 @@ export async function POST(req: NextRequest) {
     if (!place) return NextResponse.json({ error: "Place introuvable." }, { status: 404 });
 
     await supabase.auth.admin.updateUserById(existing.user_id, { ban_duration: "none" }).catch(() => {});
+    // resetRights : la personne revient en simple résidente (aucun droit admin).
+    // Sinon, ses anciens droits en sommeil sont conservés tels quels.
+    const rightsReset = resetRights
+      ? { niveau_repas: 1, niveau_evenements: 1, niveau_absences: 1, niveau_comptes: 1, niveau_infos: 1, is_super_admin: false }
+      : {};
     const { error: upErr } = await supabase
       .from("residentes")
       .update({
@@ -60,6 +65,7 @@ export async function POST(req: NextRequest) {
         residence: place.residence,
         etage: place.kind === "chambre" ? place.etage : null,
         chambre: place.kind === "chambre" ? place.code : null,
+        ...rightsReset,
       })
       .eq("user_id", existing.user_id);
     if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });

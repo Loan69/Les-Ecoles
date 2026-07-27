@@ -18,6 +18,7 @@ import DetailListModal from "@/app/components/admin/DetailListModal";
 import MealOptionEditModal from "@/app/components/admin/MealOptionEditModal";
 import { useMyRights } from "@/lib/useMyRights";
 import TopBar from "@/app/components/TopBar";
+import RepasNav from "@/app/components/admin/RepasNav";
 
 function formatJourLong(dateKey: string): string {
   return parseDateKeyLocal(dateKey).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }).replace(/^./, (c) => c.toUpperCase());
@@ -61,15 +62,16 @@ export default function AdminRepasV2Page() {
     if (!startDate || !endDate) return;
     setLoading(true);
 
-    const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: optsRes }, { data: invitesData }] =
+    const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: optsRes }, { data: invitesData }, { data: placesData }] =
       await Promise.all([
         supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
         // Exclut le super-admin (compte technique) ; garde les archivées pour l'historique de compta.
-        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre").eq("is_technique", false),
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id").eq("is_technique", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("meal_options").select("*"),
         supabase.from("select_options_residence").select("value, label"),
         supabase.from("invites_repas").select("id, invite_par, nom, prenom, date_repas, type_repas, option_id").gte("date_repas", startDate).lte("date_repas", endDate),
+        supabase.from("places").select("id, label"),
       ]);
     setInvites((invitesData as InviteMeal[]) || []);
 
@@ -89,6 +91,10 @@ export default function AdminRepasV2Page() {
 
     const optionLabels: Record<string, string> = {};
     (optsRes || []).forEach((o) => { if (o.value) optionLabels[o.value] = o.label; });
+    // Libellé de chambre propre depuis `places` (source de vérité), via place_id :
+    // residentes.chambre peut contenir un code brut legacy (« r36_etage6_la_rochelle »).
+    const placeLabels: Record<string, string> = {};
+    (placesData || []).forEach((p) => { if (p.id && p.label) placeLabels[p.id] = p.label; });
 
     setResidences(residencesData || []);
     setMealOptions((optionsData as MealOptionCatalog[]) || []);
@@ -96,7 +102,7 @@ export default function AdminRepasV2Page() {
       ...(residentesData?.map((r) => ({
         id: r.user_id, nom: r.nom, prenom: r.prenom,
         residence: r.residence != null ? String(r.residence) : undefined,
-        etage: r.etage, chambre: r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre, isInvite: false,
+        etage: r.etage, chambre: (r.place_id && placeLabels[r.place_id]) || (r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre), isInvite: false,
       })) || []),
       ...(inviteesData?.map((i) => ({
         id: i.user_id, nom: i.nom, prenom: i.prenom,
@@ -343,6 +349,7 @@ export default function AdminRepasV2Page() {
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-white py-10 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto">
         <TopBar />
+        <RepasNav />
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-amber-800 mb-1">Repas — comptabilité</h1>
           <p className="text-gray-600 text-sm">Inscriptions & comptabilité · absences déduites</p>

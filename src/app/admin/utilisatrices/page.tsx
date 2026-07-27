@@ -1,10 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabaseServer";
-import UsersTable from "@/app/components/admin/UsersTable";
-import GuestsTable from "@/app/components/admin/GuestsTable"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import PlacesManager from "@/app/components/admin/PlacesManager";
-import { DoorClosed, UserRoundPen, Users } from "lucide-react";
 import TopBar from "@/app/components/TopBar";
 import { rightsFromRow, canViewSection, RIGHTS_COLUMNS } from "@/lib/roles";
 
@@ -28,79 +24,14 @@ export default async function AdminUsersPage() {
   return (
     <main className="max-w-6xl mx-auto py-10 px-4 sm:px-6 space-y-8">
       <TopBar />
-      <h1 className="text-2xl sm:text-3xl font-semibold text-center mb-6">
-        Espace d&apos;administration
-      </h1>
+      <div className="text-center mb-6">
+        <h1 className="text-2xl sm:text-3xl font-semibold">Administration</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Gérez les utilisatrices et leurs chambres, les droits d&apos;accès, les invitations et les comptes désactivés.
+        </p>
+      </div>
 
-      <Tabs defaultValue="users" className="w-full">
-        {/* --- Onglets principaux --- */}
-        <div className="flex justify-center w-full overflow-x-auto">
-          <TabsList
-            className="
-              flex items-center justify-start sm:justify-center gap-2 sm:gap-4 
-              bg-gray-100 rounded-2xl p-2 sm:p-3 shadow-sm 
-               max-w-full
-            "
-          >
-            <TabsTrigger
-              value="users"
-              className="
-                flex items-center justify-center gap-2
-                cursor-pointer text-sm sm:text-base font-medium
-                data-[state=active]:bg-blue-600 data-[state=active]:text-white 
-                px-3 sm:px-4 py-2 sm:py-3 rounded-full 
-                transition-all duration-200 hover:bg-blue-100 hover:text-blue-700 
-                whitespace-nowrap min-w-[8rem] sm:min-w-[10rem]
-              "
-            >
-              <Users className="w-4 h-4 sm:w-5 sm:h-5" /> Utilisatrices
-            </TabsTrigger>
-
-            <TabsTrigger
-              value="guests"
-              className="
-                flex items-center justify-center gap-2
-                cursor-pointer text-sm sm:text-base font-medium
-                data-[state=active]:bg-blue-600 data-[state=active]:text-white 
-                px-3 sm:px-4 py-2 sm:py-3 rounded-full 
-                transition-all duration-200 hover:bg-blue-100 hover:text-blue-700 
-                whitespace-nowrap min-w-[8rem] sm:min-w-[10rem]
-              "
-            >
-              <UserRoundPen className="w-4 h-4 sm:w-5 sm:h-5" /> Invités
-            </TabsTrigger>
-
-            <TabsTrigger
-              value="chambres"
-              className="
-                flex items-center justify-center gap-2
-                cursor-pointer text-sm sm:text-base font-medium
-                data-[state=active]:bg-blue-600 data-[state=active]:text-white
-                px-3 sm:px-4 py-2 sm:py-3 rounded-full
-                transition-all duration-200 hover:bg-blue-100 hover:text-blue-700
-                whitespace-nowrap min-w-[8rem] sm:min-w-[10rem]
-              "
-            >
-              <DoorClosed className="w-4 h-4 sm:w-5 sm:h-5" /> Chambres
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        {/* --- Contenu --- */}
-        <div className="mt-6 sm:mt-8">
-          <TabsContent value="users">
-            <UsersTable currentUserId={user.id} />
-          </TabsContent>
-
-          <TabsContent value="guests">
-            <GuestsTable  />
-          </TabsContent>
-
-          <TabsContent value="chambres">
-            <PlacesManager />
-          </TabsContent>
-        </div>
-      </Tabs>
+      <PlacesManager currentUserId={user.id} />
     </main>
   );
 }
