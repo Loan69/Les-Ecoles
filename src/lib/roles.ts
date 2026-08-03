@@ -22,6 +22,17 @@ export const NIVEAU_LABEL: Record<NiveauSection, string> = {
 };
 export const NIVEAUX_SECTION: NiveauSection[] = [1, 2, 3];
 
+// Ce que chaque niveau donne concrètement, section par section.
+// Affiché sous le sélecteur du panneau « Droits » : « Aucun » ne veut jamais dire
+// « ne voit rien » — une résidente garde toujours sa vue normale (R-NIV-10).
+export const SECTION_AIDE: Record<Section, string> = {
+  repas: "Aucun = s'inscrire à ses repas · Lecture = voir les inscriptions et la compta · Édition = paramétrer les repas et corriger les inscriptions",
+  evenements: "Aucun = voir les événements et les rappels · Lecture = voir en plus les inscrits aux événements et ceux réservés au staff · Édition = créer et modifier les événements",
+  absences: "Aucun = déclarer ses propres absences · Lecture = voir les présences de tout le foyer · Édition = marquer les absences des autres",
+  comptes: "Aucun = voir son profil · Lecture = voir les comptes et les chambres · Édition = inviter, déplacer et archiver",
+  infos: "Aucun = lire les rubriques Administratif · Lecture = idem · Édition = créer et modifier les rubriques",
+};
+
 export function asNiveauSection(n: number | null | undefined): NiveauSection {
   return n === 2 ? 2 : n === 3 ? 3 : 1;
 }

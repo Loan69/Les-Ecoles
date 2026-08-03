@@ -16,7 +16,8 @@ type CalendrierViewProps = {
     onEditEvent: (id: number, updates: Partial<CalendarEvent>) => Promise<void>;
     onDeleteEvent: (id: number, deleteType: "occurrence" | "all", selectedDate?: string) => Promise<void>;
     is_admin: boolean;
-    canEdit?: boolean; // niveau >= 3 : autorise création/édition/suppression d'événements
+    canView?: boolean; // Événements >= Lecture : « Voir les inscrits » (confirmations)
+    canEdit?: boolean; // Événements >= Édition : création/édition/suppression d'événements
 };
 
 export default function CalendrierView({
@@ -25,6 +26,7 @@ export default function CalendrierView({
     onEditEvent,
     onDeleteEvent,
     is_admin,
+    canView = false,
     canEdit = false,
     }: CalendrierViewProps) {
 
@@ -164,7 +166,7 @@ export default function CalendrierView({
                     <span className="text-sm font-medium text-gray-800">{e.titre}</span>
 
                     <div className="flex items-center space-x-2">
-                        {e.demander_confirmation && is_admin && <VisionConfirmation eventId={e.id!} />}
+                        {e.demander_confirmation && canView && <VisionConfirmation eventId={e.id!} />}
                         {e.demander_confirmation && <ConfirmationToggle eventId={e.id!} />}
                     </div>
 

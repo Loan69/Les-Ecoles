@@ -5,7 +5,9 @@ export interface EventViewer {
   etage?: string | null;
   chambre?: string | null;
   user_id?: string | null;
-  is_admin?: boolean;
+  // Droit **Événements ≥ Lecture** (et non « admin sur n'importe quelle section ») :
+  // seul ce droit ouvre les événements réservés au staff. Voir R-EVT-13 / R-NIV-10.
+  canViewEvents?: boolean;
 }
 
 // Un événement est-il visible pour cette habitante ?
@@ -15,7 +17,7 @@ export function eventVisibleFor(event: CalendarEvent, p: EventViewer): boolean {
   if (p.residence && !lieux.includes(p.residence)) return false;
 
   if (event.reserve_admin) {
-    if (!p.is_admin) return false;
+    if (!p.canViewEvents) return false;
     if (event.reserve_admin === "all") return true;
     return event.reserve_admin === p.residence;
   }

@@ -11,6 +11,7 @@ import { Absence } from "@/types/Absence";
 import { PresenceV2, MealOptionCatalog, Service } from "@/types/MealOption";
 import { PersonneDetail, sortAdminPeople, formatEtage } from "@/lib/adminPeople";
 import { isAwayForMeal } from "@/lib/mealCompta";
+import { statutRepas, mangeUnRepas, type StatutRepas } from "@/lib/presenceStatut";
 import { downloadCSV } from "@/lib/csvExport";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
@@ -144,7 +145,7 @@ export default function AdminRepasV2Page() {
   // Résidence de compta d'une inscription (option 12/36, ou résidence de la personne)
   const comptaResidence = useCallback(
     (p: PresenceV2): string | undefined => {
-      const opt = optionsById.get(p.option_id);
+      const opt = p.option_id ? optionsById.get(p.option_id) : undefined; // « Non » explicite = aucune résidence de compta
       if (!opt) return undefined;
       if (opt.residence === "personne") return peopleById.get(p.user_id)?.residence;
       return opt.residence;
@@ -205,7 +206,8 @@ export default function AdminRepasV2Page() {
         (["dejeuner", "diner"] as Service[]).forEach((service) => {
           if (isAwayForMeal(absences, person.id, date)) return;
           const pres = presences.find((x) => x.user_id === person.id && x.date === date && x.service === service);
-          if (pres) { if (service === "dejeuner") dej++; else din++; }
+          // Seule une inscription à une option compte un repas : « Non » explicite et « sans réponse » ne comptent pas.
+          if (mangeUnRepas(pres)) { if (service === "dejeuner") dej++; else din++; }
         });
       });
       // Repas des invités de cette personne : comptés à l'inviteur (pas de ligne séparée).
@@ -253,15 +255,22 @@ export default function AdminRepasV2Page() {
     [invites]
   );
 
+  // Statut affiché d'une cellule du détail : absente · option choisie · « Non » · sans réponse.
+  const cellStatut = useCallback(
+    (p: PersonneDetail, date: string, service: string): { kind: StatutRepas | "absente"; label: string } => {
+      if (isAwayForMeal(absences, p.id, date)) return { kind: "absente", label: "Absente" };
+      const pres = presences.find((x) => x.user_id === p.id && x.date === date && x.service === service);
+      const statut = statutRepas(pres, date);
+      if (statut === "option") return { kind: "option", label: optionsById.get(pres!.option_id!)?.label ?? "Oui" };
+      if (statut === "non") return { kind: "non", label: "Non" };
+      return { kind: "sans_reponse", label: "Sans réponse" };
+    },
+    [absences, presences, optionsById]
+  );
+
   // Valeur texte d'une cellule du détail (même logique que l'affichage), invités compris pour l'export.
   const detailCell = (p: PersonneDetail, date: string, service: string): string => {
-    const base = isAwayForMeal(absences, p.id, date)
-      ? "Absente"
-      : (() => {
-          const pres = presences.find((x) => x.user_id === p.id && x.date === date && x.service === service);
-          if (!pres) return "Non";
-          return optionsById.get(pres.option_id)?.label ?? "Oui";
-        })();
+    const base = cellStatut(p, date, service).label;
     const guests = cellGuests(p.id, date, service);
     if (guests.length === 0) return base;
     const gtxt = guests.map((g) => `+ invité: ${g.prenom} ${g.nom}`).join(" ");
@@ -325,16 +334,17 @@ export default function AdminRepasV2Page() {
     return true;
   };
 
-  const setResidentOption = async (userId: string, optionId: string | null) => {
+  // choix : "" = sans réponse · "non" = Non explicite · sinon l'id de l'option.
+  const setResidentOption = async (userId: string, choix: string) => {
     if (!listModal) return;
-    await postJson("/api/admin/presences-v2", "POST", { user_id: userId, date: listModal.date, service: listModal.service, option_id: optionId });
+    await postJson("/api/admin/presences-v2", "POST", { user_id: userId, date: listModal.date, service: listModal.service, choix });
   };
   const setGuestOption = async (inviteId: number, optionId: string | null) => {
     await postJson("/api/admin/invite-repas", "PUT", { id: inviteId, option_id: optionId });
   };
   const addResidentToOption = async (userId: string) => {
     if (!listModal) return;
-    if (await postJson("/api/admin/presences-v2", "POST", { user_id: userId, date: listModal.date, service: listModal.service, option_id: listModal.option_id })) toast.success("Inscription ajoutée.");
+    if (await postJson("/api/admin/presences-v2", "POST", { user_id: userId, date: listModal.date, service: listModal.service, choix: listModal.option_id })) toast.success("Inscription ajoutée.");
   };
   const addGuestToOption = async (nom: string, prenom: string, invitePar: string) => {
     if (!listModal) return;
@@ -529,7 +539,7 @@ export default function AdminRepasV2Page() {
               </div>
             </div>
             <p className="text-xs text-gray-500 mb-3">
-              Repas choisi · <span className="text-red-600 font-semibold">Non</span> = ne mange pas · <span className="inline-flex items-center text-orange-500 align-middle"><MoonIcon className="w-3 h-3" /></span> = absente (absence déduite)
+              Repas choisi · <span className="text-red-600 font-semibold">Non</span> = a répondu qu&apos;elle ne mange pas · <span className="text-gray-400 font-semibold">—</span> = n&apos;a pas répondu · <span className="inline-flex items-center text-orange-500 align-middle"><MoonIcon className="w-3 h-3" /></span> = absente (absence déduite)
             </p>
             <DetailTable
               people={people}
@@ -537,14 +547,16 @@ export default function AdminRepasV2Page() {
               renderCell={(p, key) => {
                 const [date, service] = key.split("|");
                 const guests = cellGuests(p.id, date, service);
+                const st = cellStatut(p, date, service);
                 let base: ReactNode;
-                if (isAwayForMeal(absences, p.id, date)) {
+                if (st.kind === "absente") {
                   base = <span className="text-orange-500 flex items-center justify-center gap-0.5"><MoonIcon className="w-3 h-3" /></span>;
+                } else if (st.kind === "option") {
+                  base = <span className="text-green-700 whitespace-nowrap">{st.label}</span>;
+                } else if (st.kind === "non") {
+                  base = <span className="text-red-600 font-semibold">Non</span>;
                 } else {
-                  const pres = presences.find((x) => x.user_id === p.id && x.date === date && x.service === service);
-                  base = pres
-                    ? <span className="text-green-700 whitespace-nowrap">{optionsById.get(pres.option_id)?.label ?? "Oui"}</span>
-                    : <span className="text-red-600 font-semibold">Non</span>;
+                  base = <span title="N'a pas répondu" className="text-gray-400 font-semibold">—</span>;
                 }
                 if (guests.length === 0) return base;
                 return (

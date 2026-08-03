@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PersonneDetail, sortAdminPeople } from "@/lib/adminPeople";
 import { UserPlus, X } from "lucide-react";
 import { useSupabase } from "@/app/providers";
+import { CHOIX_NON } from "@/lib/presenceStatut";
 
 export type OptionChoice = { option_id: string; label: string };
 type Residente = { id: string; nom: string; prenom: string };
@@ -18,7 +19,8 @@ interface Props {
   optionId: string; // option de la tuile (valeur courante des lignes)
   dayServiceOptions: OptionChoice[]; // options ouvertes pour ce jour + service
   residentes: Residente[]; // vivier pour l'ajout + l'invitant
-  onSetResidentOption: (userId: string, optionId: string | null) => Promise<void>;
+  // choix : "" = sans réponse (retire la ligne) · "non" = « Non » explicite · sinon l'id de l'option.
+  onSetResidentOption: (userId: string, choix: string) => Promise<void>;
   onSetGuestOption: (inviteId: number, optionId: string | null) => Promise<void>;
   onAddResident: (userId: string) => Promise<void>;
   onAddGuest: (nom: string, prenom: string, invitePar: string) => Promise<void>;
@@ -65,9 +67,13 @@ export default function MealOptionEditModal({
   };
 
   const changeFor = (p: PersonneDetail, value: string) => {
-    const opt = value === "" ? null : value;
     const gid = guestInviteId(p);
-    run(() => (gid !== null ? onSetGuestOption(gid, opt) : onSetResidentOption(p.id, opt)));
+    // Un invité n'a pas d'état « sans réponse » : le retirer de l'option = supprimer son repas.
+    if (gid !== null) {
+      run(() => onSetGuestOption(gid, value === "" || value === CHOIX_NON ? null : value));
+      return;
+    }
+    run(() => onSetResidentOption(p.id, value));
   };
 
   const addResident = (userId: string) => {
@@ -112,7 +118,8 @@ export default function MealOptionEditModal({
                   {dayServiceOptions.map((o) => (
                     <option key={o.option_id} value={o.option_id}>{o.label}</option>
                   ))}
-                  <option value="">— Non (ne mange pas)</option>
+                  <option value={CHOIX_NON}>— Non (ne mange pas)</option>
+                  {guestInviteId(p) === null && <option value="">— Sans réponse (retirer)</option>}
                 </select>
               </li>
             ))}

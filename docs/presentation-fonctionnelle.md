@@ -1,7 +1,7 @@
 # Les Écoles — Présentation fonctionnelle de l'application
 
 > **Document vivant** — mis à jour à chaque nouvelle fonctionnalité ou évolution.
-> Dernière mise à jour : 6 juin 2026 · Version 1.0
+> Dernière mise à jour : 3 août 2026 · Version 1.3
 
 ---
 
@@ -29,6 +29,8 @@ Le foyer est organisé en **deux résidences** : la **Résidence 12** et la **R�
 | **Administratrice** | Une résidente ayant des droits d'intendance | Tout ce qu'une résidente peut faire, **plus** des outils d'intendance selon ses **droits par section** (Repas · Événements · Absences · Comptes · Infos pratiques), chacun en **Lecture** ou **Édition**. Un **super-admin** a tous les droits + règle ceux des autres. |
 
 > Une administratrice est techniquement une résidente à qui on a activé le droit « admin ». Il n'y a pas de compte admin séparé.
+
+> Le niveau **« Aucun »** sur une section ne retire jamais l'usage normal de l'appli : la personne continue de voir les événements, de s'inscrire à ses repas et de déclarer ses absences. Il ne retire que les **outils d'intendance** de cette section.
 
 ---
 
@@ -71,15 +73,16 @@ Un **écran dédié « Présence foyer »** permet à chaque habitante de gérer
 L'écran présente :
 - un **calendrier mensuel** qui met en évidence les jours d'absence ;
 - la liste **« Mes absences »**, où l'on peut **ajouter, modifier ou supprimer** un séjour ;
-- pour chaque séjour, un champ **facultatif « je suis chez… »** (contact pendant l'absence).
 
 Cette information alimente la **vue d'ensemble des administratrices** (« au foyer » / « sorties » par résidence, pour une date donnée).
 
-> *À venir (Lot 2) : pendant un séjour d'absence, les repas seront automatiquement notés « Non », avec un réglage fin des repas pour le jour de départ et le jour de retour.*
+Pendant un séjour d'absence, les repas des **jours intérieurs** sont automatiquement notés **« Non »** ; les jours de **départ** et de **retour** restent au libre choix (on part après le dîner, on revient avant le déjeuner). Ce couplage se règle par une **case à cocher** sur le séjour (cochée par défaut), disponible aussi bien pour l'habitante que pour l'intendance quand elle saisit une absence à sa place.
 
 ### 4.3. La présence aux repas (le jour)
 
 Pour chaque jour, deux services : **déjeuner** et **dîner**. Pour chacun, l'habitante choisit son option dans une liste déroulante (ou « Non » si elle ne mange pas au foyer).
+
+Un service peut se trouver dans **trois** états, et l'appli les distingue clairement : une **option choisie**, un **« Non »** assumé, ou **« à renseigner »** tant que l'habitante n'a rien répondu. Ce troisième état est l'**état de départ** : « Non » doit être choisi explicitement. Les jours dont un service reste sans réponse portent un discret **badge orange** côté habitante (pour l'inciter à répondre), et apparaissent en gris « — » dans le détail de l'intendance, qui sait ainsi **qui relancer**. Ni « Non » ni « sans réponse » ne comptent de repas.
 
 Les choix possibles dépendent du paramétrage : repas classique, **plateau**, **pique-nique** (chaud ou froid), ou **options spéciales** définies par l'intendance pour certaines dates.
 
@@ -109,7 +112,7 @@ Les événements pertinents apparaissent aussi directement sur l'accueil, au jou
 
 ### 4.7. Confirmer sa participation
 
-Lorsqu'un événement le demande, l'habitante peut **confirmer ou non sa participation** directement depuis l'événement.
+Lorsqu'un événement le demande, l'habitante peut **confirmer ou non sa participation** directement depuis l'événement. **Voir la liste des personnes inscrites** est en revanche une fonction d'intendance : elle demande le droit **Événements — Lecture**.
 
 ### 4.8. Son profil
 

@@ -45,12 +45,12 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { mode, user_id, date_debut, date_fin, contact } = body as {
+  const { mode, user_id, date_debut, date_fin, repas_non } = body as {
     mode?: "absent" | "present";
     user_id?: string;
     date_debut?: string;
     date_fin?: string;
-    contact?: string | null;
+    repas_non?: boolean;
   };
 
   if (!user_id) return NextResponse.json({ error: "Personne manquante." }, { status: 400 });
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       user_id,
       date_debut,
       date_fin,
-      contact: contact?.trim() ? contact.trim() : null,
+      repas_non: repas_non ?? true,
     });
     if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
     return NextResponse.json({ success: true });
@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
           date_debut: addDays(date_fin!, 1),
           date_fin: a.date_fin,
           contact: a.contact,
+          repas_non: a.repas_non ?? true, // la partie recréée garde le réglage du séjour d'origine
         });
         if (e1 || e2) return NextResponse.json({ error: (e1 || e2)!.message }, { status: 500 });
       } else if (a.date_debut < date_debut!) {
@@ -128,11 +129,10 @@ export async function PUT(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { id, date_debut, date_fin, contact } = body as {
+  const { id, date_debut, date_fin } = body as {
     id?: string;
     date_debut?: string;
     date_fin?: string;
-    contact?: string | null;
   };
   if (!id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
   const dateError = validateDates(date_debut, date_fin);
@@ -143,7 +143,6 @@ export async function PUT(req: NextRequest) {
     .update({
       date_debut,
       date_fin,
-      contact: contact?.trim() ? contact.trim() : null,
     })
     .eq("id", id);
 

@@ -34,11 +34,13 @@ export interface ServiceOption {
 }
 
 // Inscription repas nouveau modèle (presences_v2)
+// option_id null = « Non » explicite (la personne a répondu qu'elle ne mange pas).
+// Aucune ligne = sans réponse. Voir src/lib/presenceStatut.ts.
 export interface PresenceV2 {
   id: string;
   user_id: string;
   date: string;
   service: Service;
-  option_id: string;
+  option_id: string | null;
   commentaire: string | null;
 }

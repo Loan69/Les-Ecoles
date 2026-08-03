@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSectionView, requireSectionEdit } from "@/lib/apiAuth";
 import { logMealEdit } from "@/lib/mealAudit";
+import { CHOIX_NON } from "@/lib/presenceStatut";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -26,25 +27,26 @@ export async function GET(req: NextRequest) {
 }
 
 // --- Définir l'inscription d'UNE résidente pour un (jour, service) — admin édition. ---
-// option_id null = « Non » (retire l'inscription). L'admin passe outre le verrouillage
-// et les restrictions d'option (admin_only / inactive) : correction d'intendance.
+// choix = "" → sans réponse (retire la ligne) · "non" → « Non » explicite · <uuid> → option.
+// L'admin passe outre le verrouillage et les restrictions d'option (admin_only / inactive) :
+// correction d'intendance.
 export async function POST(req: NextRequest) {
   const { supabase, userId, error } = await requireSectionEdit('repas');
   if (error) return error;
 
   const body = await req.json();
-  const { user_id, date, service, option_id } = body as {
+  const { user_id, date, service, choix } = body as {
     user_id?: string;
     date?: string;
     service?: string;
-    option_id?: string | null;
+    choix?: string | null;
   };
 
   if (!user_id) return NextResponse.json({ error: "Utilisatrice manquante." }, { status: 400 });
   if (!date || !DATE_RE.test(date)) return NextResponse.json({ error: "Date invalide." }, { status: 400 });
   if (service !== "dejeuner" && service !== "diner") return NextResponse.json({ error: "Service invalide." }, { status: 400 });
 
-  // Option avant modification (pour le journal d'audit).
+  // Ligne avant modification (pour le journal d'audit).
   const { data: prev } = await supabase
     .from("presences_v2")
     .select("option_id")
@@ -53,9 +55,10 @@ export async function POST(req: NextRequest) {
     .eq("service", service)
     .maybeSingle();
   const optionBeforeId = prev?.option_id ?? null;
+  const statutBefore = prev ? (prev.option_id ? "option" : "non") : "sans_reponse";
 
-  // « Non » → on retire l'inscription
-  if (!option_id) {
+  // Sans réponse → on retire la ligne
+  if (!choix) {
     const { error: delErr } = await supabase
       .from("presences_v2")
       .delete()
@@ -63,9 +66,21 @@ export async function POST(req: NextRequest) {
       .eq("date", date)
       .eq("service", service);
     if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
-    await logMealEdit(supabase, userId, { action: "presence_remove", entity: "presence", targetUserId: user_id, dateRepas: date, service, optionBeforeId, optionAfterId: null });
+    await logMealEdit(supabase, userId, { action: "presence_remove", entity: "presence", targetUserId: user_id, dateRepas: date, service, optionBeforeId, optionAfterId: null, details: { statut_avant: statutBefore, statut_apres: "sans_reponse" } });
     return NextResponse.json({ success: true });
   }
+
+  // « Non » explicite → ligne sans option
+  if (choix === CHOIX_NON) {
+    const { error: nonErr } = await supabase
+      .from("presences_v2")
+      .upsert({ user_id, date, service, option_id: null }, { onConflict: "user_id,date,service" });
+    if (nonErr) return NextResponse.json({ error: nonErr.message }, { status: 500 });
+    await logMealEdit(supabase, userId, { action: "presence_set", entity: "presence", targetUserId: user_id, dateRepas: date, service, optionBeforeId, optionAfterId: null, details: { statut_avant: statutBefore, statut_apres: "non" } });
+    return NextResponse.json({ success: true });
+  }
+
+  const option_id = choix;
 
   // On vérifie seulement que l'option est bien proposée ce jour/service (pas de garde de lock/admin_only : override admin).
   const { data: so } = await supabase
@@ -81,6 +96,6 @@ export async function POST(req: NextRequest) {
     .from("presences_v2")
     .upsert({ user_id, date, service, option_id }, { onConflict: "user_id,date,service" });
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
-  await logMealEdit(supabase, userId, { action: "presence_set", entity: "presence", targetUserId: user_id, dateRepas: date, service, optionBeforeId, optionAfterId: option_id });
+  await logMealEdit(supabase, userId, { action: "presence_set", entity: "presence", targetUserId: user_id, dateRepas: date, service, optionBeforeId, optionAfterId: option_id, details: { statut_avant: statutBefore, statut_apres: "option" } });
   return NextResponse.json({ success: true });
 }

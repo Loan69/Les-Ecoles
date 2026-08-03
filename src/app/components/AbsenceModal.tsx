@@ -21,7 +21,6 @@ export default function AbsenceModal({
 }: AbsenceModalProps) {
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
-  const [contact, setContact] = useState("");
   const [repasNon, setRepasNon] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -30,7 +29,6 @@ export default function AbsenceModal({
     if (isOpen) {
       setDateDebut(initial?.date_debut ?? "");
       setDateFin(initial?.date_fin ?? "");
-      setContact(initial?.contact ?? "");
       setRepasNon(initial?.repas_non ?? true);
     }
   }, [isOpen, initial]);
@@ -50,7 +48,6 @@ export default function AbsenceModal({
       await onSave({
         date_debut: dateDebut,
         date_fin: dateFin,
-        contact: contact.trim() ? contact.trim() : null,
         repas_non: repasNon,
       });
       onClose();
@@ -100,19 +97,6 @@ export default function AbsenceModal({
                   value={dateFin}
                   min={dateDebut || undefined}
                   onChange={(e) => setDateFin(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg p-2 text-gray-700 focus:ring-2 focus:ring-blue-600 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Je suis chez… <span className="text-gray-400">(facultatif)</span>
-                </label>
-                <input
-                  type="text"
-                  value={contact}
-                  onChange={(e) => setContact(e.target.value)}
-                  placeholder="Ex : chez mes parents, 06 12 34 56 78…"
                   className="w-full border border-gray-300 rounded-lg p-2 text-gray-700 focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 />
               </div>

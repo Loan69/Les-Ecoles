@@ -12,7 +12,9 @@ import { useMyRights } from "@/lib/useMyRights";
 
 export default function CalendrierPage() {
   const { supabase } = useSupabase();
-  const canEdit = useMyRights().canEdit("evenements");
+  const myRights = useMyRights();
+  const canView = myRights.canView("evenements"); // « Voir les inscrits »
+  const canEdit = myRights.canEdit("evenements");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [is_admin, setIsAdmin] = useState<boolean | null>(false);
   const [user, setUser] = useState<User | null>(null);
@@ -162,6 +164,7 @@ export default function CalendrierPage() {
           onEditEvent={handleEditEvent}
           onDeleteEvent={handleDeleteEvent}
           is_admin={is_admin ?? false}
+          canView={canView}
           canEdit={canEdit}
         />
       </div>

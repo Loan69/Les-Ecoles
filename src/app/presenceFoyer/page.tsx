@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Eye, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
 import { Absence, AbsencePayload } from "@/types/Absence";
@@ -269,11 +269,6 @@ export default function PresenceFoyerPage() {
                     <p className="text-sm font-medium text-gray-800">
                       Du {formatJour(a.date_debut)} au {formatJour(a.date_fin)}
                     </p>
-                    {a.contact && (
-                      <p className="text-xs text-gray-500 mt-1 flex items-center gap-1 truncate">
-                        <MapPin className="w-3 h-3 flex-shrink-0" /> {a.contact}
-                      </p>
-                    )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
@@ -317,7 +312,7 @@ export default function PresenceFoyerPage() {
         onSave={handleSave}
         initial={
           editing
-            ? { date_debut: editing.date_debut, date_fin: editing.date_fin, contact: editing.contact }
+            ? { date_debut: editing.date_debut, date_fin: editing.date_fin, repas_non: editing.repas_non }
             : null
         }
       />

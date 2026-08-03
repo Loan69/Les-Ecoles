@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Power, DoorClosed, Briefcase, UserCheck, Mail, Save, RefreshCw, X, ArrowLeftRight, LogOut, SlidersHorizontal, ShieldCheck, ChevronDown, Archive, Settings } from "lucide-react";
 import { PlaceWithStatus, PlaceKind } from "@/types/Place";
 import { formatEtage, formatChambre } from "@/lib/adminPeople";
-import { SECTIONS, SECTION_LABEL, NIVEAU_LABEL, NIVEAUX_SECTION, asNiveauSection, hasAnyAdmin, type Rights, type Section } from "@/lib/roles";
+import { SECTIONS, SECTION_LABEL, SECTION_AIDE, NIVEAU_LABEL, NIVEAUX_SECTION, asNiveauSection, hasAnyAdmin, type Rights, type Section } from "@/lib/roles";
 import LoadingSpinner from "../LoadingSpinner";
 import { useMyRights } from "@/lib/useMyRights";
 
@@ -874,20 +874,24 @@ function RightsPanel({ user, onClose, onSave }: { user: { userId: string; name: 
           <span className="text-sm font-medium text-purple-800 flex items-center gap-1"><ShieldCheck className="w-4 h-4" /> Super-admin (tous droits + gestion)</span>
         </label>
 
-        <div className={`space-y-2 ${draft.is_super_admin ? "opacity-40 pointer-events-none" : ""}`}>
+        <div className={`space-y-3 ${draft.is_super_admin ? "opacity-40 pointer-events-none" : ""}`}>
           {SECTIONS.map((s) => (
-            <div key={s} className="flex items-center justify-between gap-3">
-              <span className="text-sm text-gray-700">{SECTION_LABEL[s]}</span>
-              <select
-                value={draft.is_super_admin ? 3 : draft[s]}
-                onChange={(e) => setSection(s, Number(e.target.value))}
-                disabled={draft.is_super_admin}
-                className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none cursor-pointer"
-              >
-                {NIVEAUX_SECTION.map((n) => (
-                  <option key={n} value={n}>{NIVEAU_LABEL[n]}</option>
-                ))}
-              </select>
+            <div key={s}>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-gray-700">{SECTION_LABEL[s]}</span>
+                <select
+                  value={draft.is_super_admin ? 3 : draft[s]}
+                  onChange={(e) => setSection(s, Number(e.target.value))}
+                  disabled={draft.is_super_admin}
+                  className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none cursor-pointer"
+                >
+                  {NIVEAUX_SECTION.map((n) => (
+                    <option key={n} value={n}>{NIVEAU_LABEL[n]}</option>
+                  ))}
+                </select>
+              </div>
+              {/* « Aucun » ne retire jamais la vue de résidente : on l'explicite ici. */}
+              <p className="text-[11px] leading-snug text-gray-400 mt-0.5">{SECTION_AIDE[s]}</p>
             </div>
           ))}
         </div>

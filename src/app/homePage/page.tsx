@@ -17,6 +17,8 @@ import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import { formatLieu } from "@/lib/eventLieu";
+import { statutRepas } from "@/lib/presenceStatut";
+import { useMyRights } from "@/lib/useMyRights";
 import VisionConfirmation from "../components/VisionConfirmation";
 import ConfirmationToggle from "../components/ConfirmationToggle";
 
@@ -28,6 +30,8 @@ export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
   const { supabase } = useSupabase();
+  // Événements ≥ Lecture : événements réservés au staff + « Voir les inscrits ».
+  const canViewEvents = useMyRights().canView("evenements");
 
   // --- États principaux ---
   const [profil, setProfil] = useState<Residente | null>(null);
@@ -153,12 +157,16 @@ export default function HomePage() {
         // --- Résumé « ma journée » : présence foyer + repas du jour (lecture seule) ---
         const [{ data: absData }, { data: dayPresences }] = await Promise.all([
           supabase.from("absences_sejour").select("id").eq("user_id", user.id).lte("date_debut", dateIso).gte("date_fin", dateIso).limit(1),
-          supabase.from("presences_v2").select("service, option:meal_options(label)").eq("user_id", user.id).eq("date", dateIso),
+          supabase.from("presences_v2").select("service, option_id, option:meal_options(label)").eq("user_id", user.id).eq("date", dateIso),
         ]);
         setIsAbsent((absData?.length ?? 0) > 0);
 
+        // Trois états : option choisie · « Non » explicite · pas encore répondu.
         const optLabel = (service: "dejeuner" | "diner"): string | null => {
           const p = dayPresences?.find((x) => x.service === service);
+          const statut = statutRepas(p ? { option_id: p.option_id } : null, dateIso);
+          if (statut === "sans_reponse") return "Non renseigné";
+          if (statut === "non") return "Non";
           const opt = p?.option as { label?: string } | null | undefined;
           return opt?.label ?? null;
         };
@@ -282,7 +290,7 @@ export default function HomePage() {
         if (!lieux.includes(selectedResidenceValue)) return false;
 
         if (event.reserve_admin) {
-          if (!profil?.is_admin) return false;
+          if (!canViewEvents) return false;
           if (event.reserve_admin === "all") return true;
           if (event.reserve_admin === "12" || event.reserve_admin === "36") {
             return selectedResidenceValue === event.reserve_admin;
@@ -316,7 +324,7 @@ export default function HomePage() {
     if (lieux.some((l) => RES_LIEUX.includes(l))) return false; // événement rattaché à une résidence → carte normale
 
     if (event.reserve_admin) {
-      if (!profil?.is_admin) return false;
+      if (!canViewEvents) return false;
       if (event.reserve_admin !== "all" && event.reserve_admin !== profil?.residence) return false;
     }
     const exclusions: string[] = event.visibilite?.exclusions ?? [];
@@ -466,7 +474,7 @@ export default function HomePage() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-800">{e.titre}</span>
                   <div className="flex items-center space-x-2">
-                    {e.demander_confirmation && profil?.is_admin && <VisionConfirmation eventId={e.id} />}
+                    {e.demander_confirmation && canViewEvents && <VisionConfirmation eventId={e.id} />}
                     {e.demander_confirmation && <ConfirmationToggle eventId={e.id} />}
                   </div>
                 </div>
@@ -492,11 +500,11 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-3 text-center">
             <div className="bg-orange-50 rounded-xl p-3">
               <p className="text-[10px] uppercase font-bold text-orange-500 mb-1">Déjeuner</p>
-              <p className="text-sm font-semibold text-blue-900 truncate">{dejeunerLabel ?? "Non"}</p>
+              <p className={`text-sm font-semibold truncate ${dejeunerLabel === "Non renseigné" ? "text-orange-600 italic" : "text-blue-900"}`}>{dejeunerLabel ?? "Non"}</p>
             </div>
             <div className="bg-blue-50 rounded-xl p-3">
               <p className="text-[10px] uppercase font-bold text-blue-500 mb-1">Dîner</p>
-              <p className="text-sm font-semibold text-blue-900 truncate">{dinerLabel ?? "Non"}</p>
+              <p className={`text-sm font-semibold truncate ${dinerLabel === "Non renseigné" ? "text-orange-600 italic" : "text-blue-900"}`}>{dinerLabel ?? "Non"}</p>
             </div>
           </div>
 

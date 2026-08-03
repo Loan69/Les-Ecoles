@@ -8,7 +8,6 @@ type AbsenceBody = {
   id?: string;
   date_debut?: string;
   date_fin?: string;
-  contact?: string | null;
   repas_non?: boolean;
 };
 
@@ -57,7 +56,6 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
       date_debut: body.date_debut,
       date_fin: body.date_fin,
-      contact: body.contact?.trim() ? body.contact.trim() : null,
       repas_non: body.repas_non ?? true,
     })
     .select()
@@ -87,7 +85,6 @@ export async function PUT(req: NextRequest) {
     .update({
       date_debut: body.date_debut,
       date_fin: body.date_fin,
-      contact: body.contact?.trim() ? body.contact.trim() : null,
       repas_non: body.repas_non ?? true,
     })
     .eq("id", body.id)

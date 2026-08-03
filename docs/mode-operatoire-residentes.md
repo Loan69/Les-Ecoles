@@ -1,7 +1,7 @@
 # Mode opératoire — Résidentes & invitées
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour les **habitantes** (résidentes et invitées). À mettre à jour à chaque évolution de l'appli.
-> Version 1.2 — 2026-07-23.
+> Version 1.5 — 2026-08-03.
 
 Cette application sert à gérer, au quotidien, **ta présence au foyer la nuit** et **tes repas** (midi et soir), à consulter les **événements** du foyer et les **informations pratiques**. Elle est pensée pour le **téléphone** (mais marche aussi sur ordinateur).
 
@@ -53,8 +53,7 @@ Par défaut, **tu es considérée présente** chaque nuit. Tu n'as à déclarer 
 2. Le **calendrier du mois** montre tes jours d'absence (en rose). Navigue avec les flèches ‹ ›.
 3. Dans **« Mes absences »**, clique **« + Ajouter »**.
 4. Choisis la **date de départ** et la **date de retour** (les deux jours sont inclus dans l'absence).
-5. Optionnel : indique **« Je suis chez… »** (où te joindre pendant l'absence).
-6. Enregistre. L'absence apparaît dans la liste et sur le calendrier.
+5. Enregistre. L'absence apparaît dans la liste et sur le calendrier.
 
 - Pour **modifier** une absence : icône ✏️.
 - Pour **supprimer** une absence : icône 🗑️ (une confirmation est demandée).
@@ -73,8 +72,13 @@ Si tu **décoches** cette case, ton absence **n'affecte pas** tes repas : tu peu
 3. **C'est enregistré automatiquement** à chaque choix — pas de bouton à valider.
 4. Navigue d'une semaine à l'autre avec les flèches ‹ ›.
 
+> **Important : « Non » doit être choisi.** Tant que tu n'as rien indiqué, le service reste sur **« — À renseigner — »** et l'intendance voit que tu **n'as pas encore répondu** (ce n'est pas la même chose que « Non »). Un badge orange **« À renseigner »** apparaît alors sur le jour concerné. Merci de répondre à chaque service, même pour dire **« Non »** : c'est ce qui permet à la cuisine de prévoir juste.
+>
+> Tu peux revenir à **« — À renseigner — »** tant que le jour n'est pas verrouillé. Dans les deux cas (« Non » ou sans réponse), **aucun repas ne t'est compté**.
+
 - Les **options proposées** (repas classique, options spéciales…) sont définies par l'**intendance** et peuvent changer selon les jours. Si aucune option n'est proposée, le service est indiqué **« fermé »**.
 - Les **événements du jour** apparaissent sous chaque date.
+- Sur l'**accueil**, la carte « Ma journée » affiche **« Non renseigné »** pour un service auquel tu n'as pas encore répondu — à ne pas confondre avec **« Non »**, qui veut dire que tu as répondu que tu ne manges pas.
 
 ---
 

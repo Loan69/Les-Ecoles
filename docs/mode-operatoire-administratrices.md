@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.7 — 2026-07-27.
+> Version 1.10 — 2026-08-03.
 
 Une administratrice est une résidente qui a **au moins un droit d'intendance sur une section**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), des outils d'intendance correspondant à ses droits.
 
@@ -13,16 +13,18 @@ Les droits se règlent **section par section** de l'appli. Sur chaque section, u
 
 | Niveau | Ce qu'elle peut faire sur la section |
 |---|---|
-| **Aucun** | Pas d'accès. |
-| **Lecture** | **Consulte** l'écran, sans rien modifier. |
+| **Aucun** | Pas d'accès **aux outils d'intendance**. Elle garde toute sa **vue de résidente** : voir les événements et les rappels, s'inscrire à ses repas, déclarer ses absences, lire l'Administratif. |
+| **Lecture** | **Consulte** l'écran d'intendance, sans rien modifier. |
 | **Édition** | Consulte **et modifie**. |
+
+> **« Aucun » ne veut pas dire « ne voit rien ».** C'est la nuance importante : le niveau ne retire jamais l'usage normal de l'appli. Le panneau **« Droits »** rappelle sous chaque section ce que chaque niveau donne concrètement.
 
 Les **5 sections** :
 
 | Section | Écrans concernés |
 |---|---|
 | **Repas** | Visu des repas (compta + organisation), paramétrage & options de repas, verrouillage, édition des inscriptions. |
-| **Événements** | Créer / modifier / supprimer des événements (calendrier). |
+| **Événements** | **Aucun** : voir les événements et les rappels, confirmer sa participation. **Lecture** : voir en plus **qui s'est inscrit** à un événement (« Voir les inscrits ») et les événements **réservés au staff**. **Édition** : créer / modifier / supprimer des événements. |
 | **Absences** | Vue « Présence foyer » (staff) + marquage des absences. |
 | **Comptes** | Comptes, chambres/places, invitations, paramètres généraux. |
 | **Infos pratiques** | Rubriques de l'onglet Administratif. |
@@ -122,8 +124,11 @@ Via l'onglet 🧍 **Présence foyer** → **« Voir les présences »**. Elle in
 **Marquer une absence ou une présence** : bouton **« Ajouter une absence »**.
 1. Choisis la **résidence**, puis la **personne** (résidente ou invitée à compte).
 2. Choisis **« Absente »** (crée un séjour) ou **« Présente »** (retire les absences déjà déclarées sur la période — pour corriger ou faire revenir quelqu'un).
-3. Renseigne la **période** et, pour une absence, un **contact** facultatif.
-4. Valide.
+3. Renseigne la **période**.
+4. Pour une absence, laisse cochée (ou décoche) la case **« Noter Non aux repas dans l'intervalle »** — **cochée par défaut**, c'est la même que celle dont dispose l'habitante. Cochée, les repas des **jours intérieurs** du séjour sont comptés **« Non »** et la personne apparaît **🌙 absente** dans les vues repas. Décochée, l'absence **n'a aucun effet** sur les repas (utile pour quelqu'un qui dort ailleurs mais mange au foyer).
+5. Valide.
+
+> Cette case **ne modifie pas** les inscriptions enregistrées : elle les **neutralise** le temps du séjour. Si tu raccourcis ou supprimes l'absence, les choix d'origine réapparaissent tels quels.
 
 ---
 
@@ -134,11 +139,24 @@ Accès : **barre de navigation repas** → **Inscriptions & compta**. Deux ongle
 ### Onglet « Organisation » — repas à préparer
 Les jours sont **empilés** ; pour chaque jour et chaque résidence, les **options ouvertes** au midi et au soir, avec leur nombre d'inscrits. **Chaque option est cliquable** → la **liste des personnes comptées**. Les **invités** ne forment plus une tuile à part : chacun est compté **dans l'option** à laquelle il est rattaché et apparaît dans cette liste, annoté **« invité par Prénom Nom »**.
 
-> **Édition (niveau ≥ 3).** Dans cette liste, une admin **édition** peut corriger les inscriptions, même après l'heure de verrouillage : **changer l'option** de chaque inscrit (ou la passer à **« Non »**), **ajouter une résidente** (déplacée automatiquement si elle était inscrite ailleurs pour ce service), et **ajouter / retirer un invité** — au choix **depuis le carnet** (invité déjà connu) ou **nouveau** — en indiquant la **résidente qui invite** (pour la comptabilité). Tout se reporte aussitôt sur le **détail** et la **compta**. En **niveau 2**, la liste reste en **lecture seule**. Le bouton **« Voir le détail »** ouvre le **tableau** (habitantes × jours/service ; chaque case = l'option choisie, ou 🌙 **lune orange** = absente, ou **Non** en rouge = ne mange pas). Un invité y apparaît en **petit badge « +👤 Prénom »** dans la case de la personne qui l'a invité (jamais de ligne à part).
+> **Édition (niveau ≥ 3).** Dans cette liste, une admin **édition** peut corriger les inscriptions, même après l'heure de verrouillage : **changer l'option** de chaque inscrit (ou la passer à **« Non »**, ou **retirer sa réponse**), **ajouter une résidente** (déplacée automatiquement si elle était inscrite ailleurs pour ce service), et **ajouter / retirer un invité** — au choix **depuis le carnet** (invité déjà connu) ou **nouveau** — en indiquant la **résidente qui invite** (pour la comptabilité). Tout se reporte aussitôt sur le **détail** et la **compta**. En **niveau 2**, la liste reste en **lecture seule**.
+
+**Le bouton « Voir le détail »** ouvre le **tableau** (habitantes × jours/service). Chaque case indique l'un de **quatre** états :
+
+| Affichage | Signification |
+|---|---|
+| Libellé de l'option (vert) | Elle mange cette option. |
+| **Non** (rouge) | Elle a **répondu** qu'elle ne mange pas. |
+| **—** (gris) | Elle **n'a pas répondu**. Aucun repas compté, mais c'est une personne à **relancer**. |
+| 🌙 (lune orange) | **Absente** — déduit de son séjour d'absence. |
+
+> **« Non » et « — » ne sont pas la même chose.** Avant, l'appli ne faisait pas la différence : une résidente qui n'avait rien touché apparaissait comme un « Non ». Depuis le **03/08/2026**, « Non » est un **choix explicite** de l'habitante, et « — » signale qu'elle **n'a rien renseigné**. Les repas **antérieurs** à cette date continuent de s'afficher comme avant. L'**export CSV** du détail reprend ces libellés (« Non », « Sans réponse », « Absente »).
+
+Un invité apparaît en **petit badge « +👤 Prénom »** dans la case de la personne qui l'a invité (jamais de ligne à part).
 
 ### Onglet « Comptabilité »
 - **Récapitulatif de la période** : total déjeuners / dîners **par résidence**, et un **grand total**.
-- **Agrégat par personne** : pour chaque personne, nombre de déjeuners et de dîners (les « Non » et les jours d'absence ne comptent pas), **invités inclus** pour la personne qui les a invités. **Toutes les résidentes** apparaissent, même celles inscrites à rien (0). La liste est triée **par nom puis prénom** pour faciliter la facturation.
+- **Agrégat par personne** : pour chaque personne, nombre de déjeuners et de dîners (les **« Non »**, les **sans réponse** et les jours d'**absence** ne comptent pas), **invités inclus** pour la personne qui les a invités. **Toutes les résidentes** apparaissent, même celles inscrites à rien (0). La liste est triée **par nom puis prénom** pour faciliter la facturation.
 
 > **Déduction des absences** : un séjour d'absence retire automatiquement les repas des **jours intérieurs** ; le **premier** et le **dernier** jour restent au libre choix de la résidente (elle part après le dîner, revient avant le déjeuner).
 
@@ -146,11 +164,21 @@ Les jours sont **empilés** ; pour chaque jour et chaque résidence, les **optio
 
 ## 8. Événements & calendrier
 
-Depuis le calendrier, une administratrice peut **créer, modifier et supprimer** des événements :
+Cette section se lit à trois niveaux (voir §1) :
+
+| Droit Événements | Ce que la personne voit / fait |
+|---|---|
+| **Aucun** | Elle voit les **événements** et les **rappels** qui la concernent, et **confirme sa participation** — comme toute résidente. |
+| **Lecture** | En plus : le bouton **« Voir les inscrits »** sur les événements à confirmation (**qui** a répondu présent), et les événements **réservés au staff**. |
+| **Édition** | En plus : **créer, modifier et supprimer** des événements. |
+
+> **Depuis le 01/08/2026**, « Voir les inscrits » et les événements **réservés au staff** dépendent de la section **Événements** et non plus du simple fait d'être admin. Une administratrice qui n'a de droits que sur **Repas** (par exemple) n'y a donc plus accès : si elle en a besoin, passe-la à **Événements — Lecture**.
+
+Avec le droit **Édition**, on renseigne pour un événement :
 - titre, dates (une ou plusieurs), horaires, lieu (résidence·s), couleur ;
-- **visibilité par noms** : après avoir ciblé une ou des **résidences / étages**, la liste des **résidentes concernées** s'affiche, pré-cochée ; on peut **décocher** individuellement pour exclure quelqu'un. Le ciblage est **dynamique** (les futures arrivantes correspondant au filtre sont incluses automatiquement). Une case **réservé admin** limite la visibilité à l'intendance ;
+- **visibilité par noms** : après avoir ciblé une ou des **résidences / étages**, la liste des **résidentes concernées** s'affiche, pré-cochée ; on peut **décocher** individuellement pour exclure quelqu'un. Le ciblage est **dynamique** (les futures arrivantes correspondant au filtre sont incluses automatiquement). Une case **réservé au staff** limite la visibilité aux personnes ayant Événements ≥ Lecture ;
 - **rappel** (nombre de jours avant) ;
-- demande de **confirmation de participation** (avec vue des confirmations reçues).
+- demande de **confirmation de participation**.
 
 ---
 

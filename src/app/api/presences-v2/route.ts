@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabaseServer";
+import { CHOIX_NON } from "@/lib/presenceStatut";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -26,25 +27,27 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ presences: data ?? [] });
 }
 
-// --- Définir mon choix pour un (jour, service). option_id null = "Non" ---
+// --- Définir mon choix pour un (jour, service). ---
+// choix = "" → sans réponse (aucune ligne) · "non" → « Non » explicite (ligne option_id null)
+//       · <uuid> → inscription à cette option.
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServer();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
 
   const body = await req.json();
-  const { date, service, option_id, commentaire } = body as {
+  const { date, service, choix, commentaire } = body as {
     date?: string;
     service?: string;
-    option_id?: string | null;
+    choix?: string | null;
     commentaire?: string | null;
   };
 
   if (!date || !DATE_RE.test(date)) return NextResponse.json({ error: "Date invalide." }, { status: 400 });
   if (service !== "dejeuner" && service !== "diner") return NextResponse.json({ error: "Service invalide." }, { status: 400 });
 
-  // « Non » → on retire l'inscription
-  if (!option_id) {
+  // Sans réponse → on retire la ligne
+  if (!choix) {
     const { error: delErr } = await supabase
       .from("presences_v2")
       .delete()
@@ -54,6 +57,20 @@ export async function POST(req: NextRequest) {
     if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
+
+  // « Non » explicite → ligne sans option
+  if (choix === CHOIX_NON) {
+    const { error: nonErr } = await supabase
+      .from("presences_v2")
+      .upsert(
+        { user_id: user.id, date, service, option_id: null, commentaire: commentaire?.trim() || null },
+        { onConflict: "user_id,date,service" }
+      );
+    if (nonErr) return NextResponse.json({ error: nonErr.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  const option_id = choix;
 
   // Vérifier que l'option est bien proposée ce jour, active, et autorisée
   const { data: so } = await supabase

@@ -11,7 +11,7 @@ export interface MarquagePayload {
   user_id: string;
   date_debut: string;
   date_fin: string;
-  contact: string | null;
+  repas_non: boolean; // noter « Non » aux repas de l'intervalle (déduction, sans toucher aux inscriptions)
 }
 
 interface AbsenceAdminModalProps {
@@ -37,7 +37,7 @@ export default function AbsenceAdminModal({
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [mode, setMode] = useState<"absent" | "present">("absent");
-  const [contact, setContact] = useState("");
+  const [repasNon, setRepasNon] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function AbsenceAdminModal({
       setDateDebut("");
       setDateFin("");
       setMode("absent");
-      setContact("");
+      setRepasNon(true);
     }
   }, [isOpen, defaultResidence]);
 
@@ -78,7 +78,7 @@ export default function AbsenceAdminModal({
         user_id: userId,
         date_debut: dateDebut,
         date_fin: dateFin,
-        contact: mode === "absent" && contact.trim() ? contact.trim() : null,
+        repas_non: mode === "absent" ? repasNon : true,
       });
       onClose();
     } finally {
@@ -197,20 +197,22 @@ export default function AbsenceAdminModal({
                 </div>
               </div>
 
-              {/* Contact (uniquement pour une absence) */}
+              {/* Couplage repas (uniquement pour une absence) */}
               {mode === "absent" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contact <span className="text-gray-400">(facultatif)</span>
-                  </label>
+                <label className="flex items-start gap-2 cursor-pointer text-sm text-gray-700 bg-blue-50 border border-blue-100 rounded-lg p-3">
                   <input
-                    type="text"
-                    value={contact}
-                    onChange={(e) => setContact(e.target.value)}
-                    placeholder="Où la joindre…"
-                    className="w-full border border-gray-300 rounded-lg p-2 text-gray-700 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+                    type="checkbox"
+                    checked={repasNon}
+                    onChange={(e) => setRepasNon(e.target.checked)}
+                    className="w-4 h-4 accent-blue-600 mt-0.5 cursor-pointer"
                   />
-                </div>
+                  <span>
+                    Noter <strong>« Non »</strong> aux repas dans l&apos;intervalle
+                    <span className="block text-xs text-gray-500 mt-0.5">
+                      Les jours intérieurs sont automatiquement « Non ». Les jours de départ et de retour restent au choix de la résidente.
+                    </span>
+                  </span>
+                </label>
               )}
             </div>
 

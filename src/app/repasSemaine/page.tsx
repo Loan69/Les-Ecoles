@@ -11,6 +11,7 @@ import { Absence } from "@/types/Absence";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { computeLockState } from "@/lib/lockUtils";
 import { isAwayForMeal } from "@/lib/mealCompta";
+import { CHOIX_NON } from "@/lib/presenceStatut";
 import { eventVisibleFor } from "@/lib/eventVisibility";
 import { optionVisibleFor } from "@/lib/optionVisibility";
 import { formatLieu } from "@/lib/eventLieu";
@@ -82,7 +83,9 @@ export default function SemaineRepas() {
   });
 
   const days = useMemo(() => weekDates(currentMonday), [currentMonday]);
-  const canRepas = useMyRights().canView("repas"); // accès à l'Espace intendance repas
+  const myRights = useMyRights();
+  const canRepas = myRights.canView("repas"); // accès à l'Espace intendance repas
+  const canViewEvents = myRights.canView("evenements"); // événements réservés au staff
 
   // Semaine de référence (date sélectionnée dans l'appli)
   const storedDate = typeof window !== "undefined" ? localStorage.getItem("dateSelectionnee") : null;
@@ -143,14 +146,19 @@ export default function SemaineRepas() {
     cutoff.setDate(cutoff.getDate() - (opt.delai_commande || 0));
     return !computeLockState(cutoff, settings).locked;
   };
-  const selectionFor = (dateKey: string, service: Service) => presences.find((p) => p.date === dateKey && p.service === service)?.option_id ?? "";
+  // Valeur du sélecteur : "" = à renseigner · "non" = Non explicite · sinon l'id de l'option.
+  const selectionFor = (dateKey: string, service: Service) => {
+    const pres = presences.find((p) => p.date === dateKey && p.service === service);
+    if (!pres) return "";
+    return pres.option_id ?? CHOIX_NON;
+  };
   const openOptions = (dateKey: string, service: Service): MealOptionCatalog[] =>
     serviceOptions
       .filter((so) => so.date === dateKey && so.service === service && so.option)
       .map((so) => so.option as MealOptionCatalog)
       .filter((o) => o.is_active && optionVisibleFor(o, { residence: profil?.residence, etage: profil?.etage, user_id: user?.id, is_admin: profil?.is_admin }));
 
-  const eventViewer = { residence: profil?.residence, etage: profil?.etage, chambre: profil?.chambre, user_id: user?.id, is_admin: profil?.is_admin };
+  const eventViewer = { residence: profil?.residence, etage: profil?.etage, chambre: profil?.chambre, user_id: user?.id, canViewEvents };
   const eventsForDay = (dateKey: string) => weekEvents.filter((e) => e.dates_event?.includes(dateKey) && eventVisibleFor(e, eventViewer));
 
   const invitesForDay = (dateKey: string) => myInvites.filter((i) => i.date_repas === dateKey);
@@ -167,18 +175,20 @@ export default function SemaineRepas() {
     toast.success("Invitation supprimée.");
   };
 
-  const setChoice = async (dateKey: string, service: Service, optionId: string) => {
+  // choix : "" = à renseigner (aucune ligne) · "non" = Non explicite · sinon l'id de l'option.
+  const setChoice = async (dateKey: string, service: Service, choix: string) => {
     const res = await fetch("/api/presences-v2", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: dateKey, service, option_id: optionId || null }),
+      body: JSON.stringify({ date: dateKey, service, choix }),
     });
     const j = await res.json();
     if (!res.ok) { toast.error(j.error || "Erreur."); return; }
     setPresences((prev) => {
       const others = prev.filter((p) => !(p.date === dateKey && p.service === service));
-      if (!optionId) return others;
-      return [...others, { id: `local-${dateKey}-${service}`, user_id: user?.id ?? "", date: dateKey, service, option_id: optionId, commentaire: null }];
+      if (!choix) return others;
+      const option_id = choix === CHOIX_NON ? null : choix;
+      return [...others, { id: `local-${dateKey}-${service}`, user_id: user?.id ?? "", date: dateKey, service, option_id, commentaire: null }];
     });
   };
 
@@ -225,6 +235,11 @@ export default function SemaineRepas() {
               const locked = dayLocked(dateKey);
               const isToday = dateKey === formatDateKeyLocal(new Date());
               const dayEvents = eventsForDay(dateKey);
+              const away = isAwayForMeal(absences, user?.id ?? "", dateKey);
+              // Services encore ouverts et sans réponse : on le signale tant que le jour n'est pas verrouillé.
+              const nbARenseigner = away || locked
+                ? 0
+                : SERVICES.filter((s) => openOptions(dateKey, s.value).length > 0 && selectionFor(dateKey, s.value) === "").length;
               return (
                 <div key={dateKey} className={`bg-white rounded-2xl shadow-sm border-2 ${isToday ? "border-blue-400" : "border-transparent"} overflow-hidden`}>
                   <div className={`px-4 py-2 flex items-center justify-between ${isToday ? "bg-blue-600" : locked ? "bg-gray-100" : "bg-blue-50"}`}>
@@ -232,7 +247,13 @@ export default function SemaineRepas() {
                       {dayLabel(dateKey)}
                       {isToday && <span className="ml-2 text-xs font-normal opacity-80">Aujourd&apos;hui</span>}
                     </span>
-                    {locked && <span className="text-xs text-gray-500 font-medium flex items-center gap-1"><Lock className="w-3 h-3" /> Verrouillé</span>}
+                    {locked ? (
+                      <span className="text-xs text-gray-500 font-medium flex items-center gap-1"><Lock className="w-3 h-3" /> Verrouillé</span>
+                    ) : nbARenseigner > 0 ? (
+                      <span className="text-[11px] font-semibold rounded-full bg-orange-100 text-orange-700 px-2 py-0.5">
+                        {nbARenseigner === 2 ? "À renseigner" : "1 repas à renseigner"}
+                      </span>
+                    ) : null}
                   </div>
 
                   {dayEvents.length > 0 && (
@@ -252,7 +273,6 @@ export default function SemaineRepas() {
                       const opts = openOptions(dateKey, s.value);
                       const current = selectionFor(dateKey, s.value);
                       const selectable = opts.filter((o) => orderable(dateKey, o) || o.id === current);
-                      const away = isAwayForMeal(absences, user?.id ?? "", dateKey);
                       return (
                         <div key={s.value}>
                           <p className={`text-[10px] font-bold uppercase mb-1 tracking-wide ${s.value === "dejeuner" ? "text-orange-500" : "text-blue-500"}`}>{s.label}</p>
@@ -267,7 +287,8 @@ export default function SemaineRepas() {
                               onChange={(e) => setChoice(dateKey, s.value, e.target.value)}
                               className={`w-full rounded-xl border-2 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 ${locked ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed" : "bg-white border-blue-200 text-blue-900 cursor-pointer"}`}
                             >
-                              <option value="">Non</option>
+                              <option value="">— À renseigner —</option>
+                              <option value={CHOIX_NON}>Non</option>
                               {selectable.map((o) => (<option key={o.id} value={o.id}>{o.label}</option>))}
                             </select>
                           )}
