@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Power, DoorClosed, Briefcase, UserCheck, Mail, Save, RefreshCw, X, ArrowLeftRight, LogOut, SlidersHorizontal, ShieldCheck, ChevronDown, Archive, Settings } from "lucide-react";
 import { PlaceWithStatus, PlaceKind } from "@/types/Place";
 import { formatEtage, formatChambre } from "@/lib/adminPeople";
-import { SECTIONS, SECTION_LABEL, SECTION_AIDE, NIVEAU_LABEL, NIVEAUX_SECTION, asNiveauSection, hasAnyAdmin, type Rights, type Section } from "@/lib/roles";
+import { SECTIONS, SECTION_LABEL, SECTION_AIDE, NIVEAU_LABEL, NIV, niveauxPourSection, asNiveauSection, hasAnyAdmin, type Rights, type Section } from "@/lib/roles";
 import LoadingSpinner from "../LoadingSpinner";
 import { useMyRights } from "@/lib/useMyRights";
 
@@ -48,13 +48,20 @@ function RightsSummary({ r }: { r: Rights }) {
   if (r.is_super_admin) {
     return <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-semibold text-purple-800"><ShieldCheck className="w-3 h-3" /> Super-admin</span>;
   }
-  const actives = SECTIONS.filter((s) => r[s] >= 2);
-  if (actives.length === 0) return <span className="text-[11px] text-gray-400">Résidente</span>;
+  const actives = SECTIONS.filter((s) => r[s] >= NIV.LECTURE);
+  // Sections masquées (niveau 0) : à signaler aussi, c'est une restriction, pas un droit.
+  const masquees = SECTIONS.filter((s) => r[s] === NIV.AUCUN);
+  if (actives.length === 0 && masquees.length === 0) return <span className="text-[11px] text-gray-400">Résidente</span>;
   return (
     <span className="flex flex-wrap items-center gap-1">
       {actives.map((s) => (
         <span key={s} className={`text-[11px] rounded px-1.5 py-0.5 whitespace-nowrap ${r[s] >= 3 ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-600"}`}>
           {SECTION_LABEL[s]} : {NIVEAU_LABEL[asNiveauSection(r[s])]}
+        </span>
+      ))}
+      {masquees.map((s) => (
+        <span key={s} title="Section masquée pour cette personne" className="text-[11px] rounded px-1.5 py-0.5 whitespace-nowrap bg-red-50 text-red-700 line-through">
+          {SECTION_LABEL[s]}
         </span>
       ))}
     </span>
@@ -885,7 +892,7 @@ function RightsPanel({ user, onClose, onSave }: { user: { userId: string; name: 
                   disabled={draft.is_super_admin}
                   className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none cursor-pointer"
                 >
-                  {NIVEAUX_SECTION.map((n) => (
+                  {niveauxPourSection(s).map((n) => (
                     <option key={n} value={n}>{NIVEAU_LABEL[n]}</option>
                   ))}
                 </select>

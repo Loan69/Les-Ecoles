@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer, createSupabaseAdmin } from "@/lib/supabaseServer";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { rightsFromRow, isSuperAdmin, canViewSection, canEditSection, RIGHTS_COLUMNS, type Rights, type Section, EMPTY_RIGHTS } from "@/lib/roles";
+import { rightsFromRow, isSuperAdmin, canAccessSection, canViewSection, canEditSection, RIGHTS_COLUMNS, type Rights, type Section, EMPTY_RIGHTS } from "@/lib/roles";
 
 type GuardResult =
   | { supabase: SupabaseClient; userId: string; rights: Rights; error: null }
@@ -25,6 +25,20 @@ async function guard(predicate: (r: Rights) => boolean): Promise<GuardResult> {
   if (!userId) return unauth();
   if (!predicate(rights)) return forbidden();
   return { supabase: createSupabaseAdmin(), userId, rights, error: null };
+}
+
+// La section existe-t-elle pour l'appelante ? (niveau >= 1). Utilisé par les routes
+// « résidente » (ses propres repas, ses propres absences) : au niveau 0 la page est masquée,
+// l'API doit refuser aussi, sinon le masquage n'est que cosmétique. Voir R-NIV-11.
+// N'utilise PAS le client service role : la route continue de travailler sous RLS
+// avec la session de l'utilisatrice.
+export async function requireSectionAccess(section: Section): Promise<
+  { userId: string; error: null } | { userId: null; error: NextResponse }
+> {
+  const { userId, rights } = await callerRights();
+  if (!userId) return { userId: null, error: unauth().error };
+  if (!canAccessSection(rights, section)) return { userId: null, error: forbidden().error };
+  return { userId, error: null };
 }
 
 // Lecture d'une section : niveau >= 2 (ou super-admin / technique).

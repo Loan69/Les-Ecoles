@@ -12,29 +12,42 @@ export const SECTION_LABEL: Record<Section, string> = {
   infos: "Infos pratiques",
 };
 
-// Niveau par section : 1 Aucun · 2 Lecture · 3 Édition
-export const NIV = { AUCUN: 1, LECTURE: 2, EDITION: 3 } as const;
-export type NiveauSection = 1 | 2 | 3;
+// Niveau par section : 0 Aucun · 1 Utilisateur · 2 Lecture · 3 Édition
+//   0 Aucun       — la section n'existe pas pour cette personne : onglet masqué,
+//                   page inaccessible, carte correspondante retirée de l'accueil.
+//   1 Utilisateur — usage normal de résidente (l'ancien « Aucun »).
+//   2 Lecture     — consulte l'écran d'intendance.
+//   3 Édition     — modifie.
+// Le niveau 0 a été ajouté en 2026-08-03 SANS renuméroter les autres : les droits
+// déjà attribués gardent leur sens, aucune donnée à migrer.
+export const NIV = { AUCUN: 0, UTILISATEUR: 1, LECTURE: 2, EDITION: 3 } as const;
+export type NiveauSection = 0 | 1 | 2 | 3;
 export const NIVEAU_LABEL: Record<NiveauSection, string> = {
-  1: "Aucun",
+  0: "Aucun (page masquée)",
+  1: "Utilisateur",
   2: "Lecture",
   3: "Édition",
 };
-export const NIVEAUX_SECTION: NiveauSection[] = [1, 2, 3];
+export const NIVEAUX_SECTION: NiveauSection[] = [0, 1, 2, 3];
+
+// « Comptes » n'a pas de page côté résidente (le ⚙️ Administration est déjà masqué
+// en dessous de Lecture) : « Aucun » y serait indiscernable d'« Utilisateur », on ne le propose pas.
+export function niveauxPourSection(s: Section): NiveauSection[] {
+  return s === "comptes" ? [1, 2, 3] : NIVEAUX_SECTION;
+}
 
 // Ce que chaque niveau donne concrètement, section par section.
-// Affiché sous le sélecteur du panneau « Droits » : « Aucun » ne veut jamais dire
-// « ne voit rien » — une résidente garde toujours sa vue normale (R-NIV-10).
+// Affiché sous le sélecteur du panneau « Droits ». Voir R-NIV-10 / R-NIV-11.
 export const SECTION_AIDE: Record<Section, string> = {
-  repas: "Aucun = s'inscrire à ses repas · Lecture = voir les inscriptions et la compta · Édition = paramétrer les repas et corriger les inscriptions",
-  evenements: "Aucun = voir les événements et les rappels · Lecture = voir en plus les inscrits aux événements et ceux réservés au staff · Édition = créer et modifier les événements",
-  absences: "Aucun = déclarer ses propres absences · Lecture = voir les présences de tout le foyer · Édition = marquer les absences des autres",
-  comptes: "Aucun = voir son profil · Lecture = voir les comptes et les chambres · Édition = inviter, déplacer et archiver",
-  infos: "Aucun = lire les rubriques Administratif · Lecture = idem · Édition = créer et modifier les rubriques",
+  repas: "Aucun = onglet Repas masqué, retirée des listes de l'intendance · Utilisateur = s'inscrire à ses repas · Lecture = voir les inscriptions et la compta · Édition = paramétrer les repas et corriger les inscriptions",
+  evenements: "Aucun = onglet Calendrier masqué, aucun événement ni rappel · Utilisateur = voir les événements et les rappels · Lecture = voir en plus les inscrits et les événements réservés au staff · Édition = créer et modifier les événements",
+  absences: "Aucun = onglet Présence foyer masqué, retirée des listes de présence · Utilisateur = déclarer ses propres absences · Lecture = voir les présences de tout le foyer · Édition = marquer les absences des autres",
+  comptes: "Utilisateur = voir son profil · Lecture = voir les comptes et les chambres · Édition = inviter, déplacer et archiver",
+  infos: "Aucun = onglet Administratif masqué · Utilisateur = lire les rubriques · Lecture = idem · Édition = créer et modifier les rubriques",
 };
 
 export function asNiveauSection(n: number | null | undefined): NiveauSection {
-  return n === 2 ? 2 : n === 3 ? 3 : 1;
+  return n === 0 ? 0 : n === 2 ? 2 : n === 3 ? 3 : 1;
 }
 
 // Droits d'une personne : un niveau par section + rôles globaux.
@@ -56,6 +69,10 @@ export const EMPTY_RIGHTS: Rights = {
 // Le super-admin (et le compte technique) ont tous les droits, hors hiérarchie de sections.
 export function isSuperAdmin(r: Rights): boolean {
   return r.is_super_admin || r.is_technique;
+}
+// La section existe-t-elle pour cette personne ? (niveau 0 = onglet masqué + page interdite)
+export function canAccessSection(r: Rights, s: Section): boolean {
+  return isSuperAdmin(r) || (r[s] ?? 1) >= NIV.UTILISATEUR;
 }
 export function canViewSection(r: Rights, s: Section): boolean {
   return isSuperAdmin(r) || (r[s] ?? 1) >= NIV.LECTURE;

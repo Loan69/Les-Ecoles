@@ -14,6 +14,7 @@ import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { useMyRights } from "@/lib/useMyRights";
+import { useSectionGuard } from "@/lib/useSectionGuard";
 
 function getContacts(section: AdminSection): Contact[] {
   const c = section.content as { contacts?: Contact[] } | null;
@@ -210,6 +211,7 @@ function ContactsEditor({ contacts, setContacts }: { contacts: Contact[]; setCon
 export default function AdministratifPage() {
   const router = useRouter();
   const { supabase } = useSupabase();
+  const accesSection = useSectionGuard("infos"); // niveau Aucun → redirigé vers l'accueil
   const canEdit = useMyRights().canEdit("infos");
   const [sections, setSections] = useState<AdminSection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -271,7 +273,7 @@ export default function AdministratifPage() {
     await fetchSections();
   };
 
-  if (loading) {
+  if (loading || !accesSection) {
     return (
       <main className="flex items-center justify-center min-h-screen bg-white">
         <LoadingSpinner />

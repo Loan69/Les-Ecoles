@@ -10,6 +10,7 @@ import { Absence, AbsencePayload } from "@/types/Absence";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import { useSupabase } from "../providers";
 import { useMyRights } from "@/lib/useMyRights";
+import { useSectionGuard } from "@/lib/useSectionGuard";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
@@ -46,6 +47,7 @@ function formatJour(dateKey: string): string {
 export default function PresenceFoyerPage() {
   const router = useRouter();
   const { supabase } = useSupabase();
+  const accesSection = useSectionGuard("absences"); // niveau Aucun → redirigé vers l'accueil
   const canAbsences = useMyRights().canView("absences"); // accès à la vue staff des présences
 
   const [user, setUser] = useState<User | null>(null);
@@ -176,6 +178,14 @@ export default function PresenceFoyerPage() {
   // ============================================================
 
   if (!isReady) {
+    return (
+      <main className="flex items-center justify-center min-h-screen bg-white">
+        <LoadingSpinner />
+      </main>
+    );
+  }
+
+  if (!accesSection) {
     return (
       <main className="flex items-center justify-center min-h-screen bg-white">
         <LoadingSpinner />

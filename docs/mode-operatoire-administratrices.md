@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.10 — 2026-08-03.
+> Version 1.11 — 2026-08-03.
 
 Une administratrice est une résidente qui a **au moins un droit d'intendance sur une section**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), des outils d'intendance correspondant à ses droits.
 
@@ -13,11 +13,26 @@ Les droits se règlent **section par section** de l'appli. Sur chaque section, u
 
 | Niveau | Ce qu'elle peut faire sur la section |
 |---|---|
-| **Aucun** | Pas d'accès **aux outils d'intendance**. Elle garde toute sa **vue de résidente** : voir les événements et les rappels, s'inscrire à ses repas, déclarer ses absences, lire l'Administratif. |
+| **Aucun** | **La section n'existe pas pour elle** : l'onglet disparaît de la barre du bas, la page est inaccessible et la carte correspondante est retirée de l'accueil. Elle sort aussi des listes de l'intendance pour cette section. |
+| **Utilisateur** | Usage normal de résidente : voir les événements et les rappels, s'inscrire à ses repas, déclarer ses absences, lire l'Administratif. Pas d'outils d'intendance. |
 | **Lecture** | **Consulte** l'écran d'intendance, sans rien modifier. |
 | **Édition** | Consulte **et modifie**. |
 
-> **« Aucun » ne veut pas dire « ne voit rien ».** C'est la nuance importante : le niveau ne retire jamais l'usage normal de l'appli. Le panneau **« Droits »** rappelle sous chaque section ce que chaque niveau donne concrètement.
+> **Ne pas confondre « Aucun » et « Utilisateur ».** « Utilisateur » est le niveau **normal** de toute habitante — c'est celui que tout le monde a par défaut. « Aucun » est une **restriction** : à utiliser pour quelqu'un qui n'est pas concerné du tout par un domaine (par exemple un poste Corail qui ne mange pas au foyer → Repas = Aucun). Le panneau **« Droits »** rappelle sous chaque section ce que donne chaque niveau, et affiche en rouge barré les sections masquées.
+
+**Quel onglet dépend de quelle section :**
+
+| Onglet | Section |
+|---|---|
+| 📅 Calendrier | Événements |
+| 🍴 Repas de la semaine | Repas |
+| 🧍 Présence foyer | Absences |
+| 📖 Administratif | Infos pratiques |
+| 🏠 Accueil | *(aucune — toujours accessible)* |
+
+> La section **Comptes** n'a pas de page côté résidente : elle garde donc **3 niveaux** (Utilisateur / Lecture / Édition), sans « Aucun ».
+>
+> Mettre une section à **« Aucun »** ne supprime rien : si la personne avait déjà des repas ou des absences enregistrés, ils **restent visibles et comptés** dans les vues d'intendance sur les périodes concernées. On peut revenir en arrière à tout moment.
 
 Les **5 sections** :
 

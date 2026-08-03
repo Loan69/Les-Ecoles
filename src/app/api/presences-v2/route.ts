@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabaseServer";
 import { CHOIX_NON } from "@/lib/presenceStatut";
+import { requireSectionAccess } from "@/lib/apiAuth";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -34,6 +35,10 @@ export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServer();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
+
+  // Repas = Aucun : la section n'existe pas pour cette personne (page masquée) → on refuse.
+  const { error: accessError } = await requireSectionAccess("repas");
+  if (accessError) return accessError;
 
   const body = await req.json();
   const { date, service, choix, commentaire } = body as {

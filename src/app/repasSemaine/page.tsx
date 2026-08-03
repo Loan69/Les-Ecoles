@@ -23,6 +23,7 @@ import AdministrationButton from "../components/administrationButton";
 import InviteModal, { EditingInvite } from "../components/inviteModal";
 import RepasNav from "../components/admin/RepasNav";
 import { useMyRights } from "@/lib/useMyRights";
+import { useSectionGuard } from "@/lib/useSectionGuard";
 
 const SERVICES: { value: Service; label: string }[] = [
   { value: "dejeuner", label: "Déjeuner" },
@@ -83,6 +84,7 @@ export default function SemaineRepas() {
   });
 
   const days = useMemo(() => weekDates(currentMonday), [currentMonday]);
+  const accesSection = useSectionGuard("repas"); // niveau Aucun → redirigé vers l'accueil
   const myRights = useMyRights();
   const canRepas = myRights.canView("repas"); // accès à l'Espace intendance repas
   const canViewEvents = myRights.canView("evenements"); // événements réservés au staff
@@ -191,6 +193,14 @@ export default function SemaineRepas() {
       return [...others, { id: `local-${dateKey}-${service}`, user_id: user?.id ?? "", date: dateKey, service, option_id, commentaire: null }];
     });
   };
+
+  if (!accesSection) {
+    return (
+      <main className="flex items-center justify-center min-h-screen bg-white">
+        <LoadingSpinner />
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4 py-8">

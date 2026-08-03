@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabaseServer";
+import { requireSectionAccess } from "@/lib/apiAuth";
 
 // Format attendu pour les dates : "YYYY-MM-DD"
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -46,6 +47,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
   }
 
+  // Absences = Aucun : la section n'existe pas pour cette personne (page masquée) → on refuse.
+  const { error: accessError } = await requireSectionAccess("absences");
+  if (accessError) return accessError;
+
   const body: AbsenceBody = await req.json();
   const dateError = validateDates(body.date_debut, body.date_fin);
   if (dateError) return NextResponse.json({ error: dateError }, { status: 400 });
@@ -73,6 +78,10 @@ export async function PUT(req: NextRequest) {
   if (userError || !user) {
     return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
   }
+
+  // Absences = Aucun : la section n'existe pas pour cette personne (page masquée) → on refuse.
+  const { error: accessError } = await requireSectionAccess("absences");
+  if (accessError) return accessError;
 
   const body: AbsenceBody = await req.json();
   if (!body.id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
@@ -105,6 +114,10 @@ export async function DELETE(req: NextRequest) {
   if (userError || !user) {
     return NextResponse.json({ error: "Utilisateur non authentifié" }, { status: 401 });
   }
+
+  // Absences = Aucun : la section n'existe pas pour cette personne (page masquée) → on refuse.
+  const { error: accessError } = await requireSectionAccess("absences");
+  if (accessError) return accessError;
 
   const body: AbsenceBody = await req.json();
   if (!body.id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });

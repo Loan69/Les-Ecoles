@@ -31,7 +31,12 @@ export default function HomePage() {
   const router = useRouter();
   const { supabase } = useSupabase();
   // Événements ≥ Lecture : événements réservés au staff + « Voir les inscrits ».
-  const canViewEvents = useMyRights().canView("evenements");
+  const myRights = useMyRights();
+  const canViewEvents = myRights.canView("evenements");
+  // Niveau « Aucun » (0) : la section n'existe pas → sa carte disparaît aussi de l'accueil.
+  const accesEvenements = myRights.canAccess("evenements");
+  const accesRepas = myRights.canAccess("repas");
+  const accesAbsences = myRights.canAccess("absences");
 
   // --- États principaux ---
   const [profil, setProfil] = useState<Residente | null>(null);
@@ -387,7 +392,7 @@ export default function HomePage() {
         </div>
 
         {/* Rappels du jour (compacts) — directement sous la date */}
-        {(reminders.length > 0 || todayOffsiteEvents.length > 0) && (
+        {accesEvenements && (reminders.length > 0 || todayOffsiteEvents.length > 0) && (
           <div className="mb-4 space-y-1.5">
             {/* Événements du jour sans lieu résidence → rappel « Aujourd'hui » */}
             {todayOffsiteEvents.map((evt) => (
@@ -420,7 +425,8 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Carte PRÉSENCE au foyer (lecture seule) */}
+        {/* Carte PRÉSENCE au foyer (lecture seule) — masquée si Absences = Aucun */}
+        {accesAbsences && (
         <section className="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-4">
           <h3 className="text-xs font-bold uppercase tracking-wide text-blue-800 mb-3">Présence au foyer</h3>
           <div className="flex justify-center">
@@ -435,6 +441,7 @@ export default function HomePage() {
             )}
           </div>
         </section>
+        )}
 
         {/* Intercalaires résidence — couleurs du logo (12 = jaune, 36 = rose) */}
         <div className="flex justify-center mb-4">
@@ -459,7 +466,8 @@ export default function HomePage() {
           })}
         </div>
 
-        {/* Carte ÉVÉNEMENTS — fond entièrement coloré à la couleur de la résidence (jaune/rose) */}
+        {/* Carte ÉVÉNEMENTS — masquée si Événements = Aucun */}
+        {accesEvenements && (
         <section className={`rounded-xl shadow-md border-2 p-4 mb-4 ${is12 ? "bg-yellow-100 border-yellow-300" : "bg-pink-100 border-pink-300"}`}>
           <h3 className={`text-xs font-bold uppercase tracking-wide mb-3 ${is12 ? "text-amber-800" : "text-pink-800"}`}>Événements</h3>
 
@@ -484,8 +492,10 @@ export default function HomePage() {
             ))
           )}
         </section>
+        )}
 
-        {/* Carte REPAS du jour (lecture seule) */}
+        {/* Carte REPAS du jour (lecture seule) — masquée si Repas = Aucun */}
+        {accesRepas && (
         <section className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-bold uppercase tracking-wide text-blue-800">Repas du jour</h3>
@@ -529,6 +539,7 @@ export default function HomePage() {
             </div>
           )}
         </section>
+        )}
       </div>
 
       <InviteModal

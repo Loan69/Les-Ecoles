@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useSupabase } from "@/app/providers";
-import { rightsFromRow, canViewSection, canEditSection, isSuperAdmin as isSuper, RIGHTS_COLUMNS, EMPTY_RIGHTS, type Rights, type Section } from "@/lib/roles";
+import { rightsFromRow, canAccessSection, canViewSection, canEditSection, isSuperAdmin as isSuper, RIGHTS_COLUMNS, EMPTY_RIGHTS, type Rights, type Section } from "@/lib/roles";
 
 export type MyRights = {
   rights: Rights;
   loading: boolean;
   isSuperAdmin: boolean;
+  canAccess: (s: Section) => boolean; // niveau >= 1 : la page/l'onglet existent
   canView: (s: Section) => boolean;
   canEdit: (s: Section) => boolean;
 };
@@ -36,6 +37,7 @@ export function useMyRights(): MyRights {
     rights,
     loading,
     isSuperAdmin: isSuper(rights),
+    canAccess: (s) => canAccessSection(rights, s),
     canView: (s) => canViewSection(rights, s),
     canEdit: (s) => canEditSection(rights, s),
   };

@@ -3,24 +3,33 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { BookOpen, Calendar, Home, PersonStanding, Utensils } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useMyRights } from '@/lib/useMyRights';
+import type { Section } from '@/lib/roles';
 
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [active, setActive] = useState<string>('/');
+  const { canAccess, loading } = useMyRights();
 
   useEffect(() => {
     setActive(pathname || '/');
   }, [pathname]);
 
-  // Barre identique pour toutes (résidentes & admins) → la maison reste au centre (3e/5).
-  const navItems = [
-    { path: '/calendrier', icon: <Calendar size={22} />, label: 'Calendrier' },
-    { path: '/repasSemaine', icon: <Utensils size={22} />, label: 'Repas de la semaine'},
+  // Chaque onglet dépend de sa section : au niveau « Aucun » (0), il n'est pas affiché.
+  // L'accueil n'est rattaché à aucune section — il reste toujours accessible.
+  const allItems: { path: string; icon: React.ReactNode; label: string; section?: Section }[] = [
+    { path: '/calendrier', icon: <Calendar size={22} />, label: 'Calendrier', section: 'evenements' },
+    { path: '/repasSemaine', icon: <Utensils size={22} />, label: 'Repas de la semaine', section: 'repas' },
     { path: '/homePage', icon: <Home size={22} />, label: 'Accueil' },
-    { path: '/presenceFoyer', icon: <PersonStanding size={22} />, label: 'Présence foyer' },
-    { path: '/administratif', icon: <BookOpen size={22} />, label: 'Administratif' },
+    { path: '/presenceFoyer', icon: <PersonStanding size={22} />, label: 'Présence foyer', section: 'absences' },
+    { path: '/administratif', icon: <BookOpen size={22} />, label: 'Administratif', section: 'infos' },
   ];
+  const navItems = allItems.filter((item) => !item.section || canAccess(item.section));
+
+  // Tant que les droits ne sont pas chargés, on n'affiche pas la barre : elle apparaîtrait
+  // complète puis perdrait des onglets sous les yeux de l'utilisatrice.
+  if (loading) return null;
 
   return (
     <div className="fixed bottom-0 left-0 w-full flex justify-center bg-white pb-safe z-10">

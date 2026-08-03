@@ -1,7 +1,7 @@
 # Les Écoles — Présentation fonctionnelle de l'application
 
 > **Document vivant** — mis à jour à chaque nouvelle fonctionnalité ou évolution.
-> Dernière mise à jour : 3 août 2026 · Version 1.3
+> Dernière mise à jour : 3 août 2026 · Version 1.4
 
 ---
 
@@ -30,7 +30,7 @@ Le foyer est organisé en **deux résidences** : la **Résidence 12** et la **R�
 
 > Une administratrice est techniquement une résidente à qui on a activé le droit « admin ». Il n'y a pas de compte admin séparé.
 
-> Le niveau **« Aucun »** sur une section ne retire jamais l'usage normal de l'appli : la personne continue de voir les événements, de s'inscrire à ses repas et de déclarer ses absences. Il ne retire que les **outils d'intendance** de cette section.
+> Chaque section se règle sur **quatre niveaux** : **Aucun** (la section disparaît complètement — onglet, page et carte d'accueil — pour quelqu'un que le domaine ne concerne pas), **Utilisateur** (usage normal de résidente : c'est le niveau par défaut), **Lecture** et **Édition** (outils d'intendance).
 
 ---
 

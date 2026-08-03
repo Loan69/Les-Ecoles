@@ -9,9 +9,12 @@ import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import { useMyRights } from "@/lib/useMyRights";
+import { useSectionGuard } from "@/lib/useSectionGuard";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 export default function CalendrierPage() {
   const { supabase } = useSupabase();
+  const accesSection = useSectionGuard("evenements"); // niveau Aucun → redirigé vers l'accueil
   const myRights = useMyRights();
   const canView = myRights.canView("evenements"); // « Voir les inscrits »
   const canEdit = myRights.canEdit("evenements");
@@ -148,6 +151,14 @@ export default function CalendrierPage() {
     if (error) console.error("Erreur de modification :", error);
     else if (data) setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...data[0] } : e)));
   };
+
+  if (!accesSection) {
+    return (
+      <main className="flex items-center justify-center min-h-screen bg-white">
+        <LoadingSpinner />
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen flex flex-col items-center bg-white px-4 pt-6">

@@ -1,7 +1,7 @@
 # Mode opératoire — Résidentes & invitées
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour les **habitantes** (résidentes et invitées). À mettre à jour à chaque évolution de l'appli.
-> Version 1.5 — 2026-08-03.
+> Version 1.6 — 2026-08-03.
 
 Cette application sert à gérer, au quotidien, **ta présence au foyer la nuit** et **tes repas** (midi et soir), à consulter les **événements** du foyer et les **informations pratiques**. Elle est pensée pour le **téléphone** (mais marche aussi sur ordinateur).
 
@@ -29,7 +29,7 @@ Tu **ne t'inscris pas toi-même** : l'intendance t'ouvre une place et t'envoie u
 
 ## 2. Se repérer dans l'appli
 
-En bas de l'écran, une **barre de navigation** (identique pour toutes) :
+En bas de l'écran, une **barre de navigation** :
 
 | Icône | Écran | À quoi ça sert |
 |---|---|---|
@@ -40,6 +40,8 @@ En bas de l'écran, une **barre de navigation** (identique pour toutes) :
 | 📖 | **Administratif** | Consulter les infos pratiques du foyer (règlement, horaires, contacts, modes d'emploi). |
 
 En **haut à droite** de chaque écran : accès à ton **Profil** 👤 et à la **déconnexion**.
+
+> Tu ne vois peut-être **pas les cinq onglets** : l'intendance peut retirer un domaine qui ne te concerne pas (par exemple les repas si tu ne manges pas au foyer). L'onglet et la carte correspondante sur l'accueil n'apparaissent alors pas. Si un onglet te manque alors qu'il devrait être là, rapproche-toi de l'intendance.
 
 > L'**Accueil** sert surtout à **consulter** ta journée. Pour **modifier** tes repas, va sur **🍴 Repas de la semaine** ; pour tes absences, sur **🧍 Présence foyer**. Seule exception : tu peux **modifier ou supprimer une invitation** du jour directement depuis l'Accueil (rubrique « Mes invités »).
 

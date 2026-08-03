@@ -36,7 +36,7 @@ type ServiceDetail = { open: boolean; options: OptionGroup[] };
 export default function AdminRepasV2Page() {
   const { supabase } = useSupabase();
   const canEdit = useMyRights().canEdit("repas");
-  const [people, setPeople] = useState<PersonneDetail[]>([]);
+  const [allPeople, setAllPeople] = useState<(PersonneDetail & { horsSuivi: boolean })[]>([]);
   const [residences, setResidences] = useState<Residence[]>([]);
   const [presences, setPresences] = useState<PresenceV2[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
@@ -67,7 +67,7 @@ export default function AdminRepasV2Page() {
       await Promise.all([
         supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
         // Exclut le super-admin (compte technique) ; garde les archivées pour l'historique de compta.
-        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id").eq("is_technique", false),
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id, niveau_repas").eq("is_technique", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("meal_options").select("*"),
         supabase.from("select_options_residence").select("value, label"),
@@ -99,15 +99,18 @@ export default function AdminRepasV2Page() {
 
     setResidences(residencesData || []);
     setMealOptions((optionsData as MealOptionCatalog[]) || []);
-    setPeople([
+    setAllPeople([
       ...(residentesData?.map((r) => ({
         id: r.user_id, nom: r.nom, prenom: r.prenom,
         residence: r.residence != null ? String(r.residence) : undefined,
         etage: r.etage, chambre: (r.place_id && placeLabels[r.place_id]) || (r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre), isInvite: false,
+        // Repas = Aucun → ne mange pas au foyer, hors des listes de repas (voir R-NIV-11).
+        horsSuivi: Number(r.niveau_repas ?? 1) === 0,
       })) || []),
       ...(inviteesData?.map((i) => ({
         id: i.user_id, nom: i.nom, prenom: i.prenom,
         residence: i.residence != null ? String(i.residence) : undefined, isInvite: true,
+        horsSuivi: false, // les invitées n'ont pas de droits par section
       })) || []),
     ]);
 
@@ -138,6 +141,13 @@ export default function AdminRepasV2Page() {
     while (cursor <= end) { days.push(formatDateKeyLocal(cursor)); cursor.setDate(cursor.getDate() + 1); }
     return days;
   }, [startDate, endDate]);
+
+  // Personnes suivies : celles ayant accès à la section Repas, PLUS celles qui en sont exclues
+  // mais gardent une inscription ou un invité sur la période — on ne réécrit pas l'historique.
+  const people = useMemo(
+    () => allPeople.filter((p) => !p.horsSuivi || presences.some((x) => x.user_id === p.id) || invites.some((i) => i.invite_par === p.id)),
+    [allPeople, presences, invites]
+  );
 
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
   const optionsById = useMemo(() => new Map(mealOptions.map((o) => [o.id, o])), [mealOptions]);

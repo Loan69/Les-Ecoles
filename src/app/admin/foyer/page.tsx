@@ -33,7 +33,7 @@ function formatColDay(dateKey: string): string {
 
 export default function AdminFoyerView() {
   const { supabase } = useSupabase();
-  const [people, setPeople] = useState<PersonneDetail[]>([]);
+  const [allPeople, setAllPeople] = useState<(PersonneDetail & { horsSuivi: boolean })[]>([]);
   const [residences, setResidences] = useState<Residence[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +65,7 @@ export default function AdminFoyerView() {
     const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: placesData }] =
       await Promise.all([
         supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
-        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id").eq("statut", "active").eq("is_technique", false),
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id, niveau_absences").eq("statut", "active").eq("is_technique", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("select_options_residence").select("value, label"),
         supabase.from("places").select("id, label"),
@@ -82,7 +82,7 @@ export default function AdminFoyerView() {
     (placesData || []).forEach((p) => { if (p.id && p.label) placeLabels[p.id] = p.label; });
 
     setResidences(residencesData || []);
-    setPeople([
+    setAllPeople([
       ...(residentesData?.map((r) => ({
         id: r.user_id,
         nom: r.nom,
@@ -91,6 +91,8 @@ export default function AdminFoyerView() {
         etage: r.etage,
         chambre: (r.place_id && placeLabels[r.place_id]) || (r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre),
         isInvite: false,
+        // Absences = Aucun → hors du suivi de présence (voir R-NIV-11).
+        horsSuivi: Number(r.niveau_absences ?? 1) === 0,
       })) || []),
       ...(inviteesData?.map((i) => ({
         id: i.user_id,
@@ -98,6 +100,7 @@ export default function AdminFoyerView() {
         prenom: i.prenom,
         residence: i.residence != null ? String(i.residence) : undefined,
         isInvite: true,
+        horsSuivi: false, // les invitées n'ont pas de droits par section
       })) || []),
     ]);
 
@@ -130,6 +133,13 @@ export default function AdminFoyerView() {
     }
     return days;
   }, [startDate, endDate]);
+
+  // Personnes suivies : celles ayant accès à la section Absences, PLUS celles qui en sont
+  // exclues mais gardent une absence déclarée sur la période — on ne réécrit pas l'historique.
+  const people = useMemo(
+    () => allPeople.filter((p) => !p.horsSuivi || absences.some((a) => a.user_id === p.id)),
+    [allPeople, absences]
+  );
 
   const isAbsentOn = useCallback(
     (personId: string, dateKey: string) =>
