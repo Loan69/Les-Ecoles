@@ -26,9 +26,9 @@ export default function CalendrierPage() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const { data, error } = await supabase.auth.getUser();
+        const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
-        setUser(data.user);
+        setUser(data.session?.user ?? null);
       } catch (err) {
         console.error("Erreur récupération user :", err);
       }

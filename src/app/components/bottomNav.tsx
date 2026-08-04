@@ -1,6 +1,7 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { BookOpen, Calendar, Home, PersonStanding, Utensils } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useMyRights } from '@/lib/useMyRights';
@@ -8,7 +9,6 @@ import type { Section } from '@/lib/roles';
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const [active, setActive] = useState<string>('/');
   const { canAccess, loading } = useMyRights();
 
@@ -37,9 +37,14 @@ export default function BottomNav() {
         {navItems.map((item) => {
           const isActive = active === item.path;
           return (
-            <button
+            // <Link> plutôt qu'un bouton : Next.js précharge alors le code et les données
+            // de l'onglet tant qu'il est visible à l'écran, donc l'affichage est déjà prêt
+            // au moment du tap. Avec un onClick, tout ne démarrait qu'au clic.
+            <Link
               key={item.path}
-              onClick={() => router.push(item.path)}
+              href={item.path}
+              aria-label={item.label}
+              aria-current={isActive ? 'page' : undefined}
               className={`flex flex-col items-center justify-center rounded-xl p-2 transition-colors cursor-pointer ${
                 isActive
                   ? 'bg-blue-700 text-white'
@@ -47,7 +52,7 @@ export default function BottomNav() {
               }`}
             >
               {item.icon}
-            </button>
+            </Link>
           );
         })}
       </nav>

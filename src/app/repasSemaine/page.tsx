@@ -97,15 +97,19 @@ export default function SemaineRepas() {
   // Auth + profil + settings (une fois)
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) {
+      const { data } = await supabase.auth.getSession();
+      const sessionUser = data.session?.user;
+      if (!sessionUser) {
         router.replace("/signin");
         return;
       }
-      setUser(data.user);
-      const { data: p } = await supabase.from("residentes").select("is_admin, residence, etage, chambre").eq("user_id", data.user.id).maybeSingle();
+      setUser(sessionUser);
+      // Profil et réglages ne dépendent pas l'un de l'autre : une seule vague réseau.
+      const [{ data: p }, { data: settingsData }] = await Promise.all([
+        supabase.from("residentes").select("is_admin, residence, etage, chambre").eq("user_id", sessionUser.id).maybeSingle(),
+        supabase.from("app_settings").select("key, value"),
+      ]);
       setProfil(p ? { is_admin: p.is_admin, residence: p.residence, etage: p.etage, chambre: p.chambre } : {});
-      const { data: settingsData } = await supabase.from("app_settings").select("key, value");
       const map: Record<string, string> = {};
       (settingsData ?? []).forEach((s) => (map[s.key] = s.value));
       setSettings(map);
@@ -179,19 +183,34 @@ export default function SemaineRepas() {
 
   // choix : "" = à renseigner (aucune ligne) · "non" = Non explicite · sinon l'id de l'option.
   const setChoice = async (dateKey: string, service: Service, choix: string) => {
-    const res = await fetch("/api/presences", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: dateKey, service, choix }),
-    });
-    const j = await res.json();
-    if (!res.ok) { toast.error(j.error || "Erreur."); return; }
-    setPresences((prev) => {
-      const others = prev.filter((p) => !(p.date === dateKey && p.service === service));
+    // Mise à jour optimiste : on affiche le choix tout de suite et on enregistre en fond.
+    // Sans cela, le sélecteur reste figé le temps de l'aller-retour réseau (~200-600 ms
+    // en mobile), ce qui donne l'impression que le clic n'a pas été pris en compte.
+    const applyLocal = (list: Presence[]) => {
+      const others = list.filter((p) => !(p.date === dateKey && p.service === service));
       if (!choix) return others;
       const option_id = choix === CHOIX_NON ? null : choix;
       return [...others, { id: `local-${dateKey}-${service}`, user_id: user?.id ?? "", date: dateKey, service, option_id, commentaire: null }];
-    });
+    };
+
+    const snapshot = presences; // état d'avant, pour pouvoir revenir en arrière
+    setPresences(applyLocal(presences));
+
+    try {
+      const res = await fetch("/api/presences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: dateKey, service, choix }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setPresences(snapshot); // le serveur a refusé : on revient à l'état d'avant
+        toast.error(j.error || "Erreur.");
+      }
+    } catch {
+      setPresences(snapshot);
+      toast.error("Enregistrement impossible : vérifiez votre connexion.");
+    }
   };
 
   if (!accesSection) {

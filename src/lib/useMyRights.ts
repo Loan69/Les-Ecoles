@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSupabase } from "@/app/providers";
-import { rightsFromRow, canAccessSection, canViewSection, canEditSection, isSuperAdmin as isSuper, RIGHTS_COLUMNS, EMPTY_RIGHTS, type Rights, type Section } from "@/lib/roles";
+import { useRightsContext } from "@/app/providers";
+import { canAccessSection, canViewSection, canEditSection, isSuperAdmin as isSuper, type Rights, type Section } from "@/lib/roles";
 
 export type MyRights = {
   rights: Rights;
@@ -15,23 +14,12 @@ export type MyRights = {
 
 // Droits de l'utilisatrice courante, par section, pour piloter l'affichage
 // (masquer les commandes d'édition). La sécurité réelle reste côté serveur.
+//
+// Le chargement a lieu dans `Providers` : **une seule fois par session**, partagé par tous
+// les composants. Ce hook n'est plus qu'une lecture de contexte — on peut l'appeler
+// librement, sans coût réseau.
 export function useMyRights(): MyRights {
-  const { supabase } = useSupabase();
-  const [rights, setRights] = useState<Rights>(EMPTY_RIGHTS);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { if (active) setLoading(false); return; }
-      const { data } = await supabase.from("residentes").select(RIGHTS_COLUMNS).eq("user_id", user.id).maybeSingle();
-      if (!active) return;
-      setRights(rightsFromRow(data as Record<string, unknown> | null));
-      setLoading(false);
-    })();
-    return () => { active = false; };
-  }, [supabase]);
+  const { rights, loading } = useRightsContext();
 
   return {
     rights,

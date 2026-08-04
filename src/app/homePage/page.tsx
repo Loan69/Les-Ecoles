@@ -78,12 +78,12 @@ export default function HomePage() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error || !data?.user) {
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data?.session?.user) {
           router.replace("/signin");
           return;
         }
-        setUser(data.user);
+        setUser(data.session.user);
       } catch (err) {
         console.error("Erreur récupération user :", err);
         router.replace("/signin");
@@ -140,11 +140,20 @@ export default function HomePage() {
       if (!user) return;
       const dateIso = formatDateKeyLocal(currentDate);
       try {
-        const { data: profilData, error: profilError } = await supabase
-          .from("residentes")
-          .select("*")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        // Les quatre lectures sont indépendantes : une seule vague réseau au lieu de trois.
+        const [
+          { data: profilData, error: profilError },
+          { data: eventsData, error: eventsError },
+          { data: absData },
+          { data: dayPresences },
+        ] = await Promise.all([
+          supabase.from("residentes").select("*").eq("user_id", user.id).maybeSingle(),
+          supabase.from("evenements").select("*").contains("dates_event", [dateIso]),
+          // --- Résumé « ma journée » : présence foyer + repas du jour (lecture seule) ---
+          supabase.from("absences_sejour").select("id").eq("user_id", user.id).lte("date_debut", dateIso).gte("date_fin", dateIso).limit(1),
+          supabase.from("presences").select("service, option_id, option:meal_options(label)").eq("user_id", user.id).eq("date", dateIso),
+        ]);
+
         if (profilError) console.error("Erreur profil :", profilError);
         if (profilData) {
           setProfil(profilData);
@@ -152,18 +161,9 @@ export default function HomePage() {
           setSelectedResidenceLabel(profilData.residence === "12" ? "Résidence 12" : "Résidence 36");
         }
 
-        const { data: eventsData, error: eventsError } = await supabase
-          .from("evenements")
-          .select("*")
-          .contains("dates_event", [dateIso]);
         if (eventsError) console.error("Erreur événements :", eventsError);
         if (eventsData) setEvents(eventsData);
 
-        // --- Résumé « ma journée » : présence foyer + repas du jour (lecture seule) ---
-        const [{ data: absData }, { data: dayPresences }] = await Promise.all([
-          supabase.from("absences_sejour").select("id").eq("user_id", user.id).lte("date_debut", dateIso).gte("date_fin", dateIso).limit(1),
-          supabase.from("presences").select("service, option_id, option:meal_options(label)").eq("user_id", user.id).eq("date", dateIso),
-        ]);
         setIsAbsent((absData?.length ?? 0) > 0);
 
         // Trois états : option choisie · « Non » explicite · pas encore répondu.

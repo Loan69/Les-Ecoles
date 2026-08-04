@@ -71,12 +71,12 @@ export default function PresenceFoyerPage() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error || !data?.user) {
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data?.session?.user) {
           router.replace("/signin");
           return;
         }
-        setUser(data.user);
+        setUser(data.session.user);
       } catch (err) {
         console.error("Erreur récupération user :", err);
         router.replace("/signin");

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import { useSupabase } from "@/app/providers"
 import { User } from "@supabase/supabase-js"
 import { Check } from "lucide-react"
@@ -20,9 +21,9 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser()
-      if (error || !data?.user) return
-      setUser(data.user)
+      const { data, error } = await supabase.auth.getSession()
+      if (error || !data?.session?.user) return
+      setUser(data.session.user)
     }
     fetchUser()
   }, [supabase])
@@ -53,11 +54,22 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
   
 
   const handleToggle = async () => {
-    if (!user) return;
+    if (!user || loading) return;
+
+    // Mise à jour optimiste : le bouton bascule immédiatement, l'enregistrement suit.
+    // Il demande deux allers-retours (lire les confirmations puis les réécrire, pour ne
+    // pas écraser celles des autres) : attendre les deux figeait le bouton une bonne seconde.
+    const previous = checked;
+    setChecked(!checked);
     setLoading(true);
 
-    try {
+    const revert = (message: string, err?: unknown) => {
+      if (err) console.error(message, err);
+      setChecked(previous);
+      toast.error("Impossible d'enregistrer votre réponse. Réessayez.");
+    };
 
+    try {
         // Récupérer les confirmations actuelles
         const { data, error } = await supabase
         .from("evenements")
@@ -66,8 +78,7 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
         .single();
 
         if (error) {
-        console.error("❌ Erreur fetch confirmations :", error);
-        setLoading(false);
+        revert("❌ Erreur fetch confirmations :", error);
         return;
         }
 
@@ -76,24 +87,18 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
         const userId = user.id;
 
         // Ajouter ou retirer l'utilisateur
-        const updatedConfirmations = checked
+        const updatedConfirmations = previous
         ? confirmations.filter(id => id !== userId)
         : [...confirmations, userId];
 
-        // Update dans Supabase
-        const { data: updateData, error: updateError } = await supabase
+        const { error: updateError } = await supabase
         .from("evenements")
         .update({ confirmations: updatedConfirmations })
-        .eq("id", eventId)
-        .select(); // 🔹 select() permet de récupérer le résultat après update
+        .eq("id", eventId);
 
-        if (updateError) {
-        console.error("❌ Erreur update confirmations :", updateError);
-        } else {
-        setChecked(!checked); // Mise à jour visuelle
-        }
+        if (updateError) revert("❌ Erreur update confirmations :", updateError);
     } catch (err) {
-        console.error("❌ Exception handleToggle :", err);
+        revert("❌ Exception handleToggle :", err);
     } finally {
         setLoading(false);
     }
@@ -103,7 +108,6 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
 
   return (
     <button
-      disabled={loading}
       onClick={handleToggle}
       title={checked ? "Cliquer pour retirer" : "Cliquer pour confirmer"}
       className={cn(
