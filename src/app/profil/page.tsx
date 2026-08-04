@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSupabase } from "../providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
-import LoadingSpinner from "../components/LoadingSpinner";
+import { ProfilSkeleton } from "../components/Skeleton";
 import { Residente } from "@/types/Residente";
 import { formatEtage, formatChambre } from "@/lib/adminPeople";
 import TopBar from "../components/TopBar";
@@ -92,9 +92,9 @@ export default function ProfilPage() {
 
     if (loading)
         return (
-        <div className="flex justify-center items-center h-screen">
-            <LoadingSpinner />
-        </div>
+        <main className="min-h-screen bg-white px-4 pt-6">
+            <ProfilSkeleton />
+        </main>
         );
 
     if (!profil)

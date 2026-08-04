@@ -10,7 +10,7 @@ import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import { useMyRights } from "@/lib/useMyRights";
 import { useSectionGuard } from "@/lib/useSectionGuard";
-import LoadingSpinner from "../components/LoadingSpinner";
+import { CardListSkeleton } from "../components/Skeleton";
 
 export default function CalendrierPage() {
   const { supabase } = useSupabase();
@@ -154,8 +154,8 @@ export default function CalendrierPage() {
 
   if (!accesSection) {
     return (
-      <main className="flex items-center justify-center min-h-screen bg-white">
-        <LoadingSpinner />
+      <main className="min-h-screen bg-white">
+        <CardListSkeleton count={4} />
       </main>
     );
   }

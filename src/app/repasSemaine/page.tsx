@@ -17,6 +17,7 @@ import { optionVisibleFor } from "@/lib/optionVisibility";
 import { formatLieu } from "@/lib/eventLieu";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { WeekDaysSkeleton } from "../components/Skeleton";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
@@ -257,7 +258,7 @@ export default function SemaineRepas() {
         </div>
 
         {!ready ? (
-          <div className="flex justify-center py-20"><LoadingSpinner /></div>
+          <WeekDaysSkeleton days={days.length} />
         ) : (
           <div className="space-y-3">
             {days.map((dateKey) => {

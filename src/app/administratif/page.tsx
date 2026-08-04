@@ -12,7 +12,7 @@ import { RichTextEditor, RichTextView } from "../components/RichText";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
-import LoadingSpinner from "../components/LoadingSpinner";
+import { InfoSectionsSkeleton } from "../components/Skeleton";
 import { useMyRights } from "@/lib/useMyRights";
 import { useSectionGuard } from "@/lib/useSectionGuard";
 
@@ -275,8 +275,8 @@ export default function AdministratifPage() {
 
   if (loading || !accesSection) {
     return (
-      <main className="flex items-center justify-center min-h-screen bg-white">
-        <LoadingSpinner />
+      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-white px-4 py-8">
+        <InfoSectionsSkeleton />
       </main>
     );
   }

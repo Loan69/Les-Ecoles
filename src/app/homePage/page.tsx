@@ -11,7 +11,7 @@ import InviteModal, { EditingInvite } from "../components/inviteModal";
 import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { Residente } from "@/types/Residente";
-import LoadingSpinner from "../components/LoadingSpinner";
+import { HomeSkeleton } from "../components/Skeleton";
 import { Residence } from "@/types/Residence";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
@@ -283,8 +283,8 @@ export default function HomePage() {
 
   if (!isReady) {
     return (
-      <main className="flex items-center justify-center min-h-screen bg-white">
-        <LoadingSpinner />
+      <main className="min-h-screen bg-gray-50">
+        <HomeSkeleton />
       </main>
     );
   }

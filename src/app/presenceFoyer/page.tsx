@@ -15,6 +15,7 @@ import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { CardListSkeleton } from "../components/Skeleton";
 import AbsenceModal from "../components/AbsenceModal";
 
 const MONTH_NAMES = [
@@ -179,8 +180,8 @@ export default function PresenceFoyerPage() {
 
   if (!isReady) {
     return (
-      <main className="flex items-center justify-center min-h-screen bg-white">
-        <LoadingSpinner />
+      <main className="min-h-screen bg-white">
+        <CardListSkeleton count={3} />
       </main>
     );
   }
