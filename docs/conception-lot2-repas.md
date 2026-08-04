@@ -2,7 +2,7 @@
 
 > **Document de travail** — on fige le modèle **avant** de coder (ce lot touche la comptabilité : zéro bug toléré).
 > Statut : 🟢 v0.3 — 2026-07-04. **Schéma figé** (tous les arbitrages tranchés). Prêt à coder.
-> **🟣 À VALIDER CLIENT** = à trancher en réunion ; **❓ Question ouverte** = arbitrage restant.
+> **🟣 À VALIDER** = à trancher en réunion ; **❓ Question ouverte** = arbitrage restant.
 
 ---
 
@@ -123,7 +123,7 @@ Notification aux concernées : **à étudier plus tard** — probablement via un
 2. **S2–S3** : schéma BDD + éditeur d'options (avec duplication / plage / modèles) + migration.
 3. **S3–S4** : écran de sélection résidente branché sur le nouveau modèle (service fermé si aucune option).
 4. **S4–S5** : refonte compta + déduction des absences + réinit des choix invalides.
-5. **S5–S6** : tests sur jeu de données + session de test client.
+5. **S5–S6** : tests sur jeu de données + session de test.
 
 ---
 
