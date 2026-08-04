@@ -342,6 +342,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
   }
 
   const rowActions: RowActions = {
+    canEdit,
     canManageRoles,
     currentUserId,
     rightsMap,
@@ -510,6 +511,9 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
 
 // --- Actions transmises aux lignes ---
 type RowActions = {
+  // Édition de la section Comptes : sans elle, la liste des utilisatrices est en lecture seule
+  // (les serveurs refusent déjà ces actions ; on n'affiche pas des boutons voués à un 403).
+  canEdit: boolean;
   canManageRoles: boolean;
   currentUserId: string;
   rightsMap: Record<string, UserRights>;
@@ -554,7 +558,7 @@ function PlaceGroups({ places, isPoste, mode, ...actions }: { places: PlaceWithS
   );
 }
 
-function PlaceRow({ p, mode, canManageRoles, currentUserId, rightsMap, onEdit, onToggle, onDelete, onInvite, onResend, onCancelInvite, onArchive, onMove, onRights }: { p: PlaceWithStatus; mode: "people" | "structure" } & RowActions) {
+function PlaceRow({ p, mode, canEdit, canManageRoles, currentUserId, rightsMap, onEdit, onToggle, onDelete, onInvite, onResend, onCancelInvite, onArchive, onMove, onRights }: { p: PlaceWithStatus; mode: "people" | "structure" } & RowActions) {
   const free = p.is_active && !p.occupant && !p.invitation;
   const occupantRights = p.occupant ? rightsMap[p.occupant.user_id]?.rights : undefined;
 
@@ -570,12 +574,12 @@ function PlaceRow({ p, mode, canManageRoles, currentUserId, rightsMap, onEdit, o
 
       {mode === "people" ? (
         <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
-          {free && (
+          {canEdit && free && (
             <button onClick={() => onInvite(p)} className="flex items-center gap-1 bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-800 cursor-pointer" title="Inviter une résidente">
               <Mail className="w-4 h-4" /> Inviter
             </button>
           )}
-          {p.invitation && (
+          {canEdit && p.invitation && (
             <>
               <button onClick={() => onResend(p)} className="p-2 rounded-full text-amber-600 hover:bg-amber-50 cursor-pointer" title="Renvoyer l'invitation">
                 <RefreshCw className="w-4 h-4" />
@@ -592,12 +596,16 @@ function PlaceRow({ p, mode, canManageRoles, currentUserId, rightsMap, onEdit, o
                   <SlidersHorizontal className="w-4 h-4" /> Droits
                 </button>
               )}
-              <button onClick={() => onMove(p)} className="p-2 rounded-full text-blue-600 hover:bg-blue-50 cursor-pointer" title="Déplacer vers une autre place">
-                <ArrowLeftRight className="w-4 h-4" />
-              </button>
-              <button onClick={() => onArchive(p)} className="p-2 rounded-full text-orange-600 hover:bg-orange-50 cursor-pointer" title="Libérer la place (désactiver le compte)">
-                <LogOut className="w-4 h-4" />
-              </button>
+              {canEdit && (
+                <>
+                  <button onClick={() => onMove(p)} className="p-2 rounded-full text-blue-600 hover:bg-blue-50 cursor-pointer" title="Déplacer vers une autre place">
+                    <ArrowLeftRight className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => onArchive(p)} className="p-2 rounded-full text-orange-600 hover:bg-orange-50 cursor-pointer" title="Libérer la place (désactiver le compte)">
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </>
+              )}
             </>
           )}
         </div>
