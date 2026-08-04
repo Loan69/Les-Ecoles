@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error: dbError } = await supabase
-    .from("presences_v2")
+    .from("presences")
     .select("*")
     .eq("user_id", user.id)
     .gte("date", start)
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   // Sans réponse → on retire la ligne
   if (!choix) {
     const { error: delErr } = await supabase
-      .from("presences_v2")
+      .from("presences")
       .delete()
       .eq("user_id", user.id)
       .eq("date", date)
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   // « Non » explicite → ligne sans option
   if (choix === CHOIX_NON) {
     const { error: nonErr } = await supabase
-      .from("presences_v2")
+      .from("presences")
       .upsert(
         { user_id: user.id, date, service, option_id: null, commentaire: commentaire?.trim() || null },
         { onConflict: "user_id,date,service" }
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error: upErr } = await supabase
-    .from("presences_v2")
+    .from("presences")
     .upsert(
       { user_id: user.id, date, service, option_id, commentaire: commentaire?.trim() || null },
       { onConflict: "user_id,date,service" }

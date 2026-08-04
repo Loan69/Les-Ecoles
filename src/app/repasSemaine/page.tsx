@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Lock, Moon, UserPlus, Trash2, Pencil } from "lucide-react";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
-import { ServiceOption, MealOptionCatalog, PresenceV2, Service } from "@/types/MealOption";
+import { ServiceOption, MealOptionCatalog, Presence, Service } from "@/types/MealOption";
 import { Absence } from "@/types/Absence";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { computeLockState } from "@/lib/lockUtils";
@@ -66,7 +66,7 @@ export default function SemaineRepas() {
   const [profil, setProfil] = useState<Profil | null>(null);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
-  const [presences, setPresences] = useState<PresenceV2[]>([]);
+  const [presences, setPresences] = useState<Presence[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [weekEvents, setWeekEvents] = useState<CalendarEvent[]>([]);
   const [myInvites, setMyInvites] = useState<InviteRow[]>([]);
@@ -120,13 +120,13 @@ export default function SemaineRepas() {
     const end = days[days.length - 1];
     const [{ data: soData }, { data: presData }, { data: absData }, { data: evData }, { data: invData }] = await Promise.all([
       supabase.from("meal_service_options").select("*, option:meal_options(*)").gte("date", start).lte("date", end).order("position"),
-      supabase.from("presences_v2").select("*").eq("user_id", user.id).gte("date", start).lte("date", end),
+      supabase.from("presences").select("*").eq("user_id", user.id).gte("date", start).lte("date", end),
       supabase.from("absences_sejour").select("*").eq("user_id", user.id).lte("date_debut", end).gte("date_fin", start),
       supabase.from("evenements").select("*").overlaps("dates_event", days),
       supabase.from("invites_repas").select("id, id_invite, nom, prenom, date_repas, type_repas, option_id").eq("invite_par", user.id).gte("date_repas", start).lte("date_repas", end),
     ]);
     setServiceOptions((soData as ServiceOption[]) ?? []);
-    setPresences((presData as PresenceV2[]) ?? []);
+    setPresences((presData as Presence[]) ?? []);
     setAbsences((absData as Absence[]) ?? []);
     setWeekEvents((evData as CalendarEvent[]) ?? []);
     setMyInvites((invData as InviteRow[]) ?? []);
@@ -179,7 +179,7 @@ export default function SemaineRepas() {
 
   // choix : "" = à renseigner (aucune ligne) · "non" = Non explicite · sinon l'id de l'option.
   const setChoice = async (dateKey: string, service: Service, choix: string) => {
-    const res = await fetch("/api/presences-v2", {
+    const res = await fetch("/api/presences", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ date: dateKey, service, choix }),

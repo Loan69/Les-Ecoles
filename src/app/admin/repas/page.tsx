@@ -1,364 +1,451 @@
 "use client";
 
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
 import { useSupabase } from "@/app/providers";
-import { CalendarDays, Scale, Soup, CalendarCheck, Table2 } from "lucide-react";
-import TopBar from "@/app/components/TopBar";
-import { Personne } from "@/types/Personne";
-import { Repas } from "@/types/repas";
+import { CalendarDays, Table2, Scale, Soup, Moon as MoonIcon, CalendarCheck, Download } from "lucide-react";
+import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
-import { InviteRepas } from "@/types/InviteRepas";
 import { Residence } from "@/types/Residence";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Absence } from "@/types/Absence";
+import { Presence, MealOptionCatalog, Service } from "@/types/MealOption";
+import { PersonneDetail, sortAdminPeople, formatEtage } from "@/lib/adminPeople";
+import { isAwayForMeal } from "@/lib/mealCompta";
+import { statutRepas, mangeUnRepas, type StatutRepas } from "@/lib/presenceStatut";
+import { downloadCSV } from "@/lib/csvExport";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
-import { PersonneDetail } from "@/lib/adminPeople";
 import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
 import DetailListModal from "@/app/components/admin/DetailListModal";
+import MealOptionEditModal from "@/app/components/admin/MealOptionEditModal";
+import { useMyRights } from "@/lib/useMyRights";
+import TopBar from "@/app/components/TopBar";
+import RepasNav from "@/app/components/admin/RepasNav";
 
-// --- Types ---
-type ResidenteRow = Personne & { etage?: string | null; chambre?: string | null };
-
-interface DayResidenceDetail {
-  dejeuner: PersonneDetail[];
-  diner: PersonneDetail[];
-  plateau: PersonneDetail[];
-  piqueNique: PersonneDetail[];
-  special: { label: string; people: PersonneDetail[] }[];
+function formatJourLong(dateKey: string): string {
+  return parseDateKeyLocal(dateKey).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }).replace(/^./, (c) => c.toUpperCase());
 }
-type DayDetailMap = Record<string, DayResidenceDetail>;
-
-interface UserCompta extends Personne {
-  dejeuner: number;
-  diner: number;
-  total: number;
+function formatColDay(dateKey: string): string {
+  return parseDateKeyLocal(dateKey).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }).replace(/^./, (c) => c.toUpperCase());
 }
-type ComptaByResidenceMap = Record<string, UserCompta[]>;
 
-export default function AdminRepasView() {
+type InviteMeal = { id: number; invite_par: string; nom: string; prenom: string; date_repas: string; type_repas: "dejeuner" | "diner"; option_id: string | null };
+type OpenServiceOption = { date: string; service: Service; option_id: string; label: string; residence: string };
+type OptionGroup = { option_id: string; label: string; people: PersonneDetail[]; notes: Record<string, string> };
+type ServiceDetail = { open: boolean; options: OptionGroup[] };
+
+export default function AdminRepasPage() {
   const { supabase } = useSupabase();
+  const canEdit = useMyRights().canEdit("repas");
+  const [allPeople, setAllPeople] = useState<(PersonneDetail & { horsSuivi: boolean })[]>([]);
+  const [residences, setResidences] = useState<Residence[]>([]);
+  const [presences, setPresences] = useState<Presence[]>([]);
+  const [absences, setAbsences] = useState<Absence[]>([]);
+  const [mealOptions, setMealOptions] = useState<MealOptionCatalog[]>([]);
+  const [invites, setInvites] = useState<InviteMeal[]>([]);
+  const [openServiceOptions, setOpenServiceOptions] = useState<OpenServiceOption[]>([]);
+  const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [repasData, setRepasData] = useState<Repas[]>([]);
-  const [residentes, setResidentes] = useState<ResidenteRow[]>([]);
-  const [invites, setInvites] = useState<InviteRepas[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [residences, setResidences] = useState<Residence[]>([]);
-  const [optionLabels, setOptionLabels] = useState<Record<string, string>>({});
-
   const [tableOpen, setTableOpen] = useState(false);
-  const [listModal, setListModal] = useState<{ title: string; people: PersonneDetail[] } | null>(null);
+  // Contexte de la popup d'une option (people/notes calculés en direct depuis les données).
+  const [listModal, setListModal] = useState<{ date: string; service: Service; residence: string; option_id: string; title: string } | null>(null);
 
-  // --- Helpers de date ---
-  const formatDateFR = (dateString: string, short = false): string => {
-    if (!dateString) return "";
-    const date = parseDateKeyLocal(dateString);
-    return date
-      .toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: short ? "short" : "long" })
-      .replace(/^./, (c) => c.toUpperCase());
-  };
-
-  const formatColDay = (dateString: string): string =>
-    parseDateKeyLocal(dateString)
-      .toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })
-      .replace(/^./, (c) => c.toUpperCase());
-
-  const getNextDayStr = (dateStr: string) => {
-    const d = new Date(dateStr);
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
-  };
-
-  // Étiquette lisible d'un choix de repas (modèle actuel ; sera revu au Lot 2)
-  const mealLabel = (choix?: string | null): string | null => {
-    if (!choix) return null;
-    const c = choix.toLowerCase();
-    if (c.includes("non")) return null;
-    if (c.startsWith("special:")) return choix.split(":")[2] || "Spécial";
-    if (c.includes("plateau")) return "Plateau";
-    if (c.includes("pn")) return "P.N.";
-    if (c === "12" || c === "36" || c === "corail") return `Oui au ${choix}`;
-    if (c === "oui") return "Oui";
-    return choix;
-  };
-
-  const toDetail = useCallback(
-    (p: ResidenteRow): PersonneDetail => ({
-      id: p.user_id,
-      nom: p.nom,
-      prenom: p.prenom,
-      residence: p.residence != null ? String(p.residence) : undefined,
-      etage: p.etage,
-      chambre: p.chambre ? optionLabels[p.chambre] ?? p.chambre : p.chambre,
-      isInvite: false,
-    }),
-    [optionLabels]
-  );
-
-  // --- Initialisation période ---
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const savedStart = localStorage.getItem("startDate") || today;
-    const endDateObj = new Date(savedStart);
-    endDateObj.setDate(new Date(savedStart).getDate() + 7);
-    setStartDate(savedStart);
-    setEndDate(formatDateKeyLocal(endDateObj));
+    const today = formatDateKeyLocal(new Date());
+    const saved = localStorage.getItem("startDate") || today;
+    const end = new Date(parseDateKeyLocal(saved));
+    end.setDate(end.getDate() + 7);
+    setStartDate(saved);
+    setEndDate(formatDateKeyLocal(end));
   }, []);
 
-  // --- Fetch ---
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     if (!startDate || !endDate) return;
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const extraDayForPN = getNextDayStr(endDate);
-        const [{ data: rData }, { data: resData }, { data: invData }, { data: residData }, { data: optionsData }] =
-          await Promise.all([
-            supabase.from("presences").select("*").gte("date_repas", startDate).lte("date_repas", extraDayForPN),
-            supabase.from("residentes").select("*"),
-            supabase.from("invites_repas").select("*").gte("date_repas", startDate).lte("date_repas", endDate),
-            supabase.from("residences").select("*"),
-            supabase.from("select_options_residence").select("value, label"),
-          ]);
-        setRepasData(rData || []);
-        setResidentes(resData || []);
-        setInvites(invData || []);
-        setResidences(residData || []);
-        const labels: Record<string, string> = {};
-        (optionsData || []).forEach((o) => {
-          if (o.value) labels[o.value] = o.label;
-        });
-        setOptionLabels(labels);
-      } catch (error) {
-        console.error("Erreur:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-    localStorage.setItem("startDate", startDate);
-    localStorage.setItem("endDate", endDate);
-  }, [startDate, endDate, supabase]);
+    setLoading(true);
 
-  // --- Détail d'un jour : listes de personnes par résidence et catégorie ---
-  const getDayDetail = (currentDate: string): DayDetailMap => {
-    const summary: DayDetailMap = {};
-    residences.forEach((r) => {
-      summary[r.value] = { dejeuner: [], diner: [], plateau: [], piqueNique: [], special: [] };
-    });
-    const tomorrowStr = getNextDayStr(currentDate);
+    const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: optsRes }, { data: invitesData }, { data: placesData }] =
+      await Promise.all([
+        supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
+        // Exclut le super-admin (compte technique) ; garde les archivées pour l'historique de compta.
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id, niveau_repas").eq("is_technique", false),
+        supabase.from("invitees").select("user_id, nom, prenom, residence"),
+        supabase.from("meal_options").select("*"),
+        supabase.from("select_options_residence").select("value, label"),
+        supabase.from("invites_repas").select("id, invite_par, nom, prenom, date_repas, type_repas, option_id").gte("date_repas", startDate).lte("date_repas", endDate),
+        supabase.from("places").select("id, label"),
+      ]);
+    setInvites((invitesData as InviteMeal[]) || []);
 
-    repasData.forEach((r) => {
-      const p = residentes.find((res) => res.user_id === r.user_id);
-      if (!p) return;
-      const person = toDetail(p);
-      const choix = (r.choix_repas || "").toLowerCase();
-
-      if (r.date_repas === currentDate) {
-        if (choix.startsWith("special:")) {
-          const [, residence, label] = choix.split(":");
-          if (summary[residence]) {
-            const opt = summary[residence].special.find((o) => o.label === label);
-            if (opt) opt.people.push(person);
-            else summary[residence].special.push({ label, people: [person] });
-          }
-        } else {
-          const lieu =
-            choix === "12" || choix === "36" || choix === "corail"
-              ? choix
-              : choix.includes("plateau")
-              ? p.residence
-              : null;
-          if (lieu && summary[lieu]) {
-            if (choix.includes("plateau")) summary[lieu].plateau.push(person);
-            else if (r.type_repas === "dejeuner") summary[lieu].dejeuner.push(person);
-            else if (r.type_repas === "diner") summary[lieu].diner.push(person);
-          }
-        }
-      }
-
-      if (r.date_repas === tomorrowStr && choix.includes("pn")) {
-        const lieu = p.residence;
-        if (lieu && summary[lieu]) summary[lieu].piqueNique.push(person);
-      }
-    });
-
-    invites
-      .filter((i) => i.date_repas === currentDate)
-      .forEach((i) => {
-        if (summary[i.lieu_repas]) {
-          const person: PersonneDetail = {
-            id: `invite-${i.id}`,
-            nom: i.nom,
-            prenom: i.prenom,
-            residence: i.lieu_repas,
-            isInvite: true,
-          };
-          if (i.type_repas === "dejeuner") summary[i.lieu_repas].dejeuner.push(person);
-          if (i.type_repas === "diner") summary[i.lieu_repas].diner.push(person);
-        }
-      });
-
-    return summary;
-  };
-
-  // --- Comptabilité par personne / résidence ---
-  const comptaByResidence = useMemo<ComptaByResidenceMap>(() => {
-    const compta: ComptaByResidenceMap = {};
-    residences.forEach((r) => (compta[r.value] = []));
-    residentes.forEach((p) => {
-      const count = { dejeuner: 0, diner: 0 };
-      repasData
-        .filter((r) => r.user_id === p.user_id && r.date_repas <= endDate)
-        .forEach((r) => {
-          if (!r.choix_repas?.toLowerCase().includes("non")) {
-            if (r.type_repas === "dejeuner") count.dejeuner++;
-            if (r.type_repas === "diner") count.diner++;
-          }
-        });
-      invites
-        .filter((i) => i.invite_par === p.user_id)
-        .forEach((i) => {
-          if (i.type_repas === "dejeuner") count.dejeuner++;
-          if (i.type_repas === "diner") count.diner++;
-        });
-      if (p.residence && compta[p.residence]) {
-        compta[p.residence].push({ ...p, ...count, total: count.dejeuner + count.diner });
-      }
-    });
-    return compta;
-  }, [residences, residentes, repasData, invites, endDate]);
-
-  const totauxParResidence = useMemo(() => {
-    return residences.map((r) => {
-      const personnes = comptaByResidence[r.value] || [];
-      const totalDejeuners = personnes.reduce((acc, p) => acc + p.dejeuner, 0);
-      const totalDiners = personnes.reduce((acc, p) => acc + p.diner, 0);
-      return { label: r.label, value: r.value, totalDejeuners, totalDiners, totalRepas: totalDejeuners + totalDiners };
-    });
-  }, [residences, comptaByResidence]);
-
-  const grandTotal = useMemo(
-    () => ({
-      dejeuners: totauxParResidence.reduce((acc, r) => acc + r.totalDejeuners, 0),
-      diners: totauxParResidence.reduce((acc, r) => acc + r.totalDiners, 0),
-      repas: totauxParResidence.reduce((acc, r) => acc + r.totalRepas, 0),
-    }),
-    [totauxParResidence]
-  );
-
-  const daysInRange = useMemo(() => {
-    if (!startDate) return [];
-    return Array.from({ length: 8 }, (_, i) => {
-      const d = new Date(startDate);
-      d.setDate(d.getDate() + i);
-      return d.toISOString().slice(0, 10);
-    });
-  }, [startDate]);
-
-  const residentesDetail = useMemo<PersonneDetail[]>(() => residentes.map(toDetail), [residentes, toDetail]);
-
-  const openList = (title: string, people: PersonneDetail[]) => setListModal({ title, people });
-
-  // Une tuile de comptage cliquable → liste des personnes comptées
-  const tile = (label: string, people: PersonneDetail[], title: string, cls: string, span2 = false) => (
-    <button
-      onClick={() => openList(title, people)}
-      className={`${span2 ? "col-span-2" : ""} flex flex-col items-center rounded-xl p-2 transition cursor-pointer ${cls}`}
-      title="Voir la liste"
-    >
-      <span className="text-[10px] font-bold uppercase leading-tight text-center">{label}</span>
-      <span className="text-lg font-black">{people.length}</span>
-    </button>
-  );
-
-  if (loading)
-    return (
-      <main className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner />
-      </main>
+    const { data: soData } = await supabase
+      .from("meal_service_options")
+      .select("date, service, option:meal_options(id, label, residence)")
+      .gte("date", startDate)
+      .lte("date", endDate);
+    setOpenServiceOptions(
+      (soData ?? [])
+        .map((so) => {
+          const o = so.option as unknown as { id: string; label: string; residence: string } | null;
+          return o ? { date: so.date as string, service: so.service as Service, option_id: o.id, label: o.label, residence: o.residence } : null;
+        })
+        .filter(Boolean) as OpenServiceOption[]
     );
 
-  // Colonnes du tableau de détail : 2 par jour (déjeuner / dîner)
+    const optionLabels: Record<string, string> = {};
+    (optsRes || []).forEach((o) => { if (o.value) optionLabels[o.value] = o.label; });
+    // Libellé de chambre propre depuis `places` (source de vérité), via place_id :
+    // residentes.chambre peut contenir un code brut legacy (« r36_etage6_la_rochelle »).
+    const placeLabels: Record<string, string> = {};
+    (placesData || []).forEach((p) => { if (p.id && p.label) placeLabels[p.id] = p.label; });
+
+    setResidences(residencesData || []);
+    setMealOptions((optionsData as MealOptionCatalog[]) || []);
+    setAllPeople([
+      ...(residentesData?.map((r) => ({
+        id: r.user_id, nom: r.nom, prenom: r.prenom,
+        residence: r.residence != null ? String(r.residence) : undefined,
+        etage: r.etage, chambre: (r.place_id && placeLabels[r.place_id]) || (r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre), isInvite: false,
+        // Repas = Aucun → ne mange pas au foyer, hors des listes de repas (voir R-NIV-11).
+        horsSuivi: Number(r.niveau_repas ?? 1) === 0,
+      })) || []),
+      ...(inviteesData?.map((i) => ({
+        id: i.user_id, nom: i.nom, prenom: i.prenom,
+        residence: i.residence != null ? String(i.residence) : undefined, isInvite: true,
+        horsSuivi: false, // les invitées n'ont pas de droits par section
+      })) || []),
+    ]);
+
+    const [presRes, absRes] = await Promise.all([
+      fetch(`/api/admin/presences?start=${startDate}&end=${endDate}`),
+      fetch(`/api/admin/absences?start=${startDate}&end=${endDate}`),
+    ]);
+    const presJson = await presRes.json();
+    const absJson = await absRes.json();
+    if (presRes.ok) setPresences(presJson.presences ?? []);
+    else toast.error(presJson.error || "Erreur inscriptions.");
+    if (absRes.ok) setAbsences(absJson.absences ?? []);
+    else toast.error(absJson.error || "Erreur absences.");
+
+    setLoading(false);
+  }, [startDate, endDate, supabase]);
+
+  useEffect(() => {
+    fetchData();
+    if (startDate) localStorage.setItem("startDate", startDate);
+  }, [fetchData, startDate]);
+
+  const daysInRange = useMemo(() => {
+    if (!startDate || !endDate || endDate < startDate) return [];
+    const days: string[] = [];
+    const cursor = parseDateKeyLocal(startDate);
+    const end = parseDateKeyLocal(endDate);
+    while (cursor <= end) { days.push(formatDateKeyLocal(cursor)); cursor.setDate(cursor.getDate() + 1); }
+    return days;
+  }, [startDate, endDate]);
+
+  // Personnes suivies : celles ayant accès à la section Repas, PLUS celles qui en sont exclues
+  // mais gardent une inscription ou un invité sur la période — on ne réécrit pas l'historique.
+  const people = useMemo(
+    () => allPeople.filter((p) => !p.horsSuivi || presences.some((x) => x.user_id === p.id) || invites.some((i) => i.invite_par === p.id)),
+    [allPeople, presences, invites]
+  );
+
+  const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
+  const optionsById = useMemo(() => new Map(mealOptions.map((o) => [o.id, o])), [mealOptions]);
+
+  // Résidence de compta d'une inscription (option 12/36, ou résidence de la personne)
+  const comptaResidence = useCallback(
+    (p: Presence): string | undefined => {
+      const opt = p.option_id ? optionsById.get(p.option_id) : undefined; // « Non » explicite = aucune résidence de compta
+      if (!opt) return undefined;
+      if (opt.residence === "personne") return peopleById.get(p.user_id)?.residence;
+      return opt.residence;
+    },
+    [optionsById, peopleById]
+  );
+
+  // Détail d'un jour par service : options OUVERTES (même à 0 inscrit) + inscrits par option.
+  const getDayOptionDetail = useCallback(
+    (dateKey: string): Record<string, { dejeuner: ServiceDetail; diner: ServiceDetail }> => {
+      const res: Record<string, { dejeuner: ServiceDetail; diner: ServiceDetail }> = {};
+      residences.forEach((r) => (res[r.value] = { dejeuner: { open: false, options: [] }, diner: { open: false, options: [] } }));
+      (["dejeuner", "diner"] as Service[]).forEach((svc) => {
+        const openOpts = openServiceOptions.filter((so) => so.date === dateKey && so.service === svc);
+        residences.forEach((r) => {
+          // Options ouvertes pertinentes pour ce lieu (résidence de l'option, ou « personne »).
+          const relevant = new Map<string, OpenServiceOption>();
+          openOpts.forEach((so) => { if (so.residence === r.value || so.residence === "personne") relevant.set(so.option_id, so); });
+          if (relevant.size === 0) return; // service fermé pour cette résidence
+          const options: OptionGroup[] = [...relevant.values()]
+            .map((so) => {
+              const people: PersonneDetail[] = presences
+                .filter((p) => p.date === dateKey && p.service === svc && p.option_id === so.option_id && !isAwayForMeal(absences, p.user_id, p.date) && comptaResidence(p) === r.value)
+                .map((p) => peopleById.get(p.user_id))
+                .filter(Boolean) as PersonneDetail[];
+              // Invités rattachés à cette option, dans ce lieu (option 12/36 → sa résidence ; « personne » → résidence de l'inviteur).
+              const notes: Record<string, string> = {};
+              invites.forEach((inv) => {
+                if (inv.date_repas !== dateKey || inv.type_repas !== svc || inv.option_id !== so.option_id) return;
+                const lieu = so.residence === "personne" ? peopleById.get(inv.invite_par)?.residence : so.residence;
+                if (lieu !== r.value) return;
+                const inviter = peopleById.get(inv.invite_par);
+                const id = `guest-${inv.id}`;
+                people.push({ id, nom: inv.nom, prenom: inv.prenom, isInvite: true });
+                notes[id] = inviter ? `invité par ${inviter.prenom} ${inviter.nom}` : "invité";
+              });
+              return { option_id: so.option_id, label: so.label, people, notes };
+            })
+            .sort((a, b) => a.label.localeCompare(b.label));
+          res[r.value][svc] = { open: true, options };
+        });
+      });
+      return res;
+    },
+    [residences, openServiceOptions, presences, absences, peopleById, comptaResidence, invites]
+  );
+
+  // Agrégat par personne (compta fin de mois) : nb de déjeuners/dîners mangés sur la période,
+  // groupé par résidence de la personne (déductions d'absences incluses).
+  const comptaByResidence = useMemo(() => {
+    const map: Record<string, { person: PersonneDetail; dejeuner: number; diner: number; total: number }[]> = {};
+    residences.forEach((r) => (map[r.value] = []));
+    people.forEach((person) => {
+      const rk = person.residence;
+      if (!rk || !map[rk]) return;
+      let dej = 0, din = 0;
+      daysInRange.forEach((date) => {
+        (["dejeuner", "diner"] as Service[]).forEach((service) => {
+          if (isAwayForMeal(absences, person.id, date)) return;
+          const pres = presences.find((x) => x.user_id === person.id && x.date === date && x.service === service);
+          // Seule une inscription à une option compte un repas : « Non » explicite et « sans réponse » ne comptent pas.
+          if (mangeUnRepas(pres)) { if (service === "dejeuner") dej++; else din++; }
+        });
+      });
+      // Repas des invités de cette personne : comptés à l'inviteur (pas de ligne séparée).
+      invites.forEach((inv) => {
+        if (inv.invite_par !== person.id) return;
+        if (inv.type_repas === "dejeuner") dej++; else din++;
+      });
+      map[rk].push({ person, dejeuner: dej, diner: din, total: dej + din });
+    });
+
+    // Compta : ordre par étage puis alphabétique (nom, prénom), au sein de chaque résidence.
+    const byEtageNom = (a: { person: PersonneDetail }, b: { person: PersonneDetail }) =>
+      (a.person.etage || "").localeCompare(b.person.etage || "", "fr", { numeric: true }) ||
+      (a.person.nom || "").localeCompare(b.person.nom || "", "fr", { sensitivity: "base" }) ||
+      (a.person.prenom || "").localeCompare(b.person.prenom || "", "fr", { sensitivity: "base" });
+    Object.keys(map).forEach((k) => map[k].sort(byEtageNom));
+    return map;
+  }, [residences, people, daysInRange, absences, presences, invites]);
+
+  // Totaux du récap = par résidence de la personne (cohérent avec l'agrégat, pour la facturation)
+  const comptaTotals = useMemo(() => {
+    const t: Record<string, { dejeuner: number; diner: number }> = {};
+    residences.forEach((r) => {
+      const rows = comptaByResidence[r.value] ?? [];
+      t[r.value] = { dejeuner: rows.reduce((a, x) => a + x.dejeuner, 0), diner: rows.reduce((a, x) => a + x.diner, 0) };
+    });
+    return t;
+  }, [residences, comptaByResidence]);
+
+  const comptaGrand = useMemo(() => {
+    let dej = 0, din = 0;
+    Object.values(comptaTotals).forEach((v) => { dej += v.dejeuner; din += v.diner; });
+    return { dej, din };
+  }, [comptaTotals]);
+
   const tableColumns: DetailColumn[] = daysInRange.flatMap((d) => [
     { key: `${d}|dejeuner`, label: formatColDay(d), sublabel: "Déj" },
     { key: `${d}|diner`, label: formatColDay(d), sublabel: "Dîner" },
   ]);
 
+  // Invités rattachés à une cellule (inviteur × date × service).
+  const cellGuests = useCallback(
+    (inviterId: string, date: string, service: string) =>
+      invites.filter((inv) => inv.invite_par === inviterId && inv.date_repas === date && inv.type_repas === service),
+    [invites]
+  );
+
+  // Statut affiché d'une cellule du détail : absente · option choisie · « Non » · sans réponse.
+  const cellStatut = useCallback(
+    (p: PersonneDetail, date: string, service: string): { kind: StatutRepas | "absente"; label: string } => {
+      if (isAwayForMeal(absences, p.id, date)) return { kind: "absente", label: "Absente" };
+      const pres = presences.find((x) => x.user_id === p.id && x.date === date && x.service === service);
+      const statut = statutRepas(pres, date);
+      if (statut === "option") return { kind: "option", label: optionsById.get(pres!.option_id!)?.label ?? "Oui" };
+      if (statut === "non") return { kind: "non", label: "Non" };
+      return { kind: "sans_reponse", label: "Sans réponse" };
+    },
+    [absences, presences, optionsById]
+  );
+
+  // Valeur texte d'une cellule du détail (même logique que l'affichage), invités compris pour l'export.
+  const detailCell = (p: PersonneDetail, date: string, service: string): string => {
+    const base = cellStatut(p, date, service).label;
+    const guests = cellGuests(p.id, date, service);
+    if (guests.length === 0) return base;
+    const gtxt = guests.map((g) => `+ invité: ${g.prenom} ${g.nom}`).join(" ");
+    return `${base} ${gtxt}`;
+  };
+
+  const exportDetail = () => {
+    const header = ["Résidence", "Étage", "Nom", "Prénom", ...tableColumns.map((c) => `${c.label} ${c.sublabel}`)];
+    const rows: (string | number)[][] = [header];
+    sortAdminPeople(people).forEach((p) => {
+      const cells = tableColumns.map((c) => {
+        const [date, service] = c.key.split("|");
+        return detailCell(p, date, service);
+      });
+      rows.push([p.residence ?? "", formatEtage(p.etage) ?? "", p.nom, p.prenom, ...cells]);
+    });
+    downloadCSV(`inscriptions_${startDate}_${endDate}.csv`, rows);
+  };
+
+  const exportCompta = () => {
+    const rows: (string | number)[][] = [["Résidence", "Étage", "Nom", "Prénom", "Déjeuners", "Dîners", "Total"]];
+    residences.forEach((r) => {
+      (comptaByResidence[r.value] ?? []).forEach((row) => {
+        rows.push([r.label, formatEtage(row.person.etage) ?? "", row.person.nom, row.person.prenom, row.dejeuner, row.diner, row.total]);
+      });
+      const t = comptaTotals[r.value] ?? { dejeuner: 0, diner: 0 };
+      rows.push([r.label, "", "TOTAL", "", t.dejeuner, t.diner, t.dejeuner + t.diner]);
+    });
+    downloadCSV(`compta_${startDate}_${endDate}.csv`, rows);
+  };
+
+  // --- Édition d'une option depuis la popup (niveau >= 3) ---
+  // Groupe live de l'option ouverte dans la popup (recalculé après chaque modif).
+  const modalGroup = useMemo(() => {
+    if (!listModal) return null;
+    const det = getDayOptionDetail(listModal.date)[listModal.residence];
+    return det?.[listModal.service].options.find((o) => o.option_id === listModal.option_id) ?? null;
+  }, [listModal, getDayOptionDetail]);
+
+  // Options ouvertes (déduplot) pour le jour + service de la popup.
+  const modalDayOptions = useMemo(() => {
+    if (!listModal) return [];
+    const seen = new Set<string>();
+    return openServiceOptions
+      .filter((so) => so.date === listModal.date && so.service === listModal.service)
+      .filter((so) => (seen.has(so.option_id) ? false : seen.add(so.option_id)))
+      .map((so) => ({ option_id: so.option_id, label: so.label }));
+  }, [listModal, openServiceOptions]);
+
+  // Vivier de résidentes (comptes résidentes, hors comptes invitées) pour l'ajout / l'invitant.
+  const residentesForAdd = useMemo(
+    () => people.filter((p) => !p.isInvite).map((p) => ({ id: p.id, nom: p.nom, prenom: p.prenom })).sort((a, b) => a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom)),
+    [people]
+  );
+
+  const postJson = async (url: string, method: string, body: unknown) => {
+    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await res.json();
+    if (!res.ok) { toast.error(j.error || "Erreur."); return false; }
+    await fetchData();
+    return true;
+  };
+
+  // choix : "" = sans réponse · "non" = Non explicite · sinon l'id de l'option.
+  const setResidentOption = async (userId: string, choix: string) => {
+    if (!listModal) return;
+    await postJson("/api/admin/presences", "POST", { user_id: userId, date: listModal.date, service: listModal.service, choix });
+  };
+  const setGuestOption = async (inviteId: number, optionId: string | null) => {
+    await postJson("/api/admin/invite-repas", "PUT", { id: inviteId, option_id: optionId });
+  };
+  const addResidentToOption = async (userId: string) => {
+    if (!listModal) return;
+    if (await postJson("/api/admin/presences", "POST", { user_id: userId, date: listModal.date, service: listModal.service, choix: listModal.option_id })) toast.success("Inscription ajoutée.");
+  };
+  const addGuestToOption = async (nom: string, prenom: string, invitePar: string) => {
+    if (!listModal) return;
+    if (await postJson("/api/admin/invite-repas", "POST", { nom, prenom, invite_par: invitePar, date: listModal.date, service: listModal.service, option_id: listModal.option_id })) toast.success("Invité ajouté.");
+  };
+
+  if (loading) {
+    return <main className="flex items-center justify-center min-h-screen bg-white"><LoadingSpinner /></main>;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-white py-10 px-4 sm:px-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <TopBar />
-        <h1 className="text-3xl font-bold text-amber-800 text-center mb-10">Inscriptions aux repas</h1>
+        <RepasNav />
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-amber-800 mb-1">Repas — comptabilité</h1>
+          <p className="text-gray-600 text-sm">Inscriptions & comptabilité · absences déduites</p>
+        </div>
 
-        <Tabs defaultValue="sum" className="w-full">
-          <div className="flex justify-center w-full mb-10">
-            <TabsList className="inline-flex items-center justify-center bg-orange-100/50 p-2 rounded-3xl shadow-inner h-20 sm:h-24 w-full max-w-2xl">
-              <TabsTrigger
-                value="sum"
-                className="flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-2xl text-lg sm:text-xl font-bold transition-all duration-300 text-orange-900/60 data-[state=active]:bg-white data-[state=active]:text-orange-800 data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-white/50"
-              >
-                <Soup className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" />
-                <span>Inscriptions</span>
+        <div className="flex flex-col md:flex-row items-center justify-center gap-3 mb-8">
+          <div className="flex items-center gap-3">
+            <CalendarDays className="text-amber-600" />
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-amber-300 rounded-lg px-3 py-1 text-black" />
+            <span>→</span>
+            <input type="date" value={endDate} min={startDate || undefined} onChange={(e) => setEndDate(e.target.value)} className="border border-amber-300 rounded-lg px-3 py-1 text-black" />
+          </div>
+          <button onClick={() => setTableOpen(true)} className="flex items-center gap-1 border border-amber-600 text-amber-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-amber-50 cursor-pointer">
+            <Table2 className="w-4 h-4" /> Voir le détail
+          </button>
+        </div>
+
+        <Tabs defaultValue="orga" className="w-full">
+          <div className="flex justify-center mb-8">
+            <TabsList className="inline-flex items-center justify-center bg-orange-100/50 p-2 rounded-3xl shadow-inner h-16 w-full max-w-lg">
+              <TabsTrigger value="orga" className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-base font-bold transition-all text-orange-900/60 data-[state=active]:bg-white data-[state=active]:text-orange-800 data-[state=active]:shadow">
+                <CalendarCheck className="w-5 h-5 text-orange-600" /> Organisation
               </TabsTrigger>
-              <TabsTrigger
-                value="compta"
-                className="flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-2xl text-lg sm:text-xl font-bold transition-all duration-300 text-orange-900/60 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:scale-105 hover:bg-amber-500/20"
-              >
-                <Scale className="w-6 h-6 sm:w-8 sm:h-8" />
-                <span>Comptabilité</span>
+              <TabsTrigger value="compta" className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-base font-bold transition-all text-orange-900/60 data-[state=active]:bg-amber-600 data-[state=active]:text-white data-[state=active]:shadow">
+                <Scale className="w-5 h-5" /> Comptabilité
               </TabsTrigger>
             </TabsList>
           </div>
 
-          {/* Filtre période */}
-          <div className="flex justify-center items-center gap-3 mb-8">
-            <CalendarDays className="text-amber-600" />
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-amber-300 rounded-lg px-3 py-1 text-black" />
-            <span>→</span>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-amber-300 rounded-lg px-3 py-1 text-black" />
-          </div>
-
-          {/* Onglet INSCRIPTIONS : jours empilés + nombres cliquables + tableau de détail */}
-          <TabsContent value="sum" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold text-gray-800 flex items-center gap-2">
-                <CalendarCheck className="text-orange-600" /> Planning
-              </h2>
-              <button
-                onClick={() => setTableOpen(true)}
-                className="flex items-center gap-1 border border-amber-600 text-amber-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-amber-50 cursor-pointer"
-              >
-                <Table2 className="w-4 h-4" /> Voir le détail
-              </button>
+          {/* ORGANISATION : jours empilés, compteurs cliquables (qui prépare quoi) */}
+          <TabsContent value="orga">
+            <div className="flex items-center gap-2 mb-3 text-sm text-gray-500">
+              <Soup className="w-4 h-4 text-orange-600" /> Repas à préparer, par jour et par résidence.
             </div>
-
             <div className="space-y-3">
               {daysInRange.map((date) => {
-                const detail = getDayDetail(date);
+                const optDetail = getDayOptionDetail(date);
                 return (
                   <div key={date} className="rounded-2xl border-2 border-gray-100 bg-white shadow-sm p-4">
-                    <p className="text-sm font-bold text-orange-900 uppercase tracking-wide mb-3">{formatDateFR(date)}</p>
+                    <p className="text-sm font-bold text-orange-900 uppercase tracking-wide mb-3">{formatJourLong(date)}</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {residences.map((res) => {
-                        const d = detail[res.value];
-                        const total =
-                          d.dejeuner.length + d.diner.length + d.plateau.length + d.piqueNique.length + d.special.reduce((s, o) => s + o.people.length, 0);
+                      {residences.map((r) => {
+                        const det = optDetail[r.value];
+                        const anyContent = det.dejeuner.open || det.diner.open;
                         return (
-                          <div key={res.value} className="border border-gray-100 rounded-xl p-3">
-                            <p className="font-bold text-gray-700 text-sm uppercase mb-2">{res.label}</p>
-                            <div className="grid grid-cols-2 gap-2">
-                              {tile("Midi", d.dejeuner, `Midi — ${res.label} · ${formatDateFR(date)}`, "bg-orange-50 hover:bg-orange-100 text-orange-900")}
-                              {tile("Soir", d.diner, `Soir — ${res.label} · ${formatDateFR(date)}`, "bg-blue-50 hover:bg-blue-100 text-blue-900")}
-                              {tile("P.N. (lendemain)", d.piqueNique, `Pique-niques — ${res.label} · ${formatDateFR(date)}`, "bg-purple-50 hover:bg-purple-100 text-purple-900")}
-                              {tile("Plateau", d.plateau, `Plateaux — ${res.label} · ${formatDateFR(date)}`, "bg-emerald-50 hover:bg-emerald-100 text-emerald-900")}
-                              {d.special.map((opt) =>
-                                tile(opt.label, opt.people, `${opt.label} — ${res.label} · ${formatDateFR(date)}`, "bg-amber-50 hover:bg-amber-100 text-amber-900", true)
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-500 mt-2 text-right">
-                              Total jour : <span className="font-bold text-orange-800">{total}</span>
-                            </p>
+                          <div key={r.value} className="border border-gray-100 rounded-xl p-3">
+                            <p className="font-bold text-gray-700 text-sm uppercase mb-2">{r.label}</p>
+                            {!anyContent ? (
+                              <p className="text-xs text-gray-400 italic">Service fermé.</p>
+                            ) : (
+                              <div className="space-y-3">
+                                {(["dejeuner", "diner"] as Service[]).map((svc) => {
+                                  const sd = det[svc];
+                                  if (!sd.open) return null;
+                                  const isMidi = svc === "dejeuner";
+                                  return (
+                                    <div key={svc}>
+                                      <p className={`text-[10px] font-bold uppercase tracking-wide mb-1 ${isMidi ? "text-orange-500" : "text-blue-500"}`}>{isMidi ? "Midi" : "Soir"}</p>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {sd.options.map((grp) => (
+                                          <button
+                                            key={grp.option_id}
+                                            onClick={() => setListModal({ date, service: svc, residence: r.value, option_id: grp.option_id, title: `${grp.label} (${isMidi ? "Midi" : "Soir"}) — ${r.label} · ${formatJourLong(date)}` })}
+                                            className={`flex flex-col items-center rounded-xl py-2 px-1 transition cursor-pointer ${isMidi ? "bg-orange-50 hover:bg-orange-100 text-orange-900" : "bg-blue-50 hover:bg-blue-100 text-blue-900"}`}
+                                            title="Voir la liste"
+                                          >
+                                            <span className="text-[10px] font-bold uppercase text-center leading-tight">{grp.label}</span>
+                                            <span className="text-lg font-black">{grp.people.length}</span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -369,118 +456,151 @@ export default function AdminRepasView() {
             </div>
           </TabsContent>
 
-          {/* Onglet COMPTABILITÉ (inchangé) */}
-          <TabsContent value="compta">
-            <div className="space-y-10">
-              <div className="mt-2">
-                <h2 className="text-2xl font-semibold text-gray-800 mb-5 flex items-center gap-2">
-                  <Scale className="text-amber-600" /> Récapitulatif de la période
-                </h2>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                  {totauxParResidence.map((r) => (
-                    <div key={r.value} className="relative overflow-hidden rounded-2xl bg-white border border-amber-100 shadow-sm p-5">
-                      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-amber-400 to-orange-500 rounded-l-2xl" />
-                      <div className="pl-3">
-                        <p className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-3">{r.label}</p>
-                        <div className="flex items-end justify-between">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-orange-400 inline-block"></span>
-                              <span className="text-sm text-gray-500">Déjeuners</span>
-                              <span className="text-sm font-bold text-orange-800 ml-auto">{r.totalDejeuners}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>
-                              <span className="text-sm text-gray-500">Dîners</span>
-                              <span className="text-sm font-bold text-blue-800 ml-auto">{r.totalDiners}</span>
-                            </div>
-                          </div>
-                          <div className="text-right ml-6">
-                            <p className="text-2xl font-black text-amber-800 leading-none">{r.totalRepas}</p>
-                            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide mt-1">repas total</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="rounded-2xl bg-gradient-to-r from-amber-600 to-orange-500 p-5 flex items-center justify-between shadow-md">
-                  <div>
-                    <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Toutes résidences</p>
-                    <p className="text-white text-lg font-semibold">
-                      {grandTotal.dejeuners} déjeuners · {grandTotal.diners} dîners
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-3xl font-black text-white leading-none">{grandTotal.repas}</p>
-                    <p className="text-white/70 text-xs font-bold uppercase tracking-wide mt-1">repas au total</p>
-                  </div>
-                </div>
-              </div>
-
-              {residences.map((r) => (
-                <div key={r.value} className="bg-white shadow-sm border border-gray-200 rounded-xl p-6">
-                  <h3 className="text-xl font-semibold text-amber-800 mb-4">Comptabilité - {r.label}</h3>
-                  <table className="min-w-full border text-sm bg-white">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="text-left p-2 font-semibold">Nom</th>
-                        <th className="text-center p-2 font-semibold">Déjeuners</th>
-                        <th className="text-center p-2 font-semibold">Dîners</th>
-                        <th className="text-center p-2 font-semibold">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {comptaByResidence[r.value]?.sort((a, b) => a.nom.localeCompare(b.nom)).map((p, idx) => (
-                        <tr key={idx} className="border-b">
-                          <td className="p-2">{p.nom} {p.prenom}</td>
-                          <td className="text-center p-2">{p.dejeuner}</td>
-                          <td className="text-center p-2">{p.diner}</td>
-                          <td className="text-center p-2 font-semibold text-amber-800">{p.total}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
+          {/* COMPTABILITÉ : récap + agrégat par personne (fin de mois) */}
+          <TabsContent value="compta" className="space-y-8">
+            <div className="flex justify-end">
+              <button onClick={exportCompta} className="flex items-center gap-1 bg-amber-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-amber-700 cursor-pointer">
+                <Download className="w-4 h-4" /> Télécharger la compta (CSV)
+              </button>
             </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><Scale className="text-amber-600" /> Récapitulatif de la période</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                {residences.map((r) => (
+                  <div key={r.value} className="rounded-2xl bg-white border border-amber-100 shadow-sm p-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-3">{r.label}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1 text-sm">
+                        <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-orange-400" /> Déjeuners <span className="font-bold text-orange-800 ml-2">{comptaTotals[r.value]?.dejeuner ?? 0}</span></div>
+                        <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-400" /> Dîners <span className="font-bold text-blue-800 ml-2">{comptaTotals[r.value]?.diner ?? 0}</span></div>
+                      </div>
+                      <p className="text-2xl font-black text-amber-800">{(comptaTotals[r.value]?.dejeuner ?? 0) + (comptaTotals[r.value]?.diner ?? 0)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-2xl bg-gradient-to-r from-amber-600 to-orange-500 p-5 flex items-center justify-between shadow-md text-white">
+                <p className="text-lg font-semibold">{comptaGrand.dej} déjeuners · {comptaGrand.din} dîners</p>
+                <p className="text-3xl font-black">{comptaGrand.dej + comptaGrand.din}</p>
+              </div>
+            </div>
+
+            {/* Agrégat par personne, par résidence */}
+            {residences.map((r) => (
+              <div key={r.value} className="bg-white shadow-sm border border-gray-200 rounded-xl p-6">
+                <h3 className="text-xl font-semibold text-amber-800 mb-4">Comptabilité — {r.label}</h3>
+                <table className="min-w-full border text-sm bg-white">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left p-2 font-semibold">Nom</th>
+                      <th className="text-center p-2 font-semibold">Déjeuners</th>
+                      <th className="text-center p-2 font-semibold">Dîners</th>
+                      <th className="text-center p-2 font-semibold">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const rows = comptaByResidence[r.value] ?? [];
+                      if (rows.length === 0) return <tr><td colSpan={4} className="p-3 text-gray-400 italic text-center">Aucune inscription sur la période.</td></tr>;
+                      const items: ({ header: string } | { row: (typeof rows)[number] })[] = [];
+                      let last: string | null = null;
+                      rows.forEach((row) => {
+                        const et = formatEtage(row.person.etage) ?? "Étage ?";
+                        if (et !== last) { items.push({ header: et }); last = et; }
+                        items.push({ row });
+                      });
+                      return items.map((it, i) =>
+                        "header" in it ? (
+                          <tr key={`h-${i}`} className="bg-amber-50">
+                            <td colSpan={4} className="p-2 text-xs font-bold uppercase tracking-wide text-amber-700">{it.header}</td>
+                          </tr>
+                        ) : (
+                          <tr key={it.row.person.id} className="border-b">
+                            <td className="p-2">
+                              {it.row.person.nom} {it.row.person.prenom}
+                              {it.row.person.isInvite && <span className="ml-1 text-[10px] text-blue-500">(invitée)</span>}
+                            </td>
+                            <td className="text-center p-2">{it.row.dejeuner}</td>
+                            <td className="text-center p-2">{it.row.diner}</td>
+                            <td className="text-center p-2 font-semibold text-amber-800">{it.row.total}</td>
+                          </tr>
+                        )
+                      );
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            ))}
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* Tableau de détail (loupe unique) — mêmes structure et classement que les présences */}
-      <Dialog open={tableOpen} onOpenChange={() => setTableOpen(false)}>
-        <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Détail des repas — période</DialogTitle>
-          </DialogHeader>
-          <p className="text-xs text-gray-500 mb-3">Repas choisi par personne et par service.</p>
-          <DetailTable
-            people={residentesDetail}
-            columns={tableColumns}
-            renderCell={(p, key) => {
-              const [date, service] = key.split("|");
-              const r = repasData.find((x) => x.user_id === p.id && x.date_repas === date && x.type_repas === service);
-              const label = mealLabel(r?.choix_repas);
-              return label ? (
-                <span className="text-green-700 whitespace-nowrap">{label}</span>
-              ) : (
-                <span className="text-red-600 font-semibold">Non</span>
-              );
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Tableau de détail */}
+      {tableOpen && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4" onClick={() => setTableOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-6xl lg:max-w-[92vw] max-h-[85vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <h3 className="text-lg font-semibold text-amber-800">Détail des repas — période</h3>
+              <div className="flex items-center gap-2">
+                <button onClick={exportDetail} className="flex items-center gap-1 border border-amber-600 text-amber-700 rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-amber-50 cursor-pointer">
+                  <Download className="w-4 h-4" /> Exporter (CSV)
+                </button>
+                <button onClick={() => setTableOpen(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer text-xl leading-none">✕</button>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Repas choisi · <span className="text-red-600 font-semibold">Non</span> = a répondu qu&apos;elle ne mange pas · <span className="text-gray-400 font-semibold">—</span> = n&apos;a pas répondu · <span className="inline-flex items-center text-orange-500 align-middle"><MoonIcon className="w-3 h-3" /></span> = absente (absence déduite)
+            </p>
+            <DetailTable
+              people={people}
+              columns={tableColumns}
+              renderCell={(p, key) => {
+                const [date, service] = key.split("|");
+                const guests = cellGuests(p.id, date, service);
+                const st = cellStatut(p, date, service);
+                let base: ReactNode;
+                if (st.kind === "absente") {
+                  base = <span className="text-orange-500 flex items-center justify-center gap-0.5"><MoonIcon className="w-3 h-3" /></span>;
+                } else if (st.kind === "option") {
+                  base = <span className="text-green-700 whitespace-nowrap">{st.label}</span>;
+                } else if (st.kind === "non") {
+                  base = <span className="text-red-600 font-semibold">Non</span>;
+                } else {
+                  base = <span title="N'a pas répondu" className="text-gray-400 font-semibold">—</span>;
+                }
+                if (guests.length === 0) return base;
+                return (
+                  <span className="flex flex-col items-center gap-0.5">
+                    {base}
+                    {guests.map((g) => (
+                      <span key={g.id} title={`${g.prenom} ${g.nom}${optionsById.get(g.option_id ?? "")?.label ? ` · ${optionsById.get(g.option_id ?? "")?.label}` : ""}`} className="text-[10px] text-purple-600 whitespace-nowrap">+👤 {g.prenom}</span>
+                    ))}
+                  </span>
+                );
+              }}
+            />
+          </div>
+        </div>
+      )}
 
-      {/* Liste derrière un nombre */}
-      <DetailListModal
-        open={!!listModal}
-        onClose={() => setListModal(null)}
-        title={listModal?.title ?? ""}
-        people={listModal?.people ?? []}
-      />
+      {canEdit ? (
+        <MealOptionEditModal
+          open={!!listModal}
+          onClose={() => setListModal(null)}
+          title={listModal?.title ?? ""}
+          people={modalGroup?.people ?? []}
+          notes={modalGroup?.notes}
+          optionId={listModal?.option_id ?? ""}
+          dayServiceOptions={modalDayOptions}
+          residentes={residentesForAdd}
+          onSetResidentOption={setResidentOption}
+          onSetGuestOption={setGuestOption}
+          onAddResident={addResidentToOption}
+          onAddGuest={addGuestToOption}
+        />
+      ) : (
+        <DetailListModal open={!!listModal} onClose={() => setListModal(null)} title={listModal?.title ?? ""} people={modalGroup?.people ?? []} notes={modalGroup?.notes} />
+      )}
     </div>
   );
 }

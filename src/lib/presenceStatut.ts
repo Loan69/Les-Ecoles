@@ -1,8 +1,8 @@
-// Statut d'une inscription repas (nouveau modèle).
+// Statut d'une inscription repas.
 //
 // Depuis la bascule « Non explicite », trois états sont distingués :
-//   - "option"       : ligne presences_v2 avec un option_id → elle mange cette option
-//   - "non"          : ligne presences_v2 avec option_id NULL → elle a répondu « Non »
+//   - "option"       : ligne presences avec un option_id → elle mange cette option
+//   - "non"          : ligne presences avec option_id NULL → elle a répondu « Non »
 //   - "sans_reponse" : aucune ligne → elle n'a pas encore répondu
 //
 // L'historique n'ayant pas été repris (aucune ligne n'existait pour les « Non »),

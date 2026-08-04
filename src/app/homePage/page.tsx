@@ -162,7 +162,7 @@ export default function HomePage() {
         // --- Résumé « ma journée » : présence foyer + repas du jour (lecture seule) ---
         const [{ data: absData }, { data: dayPresences }] = await Promise.all([
           supabase.from("absences_sejour").select("id").eq("user_id", user.id).lte("date_debut", dateIso).gte("date_fin", dateIso).limit(1),
-          supabase.from("presences_v2").select("service, option_id, option:meal_options(label)").eq("user_id", user.id).eq("date", dateIso),
+          supabase.from("presences").select("service, option_id, option:meal_options(label)").eq("user_id", user.id).eq("date", dateIso),
         ]);
         setIsAbsent((absData?.length ?? 0) > 0);
 

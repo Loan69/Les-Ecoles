@@ -7,7 +7,7 @@ import { Utensils, ClipboardList, Settings } from "lucide-react";
 // (et vice versa) sans repasser par l'accueil.
 const LINKS = [
   { path: "/repasSemaine", label: "Repas de la semaine", icon: Utensils },
-  { path: "/admin/repas-v2", label: "Inscriptions & compta", icon: ClipboardList },
+  { path: "/admin/repas", label: "Inscriptions & compta", icon: ClipboardList },
   { path: "/admin/repas-options", label: "Paramétrer les repas", icon: Settings },
 ];
 

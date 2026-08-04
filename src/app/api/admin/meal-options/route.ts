@@ -96,7 +96,7 @@ export async function DELETE(req: NextRequest) {
   if (!body.id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
 
   const { count } = await supabase
-    .from("presences_v2")
+    .from("presences")
     .select("id", { count: "exact", head: true })
     .eq("option_id", body.id);
 

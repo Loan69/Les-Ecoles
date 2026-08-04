@@ -1,5 +1,5 @@
-// Types du modèle repas « Lot 2 » (options, pas menus).
-// Coexiste avec l'ancien modèle (MealTypes.ts) le temps de la migration.
+// Types du modèle repas : on compose les services à partir d'un catalogue
+// d'options réutilisables (pas de menus figés).
 
 export type Service = "dejeuner" | "diner";
 
@@ -33,10 +33,10 @@ export interface ServiceOption {
   option?: MealOptionCatalog;
 }
 
-// Inscription repas nouveau modèle (presences_v2)
+// Inscription repas (table presences)
 // option_id null = « Non » explicite (la personne a répondu qu'elle ne mange pas).
 // Aucune ligne = sans réponse. Voir src/lib/presenceStatut.ts.
-export interface PresenceV2 {
+export interface Presence {
   id: string;
   user_id: string;
   date: string;

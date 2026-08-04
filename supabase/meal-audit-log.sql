@@ -27,7 +27,7 @@ create index if not exists meal_audit_log_date_idx on public.meal_audit_log (dat
 alter table public.meal_audit_log enable row level security;
 
 -- Nettoyage : l'approche « colonnes sur la ligne » est abandonnée au profit de ce journal.
-alter table public.presences_v2  drop column if exists modified_by;
-alter table public.presences_v2  drop column if exists modified_at;
+alter table public.presences     drop column if exists modified_by;
+alter table public.presences     drop column if exists modified_at;
 alter table public.invites_repas drop column if exists modified_by;
 alter table public.invites_repas drop column if exists modified_at;

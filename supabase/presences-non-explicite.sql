@@ -1,3 +1,7 @@
+-- ⚠️ MIGRATION HISTORIQUE — DÉJÀ APPLIQUÉE, NON REJOUABLE TELLE QUELLE.
+--    La table « presences_v2 » a été renommée « presences » le 04/08/2026
+--    (voir suppression-v1-renommage-presences.sql). Conservée pour mémoire.
+--
 -- « Non » explicite : distinguer « ne mange pas » de « n'a pas répondu ».
 --
 -- Avant : une ligne presences_v2 = inscrite ; pas de ligne = « Non » ET « sans réponse »

@@ -156,7 +156,7 @@ L'appli est **fermée** et la promo **renouvelée** → **pas de reprise fine de
 ## 8. Impact sur l'existant
 
 - **signupForm** : le rôle « résidente » (et corail) retiré du self-signup ; ne reste que « invitée ». Nouvel écran **« Activer mon compte »** pour l'acceptation.
-- **Listes actives** (présences `/admin/foyer`, compta `/admin/repas-v2`, sélection repas) : filtrer `statut=active`.
+- **Listes actives** (présences `/admin/foyer`, compta `/admin/repas`, sélection repas) : filtrer `statut=active`.
 - **Panneau Administration** : nouvel onglet/écran **« Chambres & postes »**.
 - Tout le code lisant `residence/etage/chambre` continue de fonctionner (champs synchronisés depuis la place).
 

@@ -5,7 +5,7 @@ import { CHOIX_NON } from "@/lib/presenceStatut";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-// --- Toutes les inscriptions repas (nouveau modèle) sur une période (admin) ---
+// --- Toutes les inscriptions repas sur une période (admin) ---
 export async function GET(req: NextRequest) {
   const { supabase, error } = await requireSectionView('repas');
   if (error) return error;
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error: dbError } = await supabase
-    .from("presences_v2")
+    .from("presences")
     .select("*")
     .gte("date", start)
     .lte("date", end);
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   // Ligne avant modification (pour le journal d'audit).
   const { data: prev } = await supabase
-    .from("presences_v2")
+    .from("presences")
     .select("option_id")
     .eq("user_id", user_id)
     .eq("date", date)
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   // Sans réponse → on retire la ligne
   if (!choix) {
     const { error: delErr } = await supabase
-      .from("presences_v2")
+      .from("presences")
       .delete()
       .eq("user_id", user_id)
       .eq("date", date)
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   // « Non » explicite → ligne sans option
   if (choix === CHOIX_NON) {
     const { error: nonErr } = await supabase
-      .from("presences_v2")
+      .from("presences")
       .upsert({ user_id, date, service, option_id: null }, { onConflict: "user_id,date,service" });
     if (nonErr) return NextResponse.json({ error: nonErr.message }, { status: 500 });
     await logMealEdit(supabase, userId, { action: "presence_set", entity: "presence", targetUserId: user_id, dateRepas: date, service, optionBeforeId, optionAfterId: null, details: { statut_avant: statutBefore, statut_apres: "non" } });
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   if (!so) return NextResponse.json({ error: "Cette option n'est pas proposée ce jour." }, { status: 400 });
 
   const { error: upErr } = await supabase
-    .from("presences_v2")
+    .from("presences")
     .upsert({ user_id, date, service, option_id }, { onConflict: "user_id,date,service" });
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
   await logMealEdit(supabase, userId, { action: "presence_set", entity: "presence", targetUserId: user_id, dateRepas: date, service, optionBeforeId, optionAfterId: option_id, details: { statut_avant: statutBefore, statut_apres: "option" } });
