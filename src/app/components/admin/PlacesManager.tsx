@@ -257,9 +257,11 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
     await load();
   };
 
-  const deleteUnplaced = (uid: string, name: string) => {
+  const deleteAccount = (uid: string, name: string, comptaWarning = false) => {
     toast(`Supprimer définitivement le compte de ${name} ?`, {
-      description: "Action irréversible.",
+      description: comptaWarning
+        ? "Action irréversible. Ses repas passés disparaîtront aussi de la comptabilité : ne supprimez qu'une fois la période facturée."
+        : "Action irréversible.",
       action: {
         label: "Supprimer",
         onClick: async () => {
@@ -402,7 +404,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
                     </button>
                   )}
                   {uid !== currentUserId && (
-                    <button onClick={() => deleteUnplaced(uid, name)} className="p-2 rounded-full text-red-600 hover:bg-red-50 cursor-pointer" title="Supprimer définitivement">
+                    <button onClick={() => deleteAccount(uid, name)} className="p-2 rounded-full text-red-600 hover:bg-red-50 cursor-pointer" title="Supprimer définitivement">
                       <Trash2 size={16} />
                     </button>
                   )}
@@ -423,13 +425,27 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
           {archivedOpen && (
             <div className="px-4 sm:px-5 pb-4 space-y-2">
               <p className="text-xs text-gray-400">Ces comptes sont désactivés (connexion bloquée, historique conservé). Pour en réactiver un, utilisez « Inviter » sur une chambre libre et sélectionnez-le.</p>
+              {canEdit && (
+                <p className="text-xs text-gray-400">La <b>suppression définitive</b> (🗑) efface le compte et retire ses repas passés de la comptabilité : ne l&apos;utilisez qu&apos;une fois la période facturée.</p>
+              )}
               {archived.map((a) => (
                 <div key={a.user_id} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
                   <div className="min-w-0">
                     <p className="font-medium text-gray-700 truncate">{a.nom.toUpperCase()} {a.prenom}</p>
                     <p className="text-xs text-gray-400 truncate">{a.email}</p>
                   </div>
-                  <RightsSummary r={a.rights} />
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                    <RightsSummary r={a.rights} />
+                    {canEdit && a.user_id !== currentUserId && (
+                      <button
+                        onClick={() => deleteAccount(a.user_id, `${a.prenom} ${a.nom}`, true)}
+                        className="p-2 rounded-full text-red-600 hover:bg-red-50 cursor-pointer"
+                        title="Supprimer définitivement"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

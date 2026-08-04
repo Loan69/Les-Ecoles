@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.13 — 2026-08-04.
+> Version 1.14 — 2026-08-04.
 
 Une administratrice est une résidente qui a **au moins un droit d'intendance sur une section**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), des outils d'intendance correspondant à ses droits.
 
@@ -82,6 +82,10 @@ Panneau ⚙️ **Administration**. L'écran affiche **directement** la gestion d
 **Départ d'une résidente** : bouton **« Libérer / désactiver »** (⤴) → le compte est **désactivé** (il ne peut plus se connecter, mais son **historique de repas/présence est conservé** pour la compta) et la **place se libère** (réattribuable).
 
 **Comptes désactivés** : un panneau repliable en bas liste les anciens comptes (avec leurs droits en sommeil). Ils se réactivent via **« Inviter »** sur une chambre libre.
+
+**Supprimer définitivement un compte** : dans ce même panneau, le bouton 🗑 efface le compte pour de bon. Il n'est proposé que sur un compte **déjà désactivé** — pour supprimer quelqu'un d'actif, il faut donc d'abord le **libérer / désactiver**. Un niveau **Édition** sur Comptes suffit ; seul un super-admin peut supprimer un autre super-admin.
+
+> ⚠️ **À ne faire qu'après avoir facturé la période.** La *désactivation* conserve l'historique des repas ; la *suppression*, elle, retire la personne de la **comptabilité passée**. Une fois supprimée, on ne peut plus la retrouver ni la réactiver.
 
 **Gérer les chambres & étages** : un second panneau repliable (super-admin/section Comptes en édition) permet d'**ajouter / modifier / désactiver / supprimer** les chambres et postes — la **structure physique** du foyer, séparée de la liste des personnes. L'ajout est rare : les chambres sont normalement déjà toutes là. Résidences **12 / 36** → des **chambres** (par étage) ; Corail → des **postes** (Cuisine, Ménage… ; sans chambre).
 
