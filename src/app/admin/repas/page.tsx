@@ -7,10 +7,9 @@ import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import { Residence } from "@/types/Residence";
-import { Absence } from "@/types/Absence";
 import { Presence, MealOptionCatalog, Service } from "@/types/MealOption";
 import { PersonneDetail, sortAdminPeople, formatEtage } from "@/lib/adminPeople";
-import { isAwayForMeal } from "@/lib/mealCompta";
+import { isAwayForMeal, type AbsenceCompta } from "@/lib/mealCompta";
 import { statutRepas, mangeUnRepas, type StatutRepas } from "@/lib/presenceStatut";
 import { downloadCSV } from "@/lib/csvExport";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
@@ -39,7 +38,7 @@ export default function AdminRepasPage() {
   const [allPeople, setAllPeople] = useState<(PersonneDetail & { horsSuivi: boolean })[]>([]);
   const [residences, setResidences] = useState<Residence[]>([]);
   const [presences, setPresences] = useState<Presence[]>([]);
-  const [absences, setAbsences] = useState<Absence[]>([]);
+  const [absences, setAbsences] = useState<AbsenceCompta[]>([]);
   const [mealOptions, setMealOptions] = useState<MealOptionCatalog[]>([]);
   const [invites, setInvites] = useState<InviteMeal[]>([]);
   const [openServiceOptions, setOpenServiceOptions] = useState<OpenServiceOption[]>([]);
@@ -114,16 +113,16 @@ export default function AdminRepasPage() {
       })) || []),
     ]);
 
-    const [presRes, absRes] = await Promise.all([
-      fetch(`/api/admin/presences?start=${startDate}&end=${endDate}`),
-      fetch(`/api/admin/absences?start=${startDate}&end=${endDate}`),
-    ]);
+    // Un seul appel : les séjours d'absence viennent avec les inscriptions, sous le droit
+    // Repas (ils servent à déduire les jours intérieurs de la compta, cf. isAwayForMeal).
+    const presRes = await fetch(`/api/admin/presences?start=${startDate}&end=${endDate}`);
     const presJson = await presRes.json();
-    const absJson = await absRes.json();
-    if (presRes.ok) setPresences(presJson.presences ?? []);
-    else toast.error(presJson.error || "Erreur inscriptions.");
-    if (absRes.ok) setAbsences(absJson.absences ?? []);
-    else toast.error(absJson.error || "Erreur absences.");
+    if (presRes.ok) {
+      setPresences(presJson.presences ?? []);
+      setAbsences(presJson.absences ?? []);
+    } else {
+      toast.error(presJson.error || "Erreur inscriptions.");
+    }
 
     setLoading(false);
   }, [startDate, endDate, supabase]);

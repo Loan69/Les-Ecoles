@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.11 — 2026-08-03.
+> Version 1.12 — 2026-08-04.
 
 Une administratrice est une résidente qui a **au moins un droit d'intendance sur une section**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), des outils d'intendance correspondant à ses droits.
 
@@ -38,7 +38,7 @@ Les **5 sections** :
 
 | Section | Écrans concernés |
 |---|---|
-| **Repas** | Visu des repas (compta + organisation), paramétrage & options de repas, verrouillage, édition des inscriptions. |
+| **Repas** | Visu des repas (compta + organisation), paramétrage & options de repas, verrouillage, édition des inscriptions. *La comptabilité déduisant les repas des absences, cette section permet de voir **les dates** des séjours d'absence ; consulter et modifier les absences relève de la section **Absences**.* |
 | **Événements** | **Aucun** : voir les événements et les rappels, confirmer sa participation. **Lecture** : voir en plus **qui s'est inscrit** à un événement (« Voir les inscrits ») et les événements **réservés au staff**. **Édition** : créer / modifier / supprimer des événements. |
 | **Absences** | Vue « Présence foyer » (staff) + marquage des absences. |
 | **Comptes** | Comptes, chambres/places, invitations, paramètres généraux. |

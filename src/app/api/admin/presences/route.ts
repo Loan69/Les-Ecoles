@@ -5,7 +5,13 @@ import { CHOIX_NON } from "@/lib/presenceStatut";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-// --- Toutes les inscriptions repas sur une période (admin) ---
+// --- Toutes les inscriptions repas sur une période (admin), avec les séjours d'absence ---
+//
+// Les absences font partie du CALCUL des repas : les jours intérieurs d'un séjour sont
+// déduits de la comptabilité (R-FOYER-09 / R-REPAS-10/11, cf. isAwayForMeal). On les
+// renvoie donc ici, sous le droit **Repas**, et réduites aux seules colonnes du calcul.
+// Une admin n'ayant que la section Repas obtient ainsi des totaux justes sans accéder
+// à la vue Présence foyer (celle-ci passe par /api/admin/absences, section Absences).
 export async function GET(req: NextRequest) {
   const { supabase, error } = await requireSectionView('repas');
   if (error) return error;
@@ -16,14 +22,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Paramètres start/end invalides." }, { status: 400 });
   }
 
-  const { data, error: dbError } = await supabase
-    .from("presences")
-    .select("*")
-    .gte("date", start)
-    .lte("date", end);
+  const [{ data, error: dbError }, { data: absData, error: absError }] = await Promise.all([
+    supabase
+      .from("presences")
+      .select("*")
+      .gte("date", start)
+      .lte("date", end),
+    // Chevauchement : date_debut <= end ET date_fin >= start
+    supabase
+      .from("absences_sejour")
+      .select("id, user_id, date_debut, date_fin, repas_non")
+      .lte("date_debut", end)
+      .gte("date_fin", start),
+  ]);
 
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
-  return NextResponse.json({ presences: data ?? [] });
+  if (absError) return NextResponse.json({ error: absError.message }, { status: 500 });
+  return NextResponse.json({ presences: data ?? [], absences: absData ?? [] });
 }
 
 // --- Définir l'inscription d'UNE résidente pour un (jour, service) — admin édition. ---
