@@ -1,15 +1,12 @@
 import { Suspense } from "react";
 import CompletionProfileClient from "../components/completionProfile";
-import LoadingSpinner from "../components/LoadingSpinner";
+import { FormSkeleton } from "../components/Skeleton";
 
 export const revalidate = 0; // (optionnel) désactive la mise en cache statique
 
 export default function CompletionProfilePage() {
   return (
-    <Suspense fallback={<main className="flex items-center justify-center min-h-screen bg-white">
-                          <LoadingSpinner />
-                        </main>}
-    >
+    <Suspense fallback={<FormSkeleton fields={4} />}>
       <CompletionProfileClient />
     </Suspense>
   );

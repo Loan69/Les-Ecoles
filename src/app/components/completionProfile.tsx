@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import SignupForm from "@/app/components/signupForm";
-import LoadingSpinner from "./LoadingSpinner";
+import { FormSkeleton } from "./Skeleton";
 
 type Role = "residente" | "invitee";
 
@@ -25,12 +25,7 @@ export default function CompletionProfileClient() {
     }
   }, [searchParams, router]);
 
-  if (loading)
-    return (
-      <main className="flex items-center justify-center min-h-screen bg-white">
-        <LoadingSpinner />
-      </main>
-    );
+  if (loading) return <FormSkeleton fields={4} />;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gray-50">

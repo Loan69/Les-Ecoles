@@ -16,7 +16,6 @@ import { eventVisibleFor } from "@/lib/eventVisibility";
 import { optionVisibleFor } from "@/lib/optionVisibility";
 import { formatLieu } from "@/lib/eventLieu";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
-import LoadingSpinner from "../components/LoadingSpinner";
 import { WeekDaysSkeleton } from "../components/Skeleton";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
@@ -214,10 +213,14 @@ export default function SemaineRepas() {
     }
   };
 
+  // Droits pas encore connus : squelette neutre. Si la section est interdite, le
+  // hook redirige vers l'accueil — l'écran n'aura jamais affiché de contenu réel.
   if (!accesSection) {
     return (
-      <main className="flex items-center justify-center min-h-screen bg-white">
-        <LoadingSpinner />
+      <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          <WeekDaysSkeleton days={5} />
+        </div>
       </main>
     );
   }

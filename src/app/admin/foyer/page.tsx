@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useSupabase } from "@/app/providers";
 import { CalendarDays, Home, Moon, Plus, Table2, Download } from "lucide-react";
 import { toast } from "sonner";
-import LoadingSpinner from "@/app/components/LoadingSpinner";
+import { AdminDaysSkeleton } from "@/app/components/Skeleton";
 import { Residence } from "@/types/Residence";
 import { Absence } from "@/types/Absence";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -164,11 +164,7 @@ export default function AdminFoyerView() {
   };
 
   if (loading) {
-    return (
-      <main className="flex items-center justify-center min-h-screen bg-white">
-        <LoadingSpinner />
-      </main>
-    );
+    return <AdminDaysSkeleton tone="blue" withLockCard days={4} />;
   }
 
   const tableColumns: DetailColumn[] = daysInRange.map((d) => ({ key: d, label: formatColDay(d) }));

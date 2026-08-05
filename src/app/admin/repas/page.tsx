@@ -5,7 +5,7 @@ import { useSupabase } from "@/app/providers";
 import { CalendarDays, Table2, Scale, Soup, Moon as MoonIcon, CalendarCheck, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import LoadingSpinner from "@/app/components/LoadingSpinner";
+import { AdminDaysSkeleton } from "@/app/components/Skeleton";
 import { Residence } from "@/types/Residence";
 import { Presence, MealOptionCatalog, Service } from "@/types/MealOption";
 import { PersonneDetail, sortAdminPeople, formatEtage } from "@/lib/adminPeople";
@@ -361,7 +361,7 @@ export default function AdminRepasPage() {
   };
 
   if (loading) {
-    return <main className="flex items-center justify-center min-h-screen bg-white"><LoadingSpinner /></main>;
+    return <AdminDaysSkeleton tone="amber" withNav withTabs days={4} />;
   }
 
   return (

@@ -8,7 +8,7 @@ import { Eye, EyeOff, Lock, CheckCircle } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { useSupabase } from "../providers";
 import { formatEtage, formatChambre } from "@/lib/adminPeople";
-import LoadingSpinner from "../components/LoadingSpinner";
+import { FormSkeleton } from "../components/Skeleton";
 
 export default function ActivationPage() {
   const { supabase } = useSupabase();
@@ -112,11 +112,7 @@ export default function ActivationPage() {
   }
 
   if (!ready) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50">
-        <LoadingSpinner />
-      </main>
-    );
+    return <FormSkeleton fields={5} />;
   }
 
   if (done) {

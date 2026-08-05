@@ -6,7 +6,7 @@ import { Plus, Pencil, Trash2, Power, DoorClosed, Briefcase, UserCheck, Mail, Sa
 import { PlaceWithStatus, PlaceKind } from "@/types/Place";
 import { formatEtage, formatChambre } from "@/lib/adminPeople";
 import { SECTIONS, SECTION_LABEL, SECTION_AIDE, NIVEAU_LABEL, NIV, niveauxPourSection, asNiveauSection, hasAnyAdmin, type Rights, type Section } from "@/lib/roles";
-import LoadingSpinner from "../LoadingSpinner";
+import { PlacesSkeleton } from "../Skeleton";
 import { useMyRights } from "@/lib/useMyRights";
 
 const RESIDENCES: { value: string; label: string; kind: PlaceKind }[] = [
@@ -336,11 +336,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
   }, [places, rightsMap, archived]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <LoadingSpinner />
-      </div>
-    );
+    return <PlacesSkeleton />;
   }
 
   const rowActions: RowActions = {

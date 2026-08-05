@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Copy, Clock } from "lucide-react";
 import { MealOptionCatalog, ServiceOption, Service } from "@/types/MealOption";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
-import LoadingSpinner from "@/app/components/LoadingSpinner";
+import { RepasOptionsSkeleton } from "@/app/components/Skeleton";
 import MultiDatePicker from "@/app/components/MultiDatePicker";
 import EventVisibilitySelector from "@/app/components/EventVisibilitySelector";
 import { Switch } from "@/components/ui/switch";
@@ -250,11 +250,7 @@ export default function RepasOptionsManager() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-20">
-        <LoadingSpinner />
-      </div>
-    );
+    return <RepasOptionsSkeleton />;
   }
 
   return (

@@ -12,7 +12,7 @@ import {
 import { useSupabase } from "@/app/providers";
 import { Residente } from "@/types/Residente";
 import { CalendarEvent } from "@/types/CalendarEvent";
-import LoadingSpinner from "@/app/components/LoadingSpinner"; // Utilise ton spinner existant
+import { PeopleListSkeleton } from "@/app/components/Skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -89,9 +89,7 @@ export default function VisionConfirmation({ eventId }: VisionConfirmationsProps
 
         <div className="mt-4">
           {loading ? (
-            <div className="py-10 flex justify-center">
-              <LoadingSpinner />
-            </div>
+            <PeopleListSkeleton count={4} />
           ) : participants.length > 0 ? (
             <ScrollArea className="h-[400px] pr-4">
               <div className="space-y-3">
