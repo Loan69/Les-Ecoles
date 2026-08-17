@@ -16,6 +16,10 @@ const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined
 // soit deux allers-retours réseau par composant et par navigation.
 type RightsContextType = {
   rights: Rights;
+  // Identifiants des groupes de l'utilisatrice (ciblage de visibilité, jamais des droits).
+  // Chargés ici pour la même raison que les droits : sinon chaque écran qui filtre un
+  // contenu referait la requête. La RLS ne laisse lire que ses propres appartenances.
+  groupes: string[];
   loading: boolean;
   reload: () => Promise<void>;
 };
@@ -31,6 +35,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 
   const [rights, setRights] = useState<Rights>(EMPTY_RIGHTS);
+  const [groupes, setGroupes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
@@ -40,15 +45,22 @@ export function Providers({ children }: { children: React.ReactNode }) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) {
       setRights(EMPTY_RIGHTS);
+      setGroupes([]);
       setLoading(false);
       return;
     }
-    const { data } = await supabase
-      .from('residentes')
-      .select(RIGHTS_COLUMNS)
-      .eq('user_id', session.user.id)
-      .maybeSingle();
+    const [{ data }, { data: mesGroupes }] = await Promise.all([
+      supabase
+        .from('residentes')
+        .select(RIGHTS_COLUMNS)
+        .eq('user_id', session.user.id)
+        .maybeSingle(),
+      // Tolérant : tant que supabase/groupes.sql n'est pas passé, la table n'existe pas
+      // et l'appli fonctionne simplement sans groupe.
+      supabase.from('groupe_membres').select('groupe_id').eq('user_id', session.user.id),
+    ]);
     setRights(rightsFromRow(data as Record<string, unknown> | null));
+    setGroupes((mesGroupes ?? []).map((g) => g.groupe_id as string));
     setLoading(false);
   }, [supabase]);
 
@@ -69,7 +81,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SupabaseContext.Provider value={{ supabase }}>
-      <RightsContext.Provider value={{ rights, loading, reload }}>
+      <RightsContext.Provider value={{ rights, groupes, loading, reload }}>
         {children}
       </RightsContext.Provider>
     </SupabaseContext.Provider>

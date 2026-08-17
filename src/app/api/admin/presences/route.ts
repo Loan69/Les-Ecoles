@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 
 // --- Définir l'inscription d'UNE résidente pour un (jour, service) — admin édition. ---
 // choix = "" → sans réponse (retire la ligne) · "non" → « Non » explicite · <uuid> → option.
-// L'admin passe outre le verrouillage et les restrictions d'option (admin_only / inactive) :
+// L'admin passe outre le verrouillage et les restrictions d'option (ciblage / inactive) :
 // correction d'intendance.
 export async function POST(req: NextRequest) {
   const { supabase, userId, error } = await requireSectionEdit('repas');
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
   const option_id = choix;
 
-  // On vérifie seulement que l'option est bien proposée ce jour/service (pas de garde de lock/admin_only : override admin).
+  // On vérifie seulement que l'option est bien proposée ce jour/service (pas de garde de lock/ciblage : override admin).
   const { data: so } = await supabase
     .from("meal_service_options")
     .select("option_id")

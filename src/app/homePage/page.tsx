@@ -19,6 +19,7 @@ import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import { formatLieu } from "@/lib/eventLieu";
 import { statutRepas } from "@/lib/presenceStatut";
 import { useMyRights } from "@/lib/useMyRights";
+import { cibleEstVide, dansCible, estExclue } from "@/lib/visibilite";
 import VisionConfirmation from "../components/VisionConfirmation";
 import ConfirmationToggle from "../components/ConfirmationToggle";
 
@@ -289,32 +290,26 @@ export default function HomePage() {
     );
   }
 
+  // Périmètre de ciblage de l'utilisatrice, commun aux deux filtrages ci-dessous
+  // (carte Événements et rappels du jour). Voir src/lib/visibilite.ts.
+  const cibleViewer = {
+    residence: profil?.residence,
+    etage: profil?.etage,
+    chambre: profil?.chambre,
+    user_id: user?.id,
+    groupes: myRights.groupes,
+  };
+
   const filteredEvents = selectedResidenceValue
     ? events.filter((event) => {
         const lieux = event.lieu || [];
         if (!lieux.includes(selectedResidenceValue)) return false;
 
-        if (event.reserve_admin) {
-          if (!canViewEvents) return false;
-          if (event.reserve_admin === "all") return true;
-          if (event.reserve_admin === "12" || event.reserve_admin === "36") {
-            return selectedResidenceValue === event.reserve_admin;
-          }
-        }
-
         if (!profil?.residence) return event.visible_invites === true;
 
-        const residences: string[] = event.visibilite?.residence ?? [];
-        const etages: string[] = event.visibilite?.etage ?? [];
-        const chambres: string[] = event.visibilite?.chambre ?? [];
-        const exclusions: string[] = event.visibilite?.exclusions ?? [];
-        // Ciblage dynamique : exclue nommément
-        if (user?.id && exclusions.includes(user.id)) return false;
-        return (
-          residences.includes(profil.residence) ||
-          etages.includes(profil.etage) ||
-          chambres.includes(profil.chambre)
-        );
+        // Ciblage dynamique (résidence / étage / groupe), moins les exclusions nommées.
+        if (estExclue(event.visibilite, cibleViewer)) return false;
+        return dansCible(event.visibilite, cibleViewer);
       })
     : [];
 
@@ -328,19 +323,11 @@ export default function HomePage() {
     const lieux = event.lieu || [];
     if (lieux.some((l) => RES_LIEUX.includes(l))) return false; // événement rattaché à une résidence → carte normale
 
-    if (event.reserve_admin) {
-      if (!canViewEvents) return false;
-      if (event.reserve_admin !== "all" && event.reserve_admin !== profil?.residence) return false;
-    }
-    const exclusions: string[] = event.visibilite?.exclusions ?? [];
-    if (user?.id && exclusions.includes(user.id)) return false;
+    if (estExclue(event.visibilite, cibleViewer)) return false;
     if (!profil?.residence) return event.visible_invites === true;
 
-    const res: string[] = event.visibilite?.residence ?? [];
-    const et: string[] = event.visibilite?.etage ?? [];
-    const ch: string[] = event.visibilite?.chambre ?? [];
-    if (res.length === 0 && et.length === 0 && ch.length === 0) return true; // aucun ciblage → visible pour tous
-    return res.includes(profil.residence) || et.includes(profil.etage) || ch.includes(profil.chambre);
+    if (cibleEstVide(event.visibilite)) return true; // aucun ciblage → visible pour tous
+    return dansCible(event.visibilite, cibleViewer);
   });
 
   // ============================================================

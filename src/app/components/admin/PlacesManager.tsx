@@ -8,6 +8,10 @@ import { formatEtage, formatChambre } from "@/lib/adminPeople";
 import { SECTIONS, SECTION_LABEL, SECTION_AIDE, NIVEAU_LABEL, NIV, niveauxPourSection, asNiveauSection, hasAnyAdmin, type Rights, type Section } from "@/lib/roles";
 import { PlacesSkeleton } from "../Skeleton";
 import { useMyRights } from "@/lib/useMyRights";
+import GroupesPanel from "./GroupesPanel";
+import GroupeBadge from "../GroupeBadge";
+import type { Groupe } from "@/types/Groupe";
+import type { PersonneDetail } from "@/lib/adminPeople";
 
 const RESIDENCES: { value: string; label: string; kind: PlaceKind }[] = [
   { value: "12", label: "Résidence 12", kind: "chambre" },
@@ -69,7 +73,11 @@ function RightsSummary({ r }: { r: Rights }) {
 }
 
 export default function PlacesManager({ currentUserId }: { currentUserId: string }) {
-  const canEdit = useMyRights().canEdit("comptes");
+  const myRights = useMyRights();
+  const canEdit = myRights.canEdit("comptes");
+  // La structure physique du foyer (chambres, étages, postes) ne se touche qu'en super-admin :
+  // elle conditionne tout le reste (places, ciblage des événements), une erreur y est coûteuse.
+  const canEditStructure = myRights.isSuperAdmin;
   const [places, setPlaces] = useState<PlaceWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<Form>(EMPTY_FORM);
@@ -86,12 +94,14 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
   const [editingRights, setEditingRights] = useState<{ userId: string; name: string; rights: Rights } | null>(null);
   const [structureOpen, setStructureOpen] = useState(false);
   const [archivedOpen, setArchivedOpen] = useState(false);
+  const [groupes, setGroupes] = useState<Groupe[]>([]);
 
   const load = useCallback(async () => {
-    const [placesRes, archivedRes, usersRes] = await Promise.all([
+    const [placesRes, archivedRes, usersRes, groupesRes] = await Promise.all([
       fetch("/api/admin/places"),
       fetch("/api/admin/residentes"),
       fetch("/api/admin/users"),
+      fetch("/api/admin/groupes"),
     ]);
     const j = await placesRes.json();
     if (placesRes.ok) setPlaces(j.places ?? []);
@@ -107,6 +117,8 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
       setCanManageRoles(uj.canManageRoles ?? false);
       setIsTechnique(uj.isTechnique ?? false);
     }
+    // Tolérant : tant que supabase/groupes.sql n'est pas passé, l'écran fonctionne sans groupes.
+    if (groupesRes.ok) setGroupes(((await groupesRes.json()).groupes ?? []) as Groupe[]);
     setLoading(false);
   }, []);
 
@@ -335,6 +347,14 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
       .map(([uid, ur]) => ({ uid, rights: ur.rights, name: ur.name, email: ur.email }));
   }, [places, rightsMap, archived]);
 
+  const groupesByUser = useMemo(() => {
+    const map: Record<string, { id: string; nom: string }[]> = {};
+    groupes.forEach((g) => g.membres.forEach((uid) => {
+      map[uid] = [...(map[uid] ?? []), { id: g.id, nom: g.nom }];
+    }));
+    return map;
+  }, [groupes]);
+
   if (loading) {
     return <PlacesSkeleton />;
   }
@@ -342,6 +362,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
   const rowActions: RowActions = {
     canEdit,
     canManageRoles,
+    groupesByUser,
     currentUserId,
     rightsMap,
     onEdit: openEdit,
@@ -354,6 +375,20 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
     onMove: (p) => setMoveFor(p),
     onRights: openRights,
   };
+
+  // Vivier pour la composition des groupes : les occupantes des places actives, c'est-à-dire
+  // exactement les comptes activés (R-ADM-02).
+  const peopleForGroupes: PersonneDetail[] = places
+    .filter((p) => p.is_active && p.occupant)
+    .map((p) => ({
+      id: p.occupant!.user_id,
+      nom: p.occupant!.nom,
+      prenom: p.occupant!.prenom,
+      residence: p.residence,
+      etage: p.etage,
+      chambre: placeName(p),
+      isInvite: false,
+    }));
 
   return (
     <div className="space-y-6">
@@ -411,6 +446,9 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
         </section>
       )}
 
+      {/* ================= Groupes (repliable) ================= */}
+      <GroupesPanel groupes={groupes} people={peopleForGroupes} canEdit={canEdit} onChanged={load} />
+
       {/* ================= Comptes désactivés (repliable) ================= */}
       {archived.length > 0 && (
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -449,8 +487,8 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
         </section>
       )}
 
-      {/* ================= Gérer les chambres & étages (repliable) ================= */}
-      {canEdit && (
+      {/* ================= Gérer les chambres & étages (repliable, super-admin) ================= */}
+      {canEditStructure && (
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <button onClick={() => setStructureOpen((o) => !o)} className="w-full flex items-center justify-between px-4 sm:px-5 py-4 text-left cursor-pointer hover:bg-gray-50">
             <span className="flex items-center gap-2 font-bold text-gray-600"><Settings className="w-5 h-5" /> Gérer les chambres & étages</span>
@@ -527,6 +565,9 @@ type RowActions = {
   // (les serveurs refusent déjà ces actions ; on n'affiche pas des boutons voués à un 403).
   canEdit: boolean;
   canManageRoles: boolean;
+  // Groupes de chaque personne : affichés à côté de son nom pour qu'on voie, au moment
+  // d'inviter ou de gérer un compte, à quels ciblages elle appartient.
+  groupesByUser: Record<string, { id: string; nom: string }[]>;
   currentUserId: string;
   rightsMap: Record<string, UserRights>;
   onEdit: (p: PlaceWithStatus) => void;
@@ -570,7 +611,7 @@ function PlaceGroups({ places, isPoste, mode, ...actions }: { places: PlaceWithS
   );
 }
 
-function PlaceRow({ p, mode, canEdit, canManageRoles, currentUserId, rightsMap, onEdit, onToggle, onDelete, onInvite, onResend, onCancelInvite, onArchive, onMove, onRights }: { p: PlaceWithStatus; mode: "people" | "structure" } & RowActions) {
+function PlaceRow({ p, mode, canEdit, canManageRoles, groupesByUser, currentUserId, rightsMap, onEdit, onToggle, onDelete, onInvite, onResend, onCancelInvite, onArchive, onMove, onRights }: { p: PlaceWithStatus; mode: "people" | "structure" } & RowActions) {
   const free = p.is_active && !p.occupant && !p.invitation;
   const occupantRights = p.occupant ? rightsMap[p.occupant.user_id]?.rights : undefined;
 
@@ -578,7 +619,12 @@ function PlaceRow({ p, mode, canEdit, canManageRoles, currentUserId, rightsMap, 
     <div className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border px-4 py-3 ${p.is_active ? "border-gray-100 bg-white" : "border-gray-200 bg-gray-50 opacity-70"}`}>
       <div className="min-w-0">
         <p className="font-medium text-gray-800 truncate">{placeName(p)}</p>
-        <StatusBadge p={p} />
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <StatusBadge p={p} />
+          {mode === "people" && p.occupant && (groupesByUser[p.occupant.user_id] ?? []).map((g) => (
+            <GroupeBadge key={g.id} id={g.id} nom={g.nom} />
+          ))}
+        </div>
         {mode === "people" && p.occupant && occupantRights && (
           <div className="mt-1"><RightsSummary r={occupantRights} /></div>
         )}

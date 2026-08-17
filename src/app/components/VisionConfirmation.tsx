@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useSupabase } from "@/app/providers";
-import { Residente } from "@/types/Residente";
+import { formatChambre } from "@/lib/adminPeople";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { PeopleListSkeleton } from "@/app/components/Skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +20,17 @@ interface VisionConfirmationsProps {
   eventId: number | undefined;
 }
 
+// Ce que la modale affiche d'une inscrite (chambre déjà résolue en libellé lisible).
+type Participant = {
+  user_id: string;
+  nom: string;
+  prenom: string;
+  residence: string | null;
+  chambre: string | null;
+};
+
 export default function VisionConfirmation({ eventId }: VisionConfirmationsProps) {
-  const [participants, setParticipants] = useState<Residente[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const { supabase } = useSupabase();
@@ -44,13 +53,29 @@ export default function VisionConfirmation({ eventId }: VisionConfirmationsProps
         return;
       }
 
+      // Les inscrites sont des données enregistrées : une résidente partie depuis reste
+      // affichée (elle s'était bien inscrite). Seul le compte technique n'est jamais listé.
       const { data: residents, error: resErr } = await supabase
         .from("residentes")
-        .select("id, user_id, nom, prenom, residence, etage, chambre")
-        .in("user_id", confirmations);
+        .select("id, user_id, nom, prenom, residence, etage, chambre, place:places(label)")
+        .in("user_id", confirmations)
+        .eq("is_technique", false);
 
       if (resErr) throw resErr;
-      setParticipants((residents as Residente[]) || []);
+      // Libellé de chambre depuis `places` (source de vérité) ; `residentes.chambre` peut
+      // encore contenir un code brut hérité (« r36_etage6_la_rochelle »).
+      setParticipants(
+        (residents ?? []).map((r) => {
+          const place = r.place as unknown as { label: string } | null;
+          return {
+            user_id: r.user_id as string,
+            nom: r.nom as string,
+            prenom: r.prenom as string,
+            residence: r.residence != null ? String(r.residence) : null,
+            chambre: place?.label ?? formatChambre(r.chambre),
+          };
+        })
+      );
     } catch (err) {
       console.error("Erreur de récupération des participants:", err);
     } finally {

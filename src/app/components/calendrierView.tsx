@@ -15,7 +15,6 @@ type CalendrierViewProps = {
     onAddEvent: (data: Partial<CalendarEvent>) => Promise<void>;
     onEditEvent: (id: number, updates: Partial<CalendarEvent>) => Promise<void>;
     onDeleteEvent: (id: number, deleteType: "occurrence" | "all", selectedDate?: string) => Promise<void>;
-    is_admin: boolean;
     canView?: boolean; // Événements >= Lecture : « Voir les inscrits » (confirmations)
     canEdit?: boolean; // Événements >= Édition : création/édition/suppression d'événements
 };
@@ -25,7 +24,6 @@ export default function CalendrierView({
     onAddEvent,
     onEditEvent,
     onDeleteEvent,
-    is_admin,
     canView = false,
     canEdit = false,
     }: CalendrierViewProps) {
@@ -234,7 +232,6 @@ export default function CalendrierView({
         {/* Modale création/édition */}
         <ModalAjoutEvenement
             open={modalOpenAdd}
-            isAdmin={is_admin}
             eventToEdit={eventToEdit ?? undefined}
             isEditing={isEditing}
             onClose={() => {

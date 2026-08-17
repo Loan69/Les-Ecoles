@@ -55,7 +55,7 @@ function weekLabel(monday: Date): string {
   return `${from} – ${to}`;
 }
 
-type Profil = { is_admin?: boolean; residence?: string; etage?: string; chambre?: string };
+type Profil = { residence?: string; etage?: string; chambre?: string };
 type InviteRow = { id: number; id_invite: number | null; nom: string; prenom: string; date_repas: string; type_repas: "dejeuner" | "diner"; option_id: string | null };
 
 export default function SemaineRepas() {
@@ -87,7 +87,6 @@ export default function SemaineRepas() {
   const accesSection = useSectionGuard("repas"); // niveau Aucun → redirigé vers l'accueil
   const myRights = useMyRights();
   const canRepas = myRights.canView("repas"); // accès à l'Espace intendance repas
-  const canViewEvents = myRights.canView("evenements"); // événements réservés au staff
 
   // Semaine de référence (date sélectionnée dans l'appli)
   const storedDate = typeof window !== "undefined" ? localStorage.getItem("dateSelectionnee") : null;
@@ -106,10 +105,10 @@ export default function SemaineRepas() {
       setUser(sessionUser);
       // Profil et réglages ne dépendent pas l'un de l'autre : une seule vague réseau.
       const [{ data: p }, { data: settingsData }] = await Promise.all([
-        supabase.from("residentes").select("is_admin, residence, etage, chambre").eq("user_id", sessionUser.id).maybeSingle(),
+        supabase.from("residentes").select("residence, etage, chambre").eq("user_id", sessionUser.id).maybeSingle(),
         supabase.from("app_settings").select("key, value"),
       ]);
-      setProfil(p ? { is_admin: p.is_admin, residence: p.residence, etage: p.etage, chambre: p.chambre } : {});
+      setProfil(p ? { residence: p.residence, etage: p.etage, chambre: p.chambre } : {});
       const map: Record<string, string> = {};
       (settingsData ?? []).forEach((s) => (map[s.key] = s.value));
       setSettings(map);
@@ -162,9 +161,9 @@ export default function SemaineRepas() {
     serviceOptions
       .filter((so) => so.date === dateKey && so.service === service && so.option)
       .map((so) => so.option as MealOptionCatalog)
-      .filter((o) => o.is_active && optionVisibleFor(o, { residence: profil?.residence, etage: profil?.etage, user_id: user?.id, is_admin: profil?.is_admin }));
+      .filter((o) => o.is_active && optionVisibleFor(o, { residence: profil?.residence, etage: profil?.etage, user_id: user?.id, groupes: myRights.groupes }));
 
-  const eventViewer = { residence: profil?.residence, etage: profil?.etage, chambre: profil?.chambre, user_id: user?.id, canViewEvents };
+  const eventViewer = { residence: profil?.residence, etage: profil?.etage, chambre: profil?.chambre, user_id: user?.id, groupes: myRights.groupes };
   const eventsForDay = (dateKey: string) => weekEvents.filter((e) => e.dates_event?.includes(dateKey) && eventVisibleFor(e, eventViewer));
 
   const invitesForDay = (dateKey: string) => myInvites.filter((i) => i.date_repas === dateKey);

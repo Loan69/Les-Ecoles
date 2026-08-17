@@ -12,6 +12,29 @@ export interface PersonneDetail {
   isInvite: boolean; // true = invitée / invité (placée après les résidentes)
 }
 
+// Personne d'un écran d'intendance : le détail d'affichage + le drapeau de suivi.
+export type PersonneAdmin = PersonneDetail & { horsSuivi: boolean };
+
+// --- QUI APPARAÎT DANS LES ÉCRANS D'INTENDANCE ? (règle unique, R-ADM-02) ----------
+//
+// Source de vérité : les comptes activés depuis l'onglet Administration, c'est-à-dire
+// une résidente ACTIVE rattachée à une chambre ou à un poste. Sont donc hors listes :
+// les comptes archivés, les comptes actifs sans place, le compte technique, et les
+// invitées (comptes auto-inscrits, jamais rattachés à une place).
+//
+// « Hors listes » ne veut pas dire « effacé » : une personne hors suivi reste affichée
+// là où elle a des DONNÉES enregistrées sur la période consultée (repas pris, absence
+// déclarée), sans quoi la comptabilité d'une résidente partie en cours de mois serait
+// amputée. C'est le rôle du drapeau `horsSuivi` — même principe que le niveau de droit
+// « Aucun » (R-NIV-11), avec lequel il se combine.
+export function estCompteActive(r: {
+  statut?: string | null;
+  place_id?: string | null;
+  is_technique?: boolean | null;
+}): boolean {
+  return r.statut === "active" && !!r.place_id && !r.is_technique;
+}
+
 export function sortAdminPeople<T extends PersonneDetail>(people: T[]): T[] {
   return [...people].sort((a, b) => {
     const resA = a.residence ?? "";

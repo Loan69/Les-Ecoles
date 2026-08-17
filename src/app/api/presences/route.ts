@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabaseServer";
 import { CHOIX_NON } from "@/lib/presenceStatut";
 import { requireSectionAccess } from "@/lib/apiAuth";
+import { cibleEstVide, dansCible, estExclue, type Cible } from "@/lib/visibilite";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -80,19 +81,35 @@ export async function POST(req: NextRequest) {
   // Vérifier que l'option est bien proposée ce jour, active, et autorisée
   const { data: so } = await supabase
     .from("meal_service_options")
-    .select("option:meal_options(is_active, admin_only)")
+    .select("option:meal_options(is_active, visibilite)")
     .eq("date", date)
     .eq("service", service)
     .eq("option_id", option_id)
     .maybeSingle();
 
-  const opt = so?.option as { is_active?: boolean; admin_only?: boolean } | null;
+  const opt = so?.option as { is_active?: boolean; visibilite?: Cible | null } | null;
   if (!opt) return NextResponse.json({ error: "Cette option n'est pas proposée ce jour." }, { status: 400 });
   if (!opt.is_active) return NextResponse.json({ error: "Cette option n'est plus disponible." }, { status: 400 });
 
-  if (opt.admin_only) {
-    const { data: adminCheck } = await supabase.from("residentes").select("is_admin").eq("user_id", user.id).maybeSingle();
-    if (!adminCheck?.is_admin) return NextResponse.json({ error: "Option réservée à l'intendance." }, { status: 403 });
+  // L'option peut être ciblée (résidence, étage, groupe). Le sélecteur ne la propose déjà
+  // pas, mais l'écran n'est pas une sécurité : on revérifie ici, sinon un appel direct
+  // suffirait à s'inscrire.
+  if (!cibleEstVide(opt.visibilite)) {
+    const [{ data: profil }, { data: mesGroupes }] = await Promise.all([
+      supabase.from("residentes").select("residence, etage, chambre").eq("user_id", user.id).maybeSingle(),
+      supabase.from("groupe_membres").select("groupe_id").eq("user_id", user.id),
+    ]);
+
+    const viewer = {
+      residence: profil?.residence,
+      etage: profil?.etage,
+      chambre: profil?.chambre,
+      user_id: user.id,
+      groupes: (mesGroupes ?? []).map((g) => g.groupe_id as string),
+    };
+    if (estExclue(opt.visibilite, viewer) || !dansCible(opt.visibilite, viewer)) {
+      return NextResponse.json({ error: "Cette option ne vous est pas proposée." }, { status: 403 });
+    }
   }
 
   const { error: upErr } = await supabase

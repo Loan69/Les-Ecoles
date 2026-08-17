@@ -9,7 +9,7 @@ import { Residence } from "@/types/Residence";
 import { Absence } from "@/types/Absence";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
-import { PersonneDetail, sortAdminPeople, formatEtage } from "@/lib/adminPeople";
+import { PersonneAdmin, sortAdminPeople, formatEtage, estCompteActive } from "@/lib/adminPeople";
 import { downloadCSV } from "@/lib/csvExport";
 import AbsenceAdminModal, { MarquagePayload } from "@/app/components/admin/AbsenceAdminModal";
 import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
@@ -33,7 +33,7 @@ function formatColDay(dateKey: string): string {
 
 export default function AdminFoyerView() {
   const { supabase } = useSupabase();
-  const [allPeople, setAllPeople] = useState<(PersonneDetail & { horsSuivi: boolean })[]>([]);
+  const [allPeople, setAllPeople] = useState<PersonneAdmin[]>([]);
   const [residences, setResidences] = useState<Residence[]>([]);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +65,10 @@ export default function AdminFoyerView() {
     const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: placesData }] =
       await Promise.all([
         supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
-        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id, niveau_absences").eq("statut", "active").eq("is_technique", false),
+        // Tous les comptes (archivés compris, hors compte technique jamais listé) : ceux qui
+        // ne sont pas activés sortent des listes via `horsSuivi`, mais restent visibles les
+        // jours où ils ont une absence déclarée — l'historique n'est pas réécrit (R-ADM-02).
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id, statut, niveau_absences").eq("is_technique", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("select_options_residence").select("value, label"),
         supabase.from("places").select("id, label"),
@@ -91,8 +94,9 @@ export default function AdminFoyerView() {
         etage: r.etage,
         chambre: (r.place_id && placeLabels[r.place_id]) || (r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre),
         isInvite: false,
-        // Absences = Aucun → hors du suivi de présence (voir R-NIV-11).
-        horsSuivi: Number(r.niveau_absences ?? 1) === 0,
+        // Hors du suivi si le compte n'est pas activé (R-ADM-02) ou si Absences = Aucun
+        // (R-NIV-11).
+        horsSuivi: !estCompteActive(r) || Number(r.niveau_absences ?? 1) === 0,
       })) || []),
       ...(inviteesData?.map((i) => ({
         id: i.user_id,
@@ -100,7 +104,7 @@ export default function AdminFoyerView() {
         prenom: i.prenom,
         residence: i.residence != null ? String(i.residence) : undefined,
         isInvite: true,
-        horsSuivi: false, // les invitées n'ont pas de droits par section
+        horsSuivi: true, // invitée : compte hors gestion des chambres, jamais dans les listes (R-ADM-02)
       })) || []),
     ]);
 
@@ -134,17 +138,28 @@ export default function AdminFoyerView() {
     return days;
   }, [startDate, endDate]);
 
-  // Personnes suivies : celles ayant accès à la section Absences, PLUS celles qui en sont
-  // exclues mais gardent une absence déclarée sur la période — on ne réécrit pas l'historique.
+  // Personnes affichées : les comptes activés suivant les absences, PLUS ceux qui en sont
+  // hors (départ, invitée, Absences = Aucun) mais gardent une absence déclarée sur la
+  // période — on ne réécrit pas l'historique.
   const people = useMemo(
     () => allPeople.filter((p) => !p.horsSuivi || absences.some((a) => a.user_id === p.id)),
     [allPeople, absences]
   );
 
+  // Comptes activés seuls : vivier pour enregistrer une NOUVELLE absence (R-ADM-02).
+  const peopleActives = useMemo(() => allPeople.filter((p) => !p.horsSuivi), [allPeople]);
+
   const isAbsentOn = useCallback(
     (personId: string, dateKey: string) =>
       absences.some((a) => a.user_id === personId && a.date_debut <= dateKey && a.date_fin >= dateKey),
     [absences]
+  );
+
+  // Une personne hors suivi n'apparaît QUE les jours couverts par son absence : elle ne doit
+  // jamais gonfler le compteur « au foyer » d'un jour où elle n'habite plus là.
+  const visibleOn = useCallback(
+    (p: PersonneAdmin, dateKey: string) => !p.horsSuivi || isAbsentOn(p.id, dateKey),
+    [isAbsentOn]
   );
 
   // --- Marquage (création absence ou forçage présence) ---
@@ -173,14 +188,14 @@ export default function AdminFoyerView() {
     const header = ["Résidence", "Étage", "Nom", "Prénom", ...tableColumns.map((c) => c.label)];
     const rows: (string | number)[][] = [header];
     sortAdminPeople(people).forEach((p) => {
-      const cells = tableColumns.map((c) => (isAbsentOn(p.id, c.key) ? "Sortie" : "Au foyer"));
+      const cells = tableColumns.map((c) => (!visibleOn(p, c.key) ? "" : isAbsentOn(p.id, c.key) ? "Sortie" : "Au foyer"));
       rows.push([p.residence ?? "", formatEtage(p.etage) ?? "", p.nom, p.prenom, ...cells]);
     });
     downloadCSV(`presences_${startDate}_${endDate}.csv`, rows);
   };
 
   // Popup : personnes de la liste courante + personnes du statut opposé (pour l'ajout).
-  const inModalRes = listModal ? people.filter((p) => p.residence === listModal.residence) : [];
+  const inModalRes = listModal ? people.filter((p) => p.residence === listModal.residence && visibleOn(p, listModal.date)) : [];
   const modalPeople = listModal ? inModalRes.filter((p) => (listModal.kind === "absent" ? isAbsentOn(p.id, listModal.date) : !isAbsentOn(p.id, listModal.date))) : [];
   const modalAddable = listModal ? inModalRes.filter((p) => (listModal.kind === "absent" ? !isAbsentOn(p.id, listModal.date) : isAbsentOn(p.id, listModal.date))) : [];
 
@@ -262,7 +277,7 @@ export default function AdminFoyerView() {
                   <p className="text-sm font-bold text-blue-900 uppercase tracking-wide mb-3">{formatJourLong(date)}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {residences.map((res) => {
-                      const inRes = people.filter((p) => p.residence === res.value);
+                      const inRes = people.filter((p) => p.residence === res.value && visibleOn(p, date));
                       const absent = inRes.filter((p) => isAbsentOn(p.id, date));
                       const present = inRes.filter((p) => !isAbsentOn(p.id, date));
                       return (
@@ -328,7 +343,9 @@ export default function AdminFoyerView() {
             people={people}
             columns={tableColumns}
             renderCell={(p, dayKey) =>
-              isAbsentOn(p.id, dayKey) ? (
+              !visibleOn(p, dayKey) ? (
+                <span className="text-gray-300" title="Hors foyer à cette date">—</span>
+              ) : isAbsentOn(p.id, dayKey) ? (
                 <span className="font-bold text-red-600" title="Sortie">A</span>
               ) : (
                 <span className="font-bold text-green-600" title="Au foyer">P</span>
@@ -361,7 +378,7 @@ export default function AdminFoyerView() {
       <AbsenceAdminModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        people={people}
+        people={peopleActives}
         residences={residences}
         onSubmit={handleSubmit}
       />

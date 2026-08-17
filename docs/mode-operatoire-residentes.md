@@ -1,7 +1,7 @@
 # Mode opératoire — Résidentes & invitées
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour les **habitantes** (résidentes et invitées). À mettre à jour à chaque évolution de l'appli.
-> Version 1.6 — 2026-08-03.
+> Version 1.7 — 2026-08-17.
 
 Cette application sert à gérer, au quotidien, **ta présence au foyer la nuit** et **tes repas** (midi et soir), à consulter les **événements** du foyer et les **informations pratiques**. Elle est pensée pour le **téléphone** (mais marche aussi sur ordinateur).
 
@@ -127,6 +127,8 @@ L'onglet 📖 **Administratif** rassemble les **informations pratiques** du foye
 ## 9. Mon profil
 
 Le bouton **Profil** 👤 (en haut à droite) permet de consulter tes informations et de te **déconnecter**.
+
+Tu y vois ta **résidence**, ton **étage**, ta **chambre**, ta **date de naissance** et les **groupes** auxquels tu appartiens (ex. « Staff 12 »). Un groupe sert à l'intendance pour t'adresser certains événements, options de repas ou rubriques ; il ne change rien à ce que tu peux faire dans l'appli. Si tu n'es dans aucun groupe, la ligne affiche « Aucun ».
 
 ---
 

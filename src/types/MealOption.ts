@@ -1,15 +1,14 @@
+import type { Cible } from "@/lib/visibilite";
+
 // Types du modèle repas : on compose les services à partir d'un catalogue
 // d'options réutilisables (pas de menus figés).
 
 export type Service = "dejeuner" | "diner";
 
-// Visibilité d'une option (comme les événements) : ciblage résidences/étages + exclusions nominatives.
-// Vide (aucune résidence, aucun étage) = visible par toutes.
-export interface OptionVisibilite {
-  residence: string[];
-  etage: string[];
-  exclusions?: string[];
-}
+// Visibilité d'une option : même ciblage que les événements et les rubriques Administratif
+// (résidences / étages / groupes + exclusions nominatives), cf. src/lib/visibilite.ts.
+// Vide (aucun critère) = visible par toutes.
+export type OptionVisibilite = Cible;
 
 // Option réutilisable du catalogue (meal_options)
 export interface MealOptionCatalog {
@@ -17,7 +16,6 @@ export interface MealOptionCatalog {
   label: string;
   residence: string; // "12" / "36" — rattachement compta, imposé
   delai_commande: number; // jours d'avance (0 = clôture le jour même à l'heure de lock ; 1 = la veille ; etc.)
-  admin_only: boolean;
   is_active: boolean;
   visibilite?: OptionVisibilite | null;
   created_at?: string;

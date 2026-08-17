@@ -5,6 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, UserPlus } from "lucide-react";
 import { useSupabase } from "../providers";
 import { toast } from "sonner";
+import { useMyRights } from "@/lib/useMyRights";
+import { optionVisibleFor } from "@/lib/optionVisibility";
+import type { MealOptionCatalog } from "@/types/MealOption";
 
 type GuestRow = { id: number; nom: string; prenom: string };
 type Service = "dejeuner" | "diner";
@@ -34,6 +37,7 @@ export default function InviteModal({
   editing?: EditingInvite | null;
 }) {
   const { supabase } = useSupabase();
+  const { groupes: mesGroupes } = useMyRights();
 
   const [guests, setGuests] = useState<GuestRow[]>([]);
   const [selectedGuestId, setSelectedGuestId] = useState<string>("");
@@ -77,14 +81,32 @@ export default function InviteModal({
       return;
     }
     (async () => {
-      const { data } = await supabase
-        .from("meal_service_options")
-        .select("service, option:meal_options(id, label, is_active, admin_only)")
-        .eq("date", date);
+      // On ne propose pour un invité que les options que l'invitante peut elle-même
+      // choisir : même ciblage que son propre sélecteur de repas (résidence / étage /
+      // groupe), sans quoi elle inscrirait son invité à un repas qui ne lui est pas ouvert.
+      const [{ data }, { data: { session } }] = await Promise.all([
+        supabase
+          .from("meal_service_options")
+          .select("service, option:meal_options(id, label, is_active, visibilite)")
+          .eq("date", date),
+        supabase.auth.getSession(),
+      ]);
+      const { data: profil } = session?.user
+        ? await supabase.from("residentes").select("residence, etage, chambre").eq("user_id", session.user.id).maybeSingle()
+        : { data: null };
+      const viewer = {
+        residence: profil?.residence,
+        etage: profil?.etage,
+        chambre: profil?.chambre,
+        user_id: session?.user?.id,
+        groupes: mesGroupes,
+      };
+
       const opts: DayOption[] = (data ?? [])
         .map((so) => {
-          const o = so.option as unknown as { id: string; label: string; is_active: boolean; admin_only: boolean } | null;
-          if (!o || !o.is_active || o.admin_only) return null;
+          const o = so.option as unknown as MealOptionCatalog | null;
+          if (!o || !o.is_active) return null;
+          if (!optionVisibleFor(o, viewer)) return null;
           return { service: so.service as Service, option_id: o.id, label: o.label };
         })
         .filter(Boolean) as DayOption[];
@@ -92,7 +114,7 @@ export default function InviteModal({
       const seen = new Set<string>();
       setDayOptions(opts.filter((o) => (seen.has(`${o.service}|${o.option_id}`) ? false : seen.add(`${o.service}|${o.option_id}`))));
     })();
-  }, [date, supabase]);
+  }, [date, supabase, mesGroupes]);
 
   const choices = useMemo(
     () => [...dayOptions].sort((a, b) => a.service.localeCompare(b.service) || a.label.localeCompare(b.label)),

@@ -69,9 +69,8 @@ export default function RepasOptionsManager() {
     label: string;
     residence: string;
     delai: string;
-    adminOnly: boolean;
-    visibilite: { residence: string[]; etage: string[]; exclusions: string[] };
-  }>({ open: false, editing: null, label: "", residence: "12", delai: "0", adminOnly: false, visibilite: { residence: [], etage: [], exclusions: [] } });
+    visibilite: { residence: string[]; etage: string[]; groupes: string[]; exclusions: string[] };
+  }>({ open: false, editing: null, label: "", residence: "12", delai: "0", visibilite: { residence: [], etage: [], groupes: [], exclusions: [] } });
 
   // Modale picker (ouverture d'un service)
   const [picker, setPicker] = useState<{ date: string; service: Service; selected: Set<string> } | null>(null);
@@ -110,9 +109,9 @@ export default function RepasOptionsManager() {
   }, [fetchCatalog, fetchServiceOptions]);
 
   // ---------- Catalogue ----------
-  const emptyVis = { residence: [], etage: [], exclusions: [] };
+  const emptyVis = { residence: [], etage: [], groupes: [], exclusions: [] };
   const openAddOption = () =>
-    setOptForm({ open: true, editing: null, label: "", residence: "12", delai: "0", adminOnly: false, visibilite: emptyVis });
+    setOptForm({ open: true, editing: null, label: "", residence: "12", delai: "0", visibilite: emptyVis });
   const openEditOption = (o: MealOptionCatalog) =>
     setOptForm({
       open: true,
@@ -120,10 +119,10 @@ export default function RepasOptionsManager() {
       label: o.label,
       residence: o.residence,
       delai: String(o.delai_commande),
-      adminOnly: o.admin_only,
       visibilite: {
         residence: o.visibilite?.residence ?? [],
         etage: o.visibilite?.etage ?? [],
+        groupes: o.visibilite?.groupes ?? [],
         exclusions: o.visibilite?.exclusions ?? [],
       },
     });
@@ -138,10 +137,9 @@ export default function RepasOptionsManager() {
       label: optForm.label.trim(),
       residence: optForm.residence,
       delai_commande: Number(optForm.delai) || 0,
-      admin_only: optForm.adminOnly,
       is_active: optForm.editing?.is_active ?? true,
       // vide = visible par toutes → on stocke null pour rester lisible
-      visibilite: vis.residence.length || vis.etage.length ? vis : null,
+      visibilite: vis.residence.length || vis.etage.length || vis.groupes.length ? vis : null,
     };
     const res = await fetch("/api/admin/meal-options", {
       method: optForm.editing ? "PUT" : "POST",
@@ -162,7 +160,7 @@ export default function RepasOptionsManager() {
     const res = await fetch("/api/admin/meal-options", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: o.id, label: o.label, residence: o.residence, delai_commande: o.delai_commande, admin_only: o.admin_only, is_active: !o.is_active, visibilite: o.visibilite ?? null }),
+      body: JSON.stringify({ id: o.id, label: o.label, residence: o.residence, delai_commande: o.delai_commande, is_active: !o.is_active, visibilite: o.visibilite ?? null }),
     });
     const j = await res.json();
     if (!res.ok) return toast.error(j.error || "Erreur.");
@@ -290,7 +288,6 @@ export default function RepasOptionsManager() {
                       <Clock className="w-3 h-3" /> {o.delai_commande} j avant
                     </span>
                   )}
-                  {o.admin_only && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">admin</span>}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {canEdit ? (
@@ -405,14 +402,9 @@ export default function RepasOptionsManager() {
                     <p className="text-xs text-gray-400 mt-1">0 = clôture le jour même à l&apos;heure de verrouillage. +1 par jour d&apos;avance (ex. 1 = clôture la veille).</p>
                   </div>
                 </div>
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input type="checkbox" checked={optForm.adminOnly} onChange={(e) => setOptForm((f) => ({ ...f, adminOnly: e.target.checked }))} />
-                  Réservée aux admins
-                </label>
-
                 <div className="border-t border-gray-100 pt-3">
                   <p className="text-sm font-medium text-gray-700 mb-1">Visibilité</p>
-                  <p className="text-xs text-gray-400 mb-3">Laissez vide pour proposer l&apos;option à toutes. Sinon, ciblez des résidences / étages (et décochez nommément si besoin).</p>
+                  <p className="text-xs text-gray-400 mb-3">Laissez vide pour proposer l&apos;option à toutes. Sinon, ciblez des résidences, des étages ou des <b>groupes</b> — par exemple « Intendance » pour une option qui ne concerne qu&apos;elle (et décochez nommément si besoin).</p>
                   <EventVisibilitySelector
                     value={optForm.visibilite}
                     onChange={(v) => setOptForm((f) => ({ ...f, visibilite: v }))}
@@ -461,8 +453,7 @@ export default function RepasOptionsManager() {
                           />
                           <span className="text-sm text-gray-800">{o.label}</span>
                           <ResBadge r={o.residence} />
-                          {o.admin_only && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">admin</span>}
-                        </label>
+                                </label>
                       </li>
                     );
                   })}

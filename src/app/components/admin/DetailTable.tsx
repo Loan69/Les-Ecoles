@@ -9,16 +9,16 @@ export interface DetailColumn {
   sublabel?: string;
 }
 
-interface DetailTableProps {
-  people: PersonneDetail[];
+interface DetailTableProps<T extends PersonneDetail> {
+  people: T[];
   columns: DetailColumn[];
-  renderCell: (person: PersonneDetail, columnKey: string) => ReactNode;
+  renderCell: (person: T, columnKey: string) => ReactNode;
 }
 
 // Tableau de détail générique et cohérent (présences, repas, chambres…).
 // 1re colonne figée. Regroupement par résidence (titre) puis par étage (sous-titre),
 // les invitées formant un bloc « Invitées » en fin de chaque résidence.
-export default function DetailTable({ people, columns, renderCell }: DetailTableProps) {
+export default function DetailTable<T extends PersonneDetail>({ people, columns, renderCell }: DetailTableProps<T>) {
   const sorted = sortAdminPeople(people);
   const span = columns.length + 1;
 

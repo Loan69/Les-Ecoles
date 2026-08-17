@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AdminDaysSkeleton } from "@/app/components/Skeleton";
 import { Residence } from "@/types/Residence";
 import { Presence, MealOptionCatalog, Service } from "@/types/MealOption";
-import { PersonneDetail, sortAdminPeople, formatEtage } from "@/lib/adminPeople";
+import { PersonneDetail, PersonneAdmin, sortAdminPeople, formatEtage, estCompteActive } from "@/lib/adminPeople";
 import { isAwayForMeal, type AbsenceCompta } from "@/lib/mealCompta";
 import { statutRepas, mangeUnRepas, type StatutRepas } from "@/lib/presenceStatut";
 import { downloadCSV } from "@/lib/csvExport";
@@ -35,7 +35,7 @@ type ServiceDetail = { open: boolean; options: OptionGroup[] };
 export default function AdminRepasPage() {
   const { supabase } = useSupabase();
   const canEdit = useMyRights().canEdit("repas");
-  const [allPeople, setAllPeople] = useState<(PersonneDetail & { horsSuivi: boolean })[]>([]);
+  const [allPeople, setAllPeople] = useState<PersonneAdmin[]>([]);
   const [residences, setResidences] = useState<Residence[]>([]);
   const [presences, setPresences] = useState<Presence[]>([]);
   const [absences, setAbsences] = useState<AbsenceCompta[]>([]);
@@ -65,8 +65,12 @@ export default function AdminRepasPage() {
     const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: optsRes }, { data: invitesData }, { data: placesData }] =
       await Promise.all([
         supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
-        // Exclut le super-admin (compte technique) ; garde les archivées pour l'historique de compta.
-        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id, niveau_repas").eq("is_technique", false),
+        // Tous les comptes sont chargés (archivés compris) : ceux qui ne sont pas activés
+        // sortent des listes via `horsSuivi`, mais restent visibles là où ils ont des repas
+        // enregistrés sur la période — sinon la compta d'un départ en cours de mois serait
+        // amputée (cf. estCompteActive, R-ADM-02).
+        // Le compte technique, lui, est exclu d'emblée : jamais listé nulle part.
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id, statut, niveau_repas").eq("is_technique", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("meal_options").select("*"),
         supabase.from("select_options_residence").select("value, label"),
@@ -103,13 +107,14 @@ export default function AdminRepasPage() {
         id: r.user_id, nom: r.nom, prenom: r.prenom,
         residence: r.residence != null ? String(r.residence) : undefined,
         etage: r.etage, chambre: (r.place_id && placeLabels[r.place_id]) || (r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre), isInvite: false,
-        // Repas = Aucun → ne mange pas au foyer, hors des listes de repas (voir R-NIV-11).
-        horsSuivi: Number(r.niveau_repas ?? 1) === 0,
+        // Hors des listes si le compte n'est pas activé (R-ADM-02) ou si Repas = Aucun,
+        // auquel cas la personne ne mange pas au foyer (R-NIV-11).
+        horsSuivi: !estCompteActive(r) || Number(r.niveau_repas ?? 1) === 0,
       })) || []),
       ...(inviteesData?.map((i) => ({
         id: i.user_id, nom: i.nom, prenom: i.prenom,
         residence: i.residence != null ? String(i.residence) : undefined, isInvite: true,
-        horsSuivi: false, // les invitées n'ont pas de droits par section
+        horsSuivi: true, // invitée : compte hors gestion des chambres, jamais dans les listes (R-ADM-02)
       })) || []),
     ]);
 
@@ -141,8 +146,9 @@ export default function AdminRepasPage() {
     return days;
   }, [startDate, endDate]);
 
-  // Personnes suivies : celles ayant accès à la section Repas, PLUS celles qui en sont exclues
-  // mais gardent une inscription ou un invité sur la période — on ne réécrit pas l'historique.
+  // Personnes affichées : les comptes activés suivant les repas, PLUS ceux qui en sont hors
+  // (départ, invitée, Repas = Aucun) mais gardent une inscription ou un invité sur la période
+  // — on ne réécrit pas l'historique, la compta d'un départ en cours de mois reste juste.
   const people = useMemo(
     () => allPeople.filter((p) => !p.horsSuivi || presences.some((x) => x.user_id === p.id) || invites.some((i) => i.invite_par === p.id)),
     [allPeople, presences, invites]
@@ -329,10 +335,12 @@ export default function AdminRepasPage() {
       .map((so) => ({ option_id: so.option_id, label: so.label }));
   }, [listModal, openServiceOptions]);
 
-  // Vivier de résidentes (comptes résidentes, hors comptes invitées) pour l'ajout / l'invitant.
+  // Vivier pour l'ajout à une option / le choix de l'invitant : uniquement les comptes
+  // activés — on n'inscrit pas un compte parti ou hors chambre, même s'il apparaît encore
+  // dans l'écran au titre de son historique (R-ADM-02).
   const residentesForAdd = useMemo(
-    () => people.filter((p) => !p.isInvite).map((p) => ({ id: p.id, nom: p.nom, prenom: p.prenom })).sort((a, b) => a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom)),
-    [people]
+    () => allPeople.filter((p) => !p.isInvite && !p.horsSuivi).map((p) => ({ id: p.id, nom: p.nom, prenom: p.prenom })).sort((a, b) => a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom)),
+    [allPeople]
   );
 
   const postJson = async (url: string, method: string, body: unknown) => {

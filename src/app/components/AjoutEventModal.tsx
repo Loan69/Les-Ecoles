@@ -13,7 +13,6 @@ type ModalProps = {
   open: boolean;
   onClose: () => void;
   onSave: (data: CalendarEvent) => void | Promise<void>;
-  isAdmin?: boolean;
   eventToEdit?: Partial<CalendarEvent | null>;
   isEditing?: boolean;
 };
@@ -22,7 +21,6 @@ export default function ModalAjoutEvenement({
   open, 
   onClose, 
   onSave, 
-  isAdmin = false,
   eventToEdit = null,
   isEditing = false
 }: ModalProps) {
@@ -35,10 +33,9 @@ export default function ModalAjoutEvenement({
     recurrence: "",
     heures: "",
     lieu: [],
-    visibilite: { residence: [], etage: [], chambre: [] },
+    visibilite: { residence: [], etage: [], groupes: [] },
     visible_invites: false,
     demander_confirmation: false,
-    reserve_admin: null,
     rappel_event: 0,
   });
 
@@ -60,10 +57,9 @@ export default function ModalAjoutEvenement({
           recurrence: eventToEdit.recurrence || "",
           heures: eventToEdit.heures || "",
           lieu: lieu,
-          visibilite: eventToEdit.visibilite || { residence: [], etage: [], chambre: [] },
+          visibilite: eventToEdit.visibilite || { residence: [], etage: [], groupes: [] },
           visible_invites: eventToEdit.visible_invites || false,
           demander_confirmation: eventToEdit.demander_confirmation || false,
-          reserve_admin: eventToEdit.reserve_admin || null,
           rappel_event: eventToEdit.rappel_event || 0,
         });
 
@@ -78,11 +74,10 @@ export default function ModalAjoutEvenement({
           recurrence: "",
           heures: "",
           lieu: [],
-          visibilite: { residence: [], etage: [], chambre: [] },
+          visibilite: { residence: [], etage: [], groupes: [] },
           visible_invites: false,
           demander_confirmation: false,
-          reserve_admin: null,
-          rappel_event: 0,
+                rappel_event: 0,
         });
 
         // Réinitialiser les valeurs initiales
@@ -227,39 +222,10 @@ export default function ModalAjoutEvenement({
           {/* Section visibilité */}
           <h2 className="text-blue-800 font-semibold mt-4">Visibilité</h2>
 
-          {/* Checkbox staff */}
-          {isAdmin && (
-            <label className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 cursor-pointer hover:bg-gray-100 transition">
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-gray-800">
-                  Évènement réservé au staff
-                </span>
-                <span className="text-xs text-gray-500">
-                  Si activé, seuls les résidentes admins verront cet évènement.
-                </span>
-              </div>
-               <select
-                  name="reserve_admin"
-                  value={form.reserve_admin || ""}
-                  onChange={(e) => {
-                    const value = e.target.value === "" ? null : e.target.value;
-                    handleSelectChange("reserve_admin", value);
-                  }}
-                  className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Non</option>
-                  <option value="12">Staff Résidence 12 uniquement</option>
-                  <option value="36">Staff Résidence 36 uniquement</option>
-                  <option value="all">Tout le staff</option>
-                </select>
-            </label>
-          )}
-
           {/* Visibilité : résidence / étage puis liste de noms cochables */}
           <EventVisibilitySelector
             key={`visi-${open}`}
-            disabled={!!form.reserve_admin}
-            value={form.visibilite ?? { residence: [], etage: [], exclusions: [] }}
+            value={form.visibilite ?? { residence: [], etage: [], groupes: [], exclusions: [] }}
             onChange={(v) => handleSelectChange("visibilite", v)}
           />
 

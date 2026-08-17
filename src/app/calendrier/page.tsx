@@ -19,7 +19,6 @@ export default function CalendrierPage() {
   const canView = myRights.canView("evenements"); // « Voir les inscrits »
   const canEdit = myRights.canEdit("evenements");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [is_admin, setIsAdmin] = useState<boolean | null>(false);
   const [user, setUser] = useState<User | null>(null);
 
   // Récupération de l'utilisateur
@@ -35,23 +34,6 @@ export default function CalendrierPage() {
     };
     fetchUser();
   }, []);
-
-  // Vérifier si l'utilisateur est admin
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user?.id) return;
-
-      const { data, error } = await supabase
-        .from("residentes")
-        .select("is_admin")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) console.error(error);
-      else setIsAdmin(data?.is_admin);
-    };
-    fetchProfile();
-  }, [user]);
 
   // Charger les événements depuis Supabase
   const fetchEvents = async () => {
@@ -174,7 +156,6 @@ export default function CalendrierPage() {
           onAddEvent={handleAddEvent}
           onEditEvent={handleEditEvent}
           onDeleteEvent={handleDeleteEvent}
-          is_admin={is_admin ?? false}
           canView={canView}
           canEdit={canEdit}
         />

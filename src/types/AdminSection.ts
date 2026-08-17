@@ -1,3 +1,5 @@
+import type { Cible } from "@/lib/visibilite";
+
 export type AdminSectionType = "richtext" | "contacts";
 
 export interface Contact {
@@ -14,6 +16,8 @@ export interface AdminSection {
   type: AdminSectionType;
   position: number;
   content: unknown;
-  admin_only: boolean; // rubrique réservée aux administratrices (non transmise aux résidentes)
+  // Ciblage commun (résidences / étages / groupes + exclusions), cf. src/lib/visibilite.ts.
+  // Vide = visible par toutes.
+  visibilite?: Cible | null;
   updated_at?: string;
 }

@@ -1,25 +1,16 @@
 import { MealOptionCatalog } from "@/types/MealOption";
+import { cibleEstVide, dansCible, estExclue, type CibleViewer } from "@/lib/visibilite";
 
 // Une option est-elle visible pour cette habitante ?
-// - réservée admins → seulement les admins ;
-// - visibilité vide (aucune résidence/étage ciblé) → toutes ;
-// - sinon : résidence ciblée OU étage ciblé, sauf exclusion nominative.
-export function optionVisibleFor(
-  option: MealOptionCatalog,
-  viewer: { residence?: string | null; etage?: string | null; user_id?: string | null; is_admin?: boolean }
-): boolean {
-  if (option.admin_only && !viewer.is_admin) return false;
-
+// - aucun ciblage → toutes ;
+// - sinon : résidence, étage ou groupe ciblé, sauf exclusion nominative.
+//
+// Une option d'intendance se dit désormais « ciblée sur le groupe Intendance » (R-VIS-01) :
+// il n'y a plus de case « réservée aux admins », qui visait en réalité toute personne ayant
+// un droit sur une section quelconque.
+export function optionVisibleFor(option: MealOptionCatalog, viewer: CibleViewer): boolean {
   const vis = option.visibilite;
-  if (!vis) return true;
-  const residence = vis.residence ?? [];
-  const etage = vis.etage ?? [];
-  const exclusions = vis.exclusions ?? [];
-  if (residence.length === 0 && etage.length === 0) return true;
-
-  if (viewer.user_id && exclusions.includes(viewer.user_id)) return false;
-  return (
-    (viewer.residence != null && residence.includes(viewer.residence)) ||
-    (viewer.etage != null && etage.includes(viewer.etage))
-  );
+  if (cibleEstVide(vis)) return true;
+  if (estExclue(vis, viewer)) return false;
+  return dansCible(vis, viewer);
 }

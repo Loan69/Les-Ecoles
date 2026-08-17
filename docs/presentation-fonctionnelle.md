@@ -1,7 +1,7 @@
 # Les Écoles — Présentation fonctionnelle de l'application
 
 > **Document vivant** — mis à jour à chaque nouvelle fonctionnalité ou évolution.
-> Dernière mise à jour : 3 août 2026 · Version 1.4
+> Dernière mise à jour : 17 août 2026 · Version 1.7
 
 ---
 
@@ -135,14 +135,24 @@ Une **liste unique** rassemble les personnes et leurs chambres, classée **rési
 - Deux panneaux repliables : **Comptes désactivés** (réactivables) et **Gérer les chambres & étages** (structure physique du foyer).
 - **Supprimer** définitivement un compte reste possible (irréversible, réservé au **super-admin**).
 
-> Les **invitées** (comptes simplifiés pour les repas) ne sont plus gérées depuis un onglet dédié : on les invite directement à un repas depuis **Repas de la semaine**. Elles conservent l'inscription libre.
+> Les **invitées** (comptes simplifiés pour les repas) ne sont plus gérées depuis un onglet dédié : on les invite directement à un repas depuis **Repas de la semaine**. Elles conservent l'inscription libre et n'occupent aucune chambre.
+
+> **Cet écran est la source de toute l'application.** Une personne n'apparaît dans les repas, la comptabilité, les présences, le ciblage des événements et les listes de personnes que si son compte y est **activé** : **actif et rattaché à une chambre ou à un poste**. Comptes désactivés, comptes sans chambre et invitées en sont donc absents — à une exception près, l'**historique** : une personne partie reste comptée dans les périodes où elle a réellement pris des repas, pour que la facturation reste juste.
+
+### 5.2 bis. Groupes & visibilité des contenus
+
+L'intendance peut créer des **groupes** de personnes portant un nom libre — « Staff 12 », « Intendance », « Responsables événements » — et y affecter des comptes depuis l'écran Administration.
+
+Un groupe sert à **cibler la visibilité** d'un contenu. **Événements**, **options de repas** et **rubriques de l'onglet Administratif** partagent le même sélecteur : on coche des **résidences** entières, des **étages** précis et/ou des **groupes**, puis on peut **exclure** nommément quelqu'un dans la liste des personnes concernées. Les critères s'additionnent, et ne rien cocher laisse le contenu visible par toutes.
+
+> Un groupe **n'accorde aucun droit** : il ne fait que rendre visible. Les droits d'intendance restent réglés séparément, section par section.
 
 ### 5.3. Repas spéciaux
 
 Les administratrices peuvent définir des **menus spéciaux** qui remplacent les options de repas par défaut sur une **plage de dates** (ou de façon **indéfinie**) :
 
 - choix du **service** concerné (déjeuner / dîner) ;
-- liste d'options personnalisées, chacune pouvant être **réservée aux admins** ou **publique**, **active** ou **inactive** ;
+- liste d'options personnalisées, chacune pouvant être **ciblée** (résidences, étages, groupes) ou proposée à toutes, **active** ou **inactive** ;
 - chaque option spéciale est rattachée à une **résidence**.
 
 Les règles existantes sont listées, avec mise en évidence des **conflits** (quand deux règles se chevauchent, la plus récente l'emporte et l'autre est signalée comme inactive). Les règles peuvent être **modifiées** ou **supprimées**.
@@ -184,7 +194,6 @@ Les administratrices créent et gèrent les événements du calendrier. Pour cha
 - **horaire** ;
 - **lieu(x)** : une ou plusieurs résidences ;
 - **visibilité ciblée** : par résidence (Corail inclus), par étage et/ou par chambre — la liste des personnes est celle des comptes actifs ;
-- **réservé au staff** (aucun / staff 12 / staff 36 / tout le staff) ;
 - **demande de confirmation** de participation (oui / non) ;
 - **rappel** : nombre de jours avant l'événement où afficher un rappel.
 

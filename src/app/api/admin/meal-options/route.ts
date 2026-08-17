@@ -6,9 +6,8 @@ type Body = {
   label?: string;
   residence?: string;
   delai_commande?: number;
-  admin_only?: boolean;
   is_active?: boolean;
-  visibilite?: unknown; // { residence[], etage[], exclusions[] } — vide/null = visible par toutes
+  visibilite?: unknown; // { residence[], etage[], groupes[], exclusions[] } — vide/null = visible par toutes
 };
 
 function validate(body: Body): string | null {
@@ -50,7 +49,6 @@ export async function POST(req: NextRequest) {
       label: body.label!.trim(),
       residence: body.residence,
       delai_commande: body.delai_commande ?? 0,
-      admin_only: body.admin_only ?? false,
       is_active: body.is_active ?? true,
       visibilite: body.visibilite ?? null,
     })
@@ -77,7 +75,6 @@ export async function PUT(req: NextRequest) {
       label: body.label!.trim(),
       residence: body.residence,
       delai_commande: body.delai_commande ?? 0,
-      admin_only: body.admin_only ?? false,
       is_active: body.is_active ?? true,
       visibilite: body.visibilite ?? null,
     })

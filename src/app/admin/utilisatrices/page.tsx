@@ -7,8 +7,9 @@ import { rightsFromRow, canViewSection, RIGHTS_COLUMNS } from "@/lib/roles";
 export default async function AdminUsersPage() {
   const supabase = await createSupabaseServer();
 
-  const { data, error: userError } = await supabase.auth.getUser();
-  if (userError) throw userError;
+  // Pas de session (ou jeton expiré) → écran de connexion, comme les autres pages admin.
+  // Lever l'erreur ici renvoyait une page 500 au visiteur non connecté.
+  const { data } = await supabase.auth.getUser();
   const user = data?.user;
 
   if (!user) redirect("/signin");

@@ -7,6 +7,8 @@ import { motion } from "framer-motion";
 import { ProfilSkeleton } from "../components/Skeleton";
 import { Residente } from "@/types/Residente";
 import { formatEtage, formatChambre } from "@/lib/adminPeople";
+import GroupeBadge from "../components/GroupeBadge";
+import { useMyRights } from "@/lib/useMyRights";
 import TopBar from "../components/TopBar";
 
 // Date de naissance « jolie » (2004-05-12 -> 12 mai 2004), sans décalage de fuseau.
@@ -30,6 +32,9 @@ export default function ProfilPage() {
     const { supabase } = useSupabase();
     const [profil, setProfil] = useState<ResidenteWithLabels | null>(null);
     const [loading, setLoading] = useState(true);
+    // Groupes de l'utilisatrice : déjà chargés une fois par session (providers).
+    const { groupes: mesGroupesIds } = useMyRights();
+    const [mesGroupes, setMesGroupes] = useState<{ id: string; nom: string }[]>([]);
 
     useEffect(() => {
         const fetchProfil = async () => {
@@ -90,6 +95,19 @@ export default function ProfilPage() {
         fetchProfil();
     }, [supabase]);
 
+    // Noms des groupes (la table est lisible par toute personne connectée ; seules les
+    // APPARTENANCES sont restreintes, et ce sont les siennes qu'on résout ici).
+    useEffect(() => {
+        if (mesGroupesIds.length === 0) {
+            setMesGroupes([]);
+            return;
+        }
+        (async () => {
+            const { data } = await supabase.from("groupes").select("id, nom").in("id", mesGroupesIds);
+            setMesGroupes((data ?? []) as { id: string; nom: string }[]);
+        })();
+    }, [supabase, mesGroupesIds]);
+
     if (loading)
         return (
         <main className="min-h-screen bg-white px-4 pt-6">
@@ -135,12 +153,18 @@ export default function ProfilPage() {
                 <InfoRow label="Étage" value={formatEtage(profil.etageLabel ?? profil.etage)} />
                 <InfoRow label="Chambre" value={formatChambre(profil.chambreLabel ?? profil.chambre)} />
                 <InfoRow label="Date de naissance" value={formatDateNaissance(profil.date_naissance)} />
-                {profil.is_admin ? (
-                <InfoRow label="Statut" value="Administratrice" />
-                ) : (
-                    <InfoRow label="Statut" value="Résidente"/>
-                )
-                }
+                <div className="flex justify-between items-center gap-3 py-3">
+                    <span className="text-sm text-gray-500">Groupes</span>
+                    {mesGroupes.length === 0 ? (
+                        <span className="text-sm text-gray-400 italic">Aucun</span>
+                    ) : (
+                        <span className="flex flex-wrap items-center justify-end gap-1">
+                            {mesGroupes.map((g) => (
+                                <GroupeBadge key={g.id} id={g.id} nom={g.nom} />
+                            ))}
+                        </span>
+                    )}
+                </div>
             </div>
             </div>
         </div>

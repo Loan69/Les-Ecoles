@@ -55,3 +55,18 @@ export function requireSectionEdit(section: Section): Promise<GuardResult> {
 export function requireSuperAdmin(): Promise<GuardResult> {
   return guard(isSuperAdmin);
 }
+
+// Peut **cibler** un contenu sur des groupes : quiconque édite un objet dont la visibilité
+// se règle (événements, options de repas, rubriques Administratif), plus la section Comptes
+// qui gère les groupes eux-mêmes. Sert à lire la composition des groupes — nécessaire pour
+// afficher qui est concerné par un ciblage, sans exiger la section Comptes d'une personne
+// qui ne fait que créer un événement.
+export function requireGroupesRead(): Promise<GuardResult> {
+  return guard(
+    (r) =>
+      canViewSection(r, "comptes") ||
+      canEditSection(r, "evenements") ||
+      canEditSection(r, "repas") ||
+      canEditSection(r, "infos")
+  );
+}

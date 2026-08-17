@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSectionView, requireSectionEdit } from "@/lib/apiAuth";
+import { requireSectionView, requireSuperAdmin } from "@/lib/apiAuth";
 import type { PlaceKind } from "@/types/Place";
 
 type Body = {
@@ -70,9 +70,12 @@ export async function GET() {
   return NextResponse.json({ places: result });
 }
 
-// --- Créer une place ---
+// --- Créer une place (super-admin) ---
+// La structure physique du foyer est réservée au super-admin : la lecture (GET) suffit à
+// l'écran Utilisatrices, mais créer/modifier/supprimer une chambre ou un poste engage tout
+// le reste (occupations, ciblage des événements). Une Édition « Comptes » ne suffit pas.
 export async function POST(req: NextRequest) {
-  const { supabase, error } = await requireSectionEdit('comptes');
+  const { supabase, error } = await requireSuperAdmin();
   if (error) return error;
 
   const body: Body = await req.json();
@@ -99,7 +102,7 @@ export async function POST(req: NextRequest) {
 
 // --- Modifier une place (nom affiché, étage, activation) — le code interne reste stable ---
 export async function PUT(req: NextRequest) {
-  const { supabase, error } = await requireSectionEdit('comptes');
+  const { supabase, error } = await requireSuperAdmin();
   if (error) return error;
 
   const body: Body = await req.json();
@@ -120,7 +123,7 @@ export async function PUT(req: NextRequest) {
 
 // --- Supprimer une place (uniquement si jamais utilisée) ---
 export async function DELETE(req: NextRequest) {
-  const { supabase, error } = await requireSectionEdit('comptes');
+  const { supabase, error } = await requireSuperAdmin();
   if (error) return error;
 
   const { id } = (await req.json()) as { id?: string };

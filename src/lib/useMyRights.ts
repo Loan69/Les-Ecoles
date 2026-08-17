@@ -5,6 +5,9 @@ import { canAccessSection, canViewSection, canEditSection, isSuperAdmin as isSup
 
 export type MyRights = {
   rights: Rights;
+  // Groupes de l'utilisatrice : servent au **ciblage de visibilité** uniquement
+  // (événements, options de repas, rubriques) — jamais à accorder un droit.
+  groupes: string[];
   loading: boolean;
   isSuperAdmin: boolean;
   canAccess: (s: Section) => boolean; // niveau >= 1 : la page/l'onglet existent
@@ -19,10 +22,11 @@ export type MyRights = {
 // les composants. Ce hook n'est plus qu'une lecture de contexte — on peut l'appeler
 // librement, sans coût réseau.
 export function useMyRights(): MyRights {
-  const { rights, loading } = useRightsContext();
+  const { rights, groupes, loading } = useRightsContext();
 
   return {
     rights,
+    groupes,
     loading,
     isSuperAdmin: isSuper(rights),
     canAccess: (s) => canAccessSection(rights, s),

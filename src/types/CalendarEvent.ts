@@ -1,3 +1,5 @@
+import type { Cible } from "@/lib/visibilite";
+
 export interface CalendarEvent {
   id?: number;
   couleur?: string;
@@ -8,16 +10,12 @@ export interface CalendarEvent {
   recurrence?: string;
   heures?: string;
   lieu?: string[];
-  visibilite?: {
-    residence: string[]; // résidences entières
-    etage: string[]; // étages précis (une résidence n'y figure pas si elle est déjà "entière")
-    chambre?: string[]; // hérité (anciens événements)
-    exclusions?: string[]; // user_ids explicitement décochés (ciblage dynamique)
-  };
+  // Ciblage commun aux événements, options de repas et rubriques (src/lib/visibilite.ts) :
+  // résidences entières / étages précis / groupes, moins les exclusions nominatives.
+  visibilite?: Cible;
   visible_invites?: boolean;
   demander_confirmation?: boolean;
   confirmations?: string[];
-  reserve_admin?: "12" | "36" | "all" | null;
   rappel_event?: number;
   nextReminderDate?: Date;
   joursRestants?: number;
