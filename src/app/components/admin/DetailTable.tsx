@@ -2,6 +2,7 @@
 
 import { ReactNode } from "react";
 import { PersonneDetail, formatChambre, formatEtage, sortAdminPeople } from "@/lib/adminPeople";
+import { labelResidenceDefaut } from "@/lib/residences";
 
 export interface DetailColumn {
   key: string;
@@ -36,14 +37,17 @@ export default function DetailTable<T extends PersonneDetail>({ people, columns,
             colSpan={span}
             className="sticky left-0 bg-blue-100 border border-gray-200 p-1.5 text-left text-xs font-bold uppercase tracking-wide text-blue-900"
           >
-            Résidence {p.residence ?? "?"}
+            {p.residence ? labelResidenceDefaut(p.residence) : "Sans bloc"}
           </th>
         </tr>
       );
     }
 
-    const section = p.isInvite ? "Invitées" : formatEtage(p.etage) ?? "Étage non précisé";
-    if (section !== prevSection) {
+    // Pas d'étage (poste d'intendance, par exemple) : aucun sous-titre — un « Étage ? »
+    // n'aurait aucun sens là où la notion d'étage n'existe pas.
+    const section = p.isInvite ? "Invitées" : formatEtage(p.etage);
+    if (!section) prevSection = undefined;
+    if (section && section !== prevSection) {
       prevSection = section;
       rows.push(
         <tr key={`sec-${p.residence}-${section}`}>

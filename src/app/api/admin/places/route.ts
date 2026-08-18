@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSectionView, requireSuperAdmin } from "@/lib/apiAuth";
+import { toResidence } from "@/lib/residences";
 import type { PlaceKind } from "@/types/Place";
 
 type Body = {
@@ -21,12 +23,18 @@ function slugify(s: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
-// Règles : 12/36 → chambre (avec étage) ; corail → poste (sans étage).
-function validate(body: Body): string | null {
-  if (!["12", "36", "corail"].includes(body.residence ?? "")) return "Résidence invalide (12, 36 ou corail).";
+// Le bloc d'accueil (`residences`) décide du type de ses places : un bloc « chambres »
+// n'accueille que des chambres (avec étage), un bloc « postes » que des postes (sans étage).
+// Rien n'est écrit en dur ici : un bloc ajouté depuis l'Administration est accepté aussitôt.
+async function validate(supabase: SupabaseClient, body: Body): Promise<string | null> {
+  if (!(body.residence ?? "").trim()) return "Bloc requis.";
+  const { data: bloc } = await supabase.from("residences").select("*").eq("value", body.residence).maybeSingle();
+  if (!bloc) return "Bloc inconnu.";
+  const r = toResidence(bloc as Record<string, unknown>);
+  if (!r.is_active) return `Le bloc « ${r.label} » est désactivé.`;
   if (body.kind !== "chambre" && body.kind !== "poste") return "Type invalide (chambre ou poste).";
-  if (body.residence === "corail" && body.kind !== "poste") return "La résidence corail ne comporte que des postes.";
-  if ((body.residence === "12" || body.residence === "36") && body.kind !== "chambre") return "Les résidences 12 et 36 ne comportent que des chambres.";
+  if (body.kind !== r.kind)
+    return r.kind === "poste" ? `Le bloc « ${r.label} » ne comporte que des postes.` : `Le bloc « ${r.label} » ne comporte que des chambres.`;
   if (body.kind === "chambre" && !(body.etage ?? "").trim()) return "L'étage est requis pour une chambre.";
   if (!(body.name ?? "").trim()) return body.kind === "poste" ? "Le nom du poste est requis." : "Le nom de la chambre est requis.";
   return null;
@@ -79,7 +87,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const body: Body = await req.json();
-  const v = validate(body);
+  const v = await validate(supabase, body);
   if (v) return NextResponse.json({ error: v }, { status: 400 });
 
   const name = body.name!.trim();

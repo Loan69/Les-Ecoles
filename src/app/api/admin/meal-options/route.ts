@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSectionView, requireSectionEdit } from "@/lib/apiAuth";
+import { toResidences } from "@/lib/residences";
 
 type Body = {
   id?: string;
@@ -10,10 +12,16 @@ type Body = {
   visibilite?: unknown; // { residence[], etage[], groupes[], exclusions[] } — vide/null = visible par toutes
 };
 
-function validate(body: Body): string | null {
+// Rattachement compta d'une option : un **lieu de service** (un bloc qui contient des
+// chambres), ou « personne » = le bloc de celle qui s'inscrit. Un bloc de postes (Corail,
+// l'intendance) n'est pas un lieu physique où l'on sert un repas. La liste n'est pas figée :
+// une résidence créée depuis l'Administration devient aussitôt un rattachement possible.
+async function validate(supabase: SupabaseClient, body: Body): Promise<string | null> {
   if (!body.label || !body.label.trim()) return "Le libellé est requis.";
-  if (!["12", "36", "personne"].includes(body.residence ?? ""))
-    return "Rattachement invalide (12, 36 ou résidence de la personne).";
+  const { data } = await supabase.from("residences").select("*");
+  const lieux = toResidences(data as Record<string, unknown>[] | null).filter((r) => r.is_active && r.kind === "chambre");
+  if (body.residence !== "personne" && !lieux.some((r) => r.value === body.residence))
+    return "Rattachement invalide (une résidence active, ou la résidence de la personne).";
   if (body.delai_commande != null && (!Number.isInteger(body.delai_commande) || body.delai_commande < 0))
     return "Le délai de commande doit être un entier positif.";
   return null;
@@ -40,7 +48,7 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const body: Body = await req.json();
-  const v = validate(body);
+  const v = await validate(supabase, body);
   if (v) return NextResponse.json({ error: v }, { status: 400 });
 
   const { data, error: dbError } = await supabase
@@ -66,7 +74,7 @@ export async function PUT(req: NextRequest) {
 
   const body: Body = await req.json();
   if (!body.id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
-  const v = validate(body);
+  const v = await validate(supabase, body);
   if (v) return NextResponse.json({ error: v }, { status: 400 });
 
   const { error: dbError } = await supabase

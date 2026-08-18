@@ -2,22 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Power, DoorClosed, Briefcase, UserCheck, Mail, Save, RefreshCw, X, ArrowLeftRight, LogOut, SlidersHorizontal, ShieldCheck, ChevronDown, Archive, Settings } from "lucide-react";
+import { Plus, Pencil, Trash2, Power, DoorClosed, Briefcase, UserCheck, Mail, Save, RefreshCw, X, ArrowLeftRight, LogOut, SlidersHorizontal, ShieldCheck, ChevronDown, Archive, Settings, Building2, ArrowUp, ArrowDown } from "lucide-react";
 import { PlaceWithStatus, PlaceKind } from "@/types/Place";
 import { formatEtage, formatChambre } from "@/lib/adminPeople";
 import { SECTIONS, SECTION_LABEL, SECTION_AIDE, NIVEAU_LABEL, NIV, niveauxPourSection, asNiveauSection, hasAnyAdmin, type Rights, type Section } from "@/lib/roles";
+import { COULEURS_RESIDENCE, COULEUR_LABEL, labelResidenceDefaut, themeResidence } from "@/lib/residences";
+import type { CouleurResidence, Residence } from "@/types/Residence";
 import { PlacesSkeleton } from "../Skeleton";
 import { useMyRights } from "@/lib/useMyRights";
+import { useResidencesContext } from "@/app/providers";
 import GroupesPanel from "./GroupesPanel";
 import GroupeBadge from "../GroupeBadge";
 import type { Groupe } from "@/types/Groupe";
 import type { PersonneDetail } from "@/lib/adminPeople";
 
-const RESIDENCES: { value: string; label: string; kind: PlaceKind }[] = [
-  { value: "12", label: "Résidence 12", kind: "chambre" },
-  { value: "36", label: "Résidence 36", kind: "chambre" },
-  { value: "corail", label: "Corail (Intendance)", kind: "poste" },
-];
+// Un bloc du foyer, tel que renvoyé par /api/admin/residences (actifs ET inactifs).
+type Bloc = Residence & { nb_places: number };
 
 type Form = {
   open: boolean;
@@ -28,7 +28,11 @@ type Form = {
   name: string;
 };
 
-const EMPTY_FORM: Form = { open: false, editingId: null, residence: "12", kind: "chambre", etage: "", name: "" };
+const EMPTY_FORM: Form = { open: false, editingId: null, residence: "", kind: "chambre", etage: "", name: "" };
+
+// Modale d'ajout / renommage d'un bloc.
+type BlocForm = { open: boolean; editing: Bloc | null; label: string; kind: PlaceKind; couleur: CouleurResidence };
+const EMPTY_BLOC_FORM: BlocForm = { open: false, editing: null, label: "", kind: "chambre", couleur: "blue" };
 
 type ArchivedAccount = { user_id: string; nom: string; prenom: string; email: string; rights: Rights };
 type UserRights = { rights: Rights; source_pk: string; name: string; email: string | null };
@@ -36,6 +40,13 @@ type UserRights = { rights: Rights; source_pk: string; name: string; email: stri
 // Nom affiché d'une place (le code interne n'est jamais montré).
 function placeName(p: PlaceWithStatus): string {
   return p.label || formatChambre(p.code) || p.code;
+}
+
+// Libellé d'une place dans une liste déroulante : « Corail · Cuisine », « Résidence 12 · Étage 4 · Orsay ».
+function placeOptionLabel(p: PlaceWithStatus, blocs: { value: string; label: string }[]): string {
+  const bloc = blocs.find((b) => b.value === p.residence)?.label ?? labelResidenceDefaut(p.residence);
+  // Pas d'étage (poste, ou chambre dont l'étage manque) : on n'affiche pas de segment vide.
+  return [bloc, formatEtage(p.etage), placeName(p)].filter(Boolean).join(" · ");
 }
 
 // Numéro d'étage « propre » pour la saisie (r12_etage4 / etage_2 / 4 -> "4" / "2" / "4").
@@ -78,6 +89,12 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
   // La structure physique du foyer (chambres, étages, postes) ne se touche qu'en super-admin :
   // elle conditionne tout le reste (places, ciblage des événements), une erreur y est coûteuse.
   const canEditStructure = myRights.isSuperAdmin;
+  // La liste partagée des blocs (contexte) alimente tout le reste de l'appli : on la
+  // rafraîchit après chaque modification pour que compta, présences et accueil suivent.
+  const { reload: reloadBlocsPartages } = useResidencesContext();
+  const [blocs, setBlocs] = useState<Bloc[]>([]);
+  const [blocForm, setBlocForm] = useState<BlocForm>(EMPTY_BLOC_FORM);
+  const [savingBloc, setSavingBloc] = useState(false);
   const [places, setPlaces] = useState<PlaceWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<Form>(EMPTY_FORM);
@@ -97,15 +114,17 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
   const [groupes, setGroupes] = useState<Groupe[]>([]);
 
   const load = useCallback(async () => {
-    const [placesRes, archivedRes, usersRes, groupesRes] = await Promise.all([
+    const [placesRes, archivedRes, usersRes, groupesRes, blocsRes] = await Promise.all([
       fetch("/api/admin/places"),
       fetch("/api/admin/residentes"),
       fetch("/api/admin/users"),
       fetch("/api/admin/groupes"),
+      fetch("/api/admin/residences"),
     ]);
     const j = await placesRes.json();
     if (placesRes.ok) setPlaces(j.places ?? []);
     else toast.error(j.error || "Erreur de chargement.");
+    if (blocsRes.ok) setBlocs(((await blocsRes.json()).residences ?? []) as Bloc[]);
     if (archivedRes.ok) setArchived((await archivedRes.json()).archived ?? []);
     if (usersRes.ok) {
       const uj = await usersRes.json();
@@ -125,6 +144,92 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
   useEffect(() => {
     load();
   }, [load]);
+
+  // --- Blocs du foyer (Résidence 12, Résidence 36, Corail, une nouvelle résidence…) ------
+  // Créer un bloc ici lui donne aussitôt son encadré partout : compta, présences,
+  // organisation des repas, ciblage des événements, intercalaires de l'accueil.
+  // Tous les blocs à afficher, y compris ceux qu'on ne connaît pas (valeur trouvée dans
+  // `places` mais absente de la table) : aucune chambre ni occupante ne doit rester invisible.
+  const blocsAffiches = useMemo(() => {
+    const list = [...blocs];
+    const connus = new Set(blocs.map((b) => b.value));
+    places.forEach((p) => {
+      if (connus.has(p.residence)) return;
+      connus.add(p.residence);
+      list.push({
+        value: p.residence, label: `${labelResidenceDefaut(p.residence)} (bloc inconnu)`,
+        kind: p.kind === "poste" ? "poste" : "chambre", ordre: 900, couleur: "blue", is_active: false, nb_places: 0,
+      });
+    });
+    return list;
+  }, [blocs, places]);
+
+  const apresBloc = async (res: Response, succes: string) => {
+    const j = await res.json();
+    if (!res.ok) { toast.error(j.error || "Erreur."); return false; }
+    toast.success(succes);
+    await Promise.all([load(), reloadBlocsPartages()]);
+    return true;
+  };
+
+  const saveBloc = async () => {
+    if (!blocForm.label.trim()) {
+      toast.error("Le nom du bloc est requis.");
+      return;
+    }
+    setSavingBloc(true);
+    const res = await fetch("/api/admin/residences", {
+      method: blocForm.editing ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        blocForm.editing
+          ? { value: blocForm.editing.value, label: blocForm.label, couleur: blocForm.couleur, ...(blocForm.editing.nb_places === 0 ? { kind: blocForm.kind } : {}) }
+          : { label: blocForm.label, kind: blocForm.kind, couleur: blocForm.couleur }
+      ),
+    });
+    setSavingBloc(false);
+    if (await apresBloc(res, blocForm.editing ? "Bloc modifié." : "Bloc ajouté.")) setBlocForm(EMPTY_BLOC_FORM);
+  };
+
+  const toggleBloc = async (b: Bloc) => {
+    const res = await fetch("/api/admin/residences", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: b.value, is_active: !b.is_active }),
+    });
+    await apresBloc(res, b.is_active ? "Bloc désactivé." : "Bloc réactivé.");
+  };
+
+  // Échange l'ordre de deux blocs voisins : l'ordre choisi ici est celui de tous les écrans.
+  const moveBloc = async (b: Bloc, sens: -1 | 1) => {
+    const ordonnes = [...blocs].sort((x, y) => x.ordre - y.ordre);
+    const i = ordonnes.findIndex((x) => x.value === b.value);
+    const voisin = ordonnes[i + sens];
+    if (!voisin) return;
+    await Promise.all([
+      fetch("/api/admin/residences", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: b.value, ordre: voisin.ordre }) }),
+      fetch("/api/admin/residences", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ value: voisin.value, ordre: b.ordre }) }),
+    ]);
+    await Promise.all([load(), reloadBlocsPartages()]);
+  };
+
+  const removeBloc = (b: Bloc) => {
+    toast(`Supprimer le bloc « ${b.label} » ?`, {
+      description: "Possible seulement s'il ne contient aucune chambre, aucun poste et aucun compte.",
+      action: {
+        label: "Supprimer",
+        onClick: async () => {
+          const res = await fetch("/api/admin/residences", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value: b.value }),
+          });
+          await apresBloc(res, "Bloc supprimé.");
+        },
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
+    });
+  };
 
   const openCreate = (residence: string, kind: PlaceKind) =>
     setForm({ ...EMPTY_FORM, open: true, residence, kind });
@@ -392,8 +497,8 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
 
   return (
     <div className="space-y-6">
-      {/* ================= Liste des utilisatrices (par résidence / étage / chambre) ================= */}
-      {RESIDENCES.map((r) => {
+      {/* ================= Liste des utilisatrices (par bloc / étage / chambre) ================= */}
+      {blocsAffiches.map((r) => {
         const rPlaces = places.filter((p) => p.residence === r.value && p.is_active);
         if (rPlaces.length === 0) return null;
         return (
@@ -401,6 +506,8 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
             <h2 className="text-base sm:text-lg font-bold text-blue-800 flex items-center gap-2 min-w-0 mb-4">
               {r.kind === "poste" ? <Briefcase className="w-5 h-5 text-amber-600 shrink-0" /> : <DoorClosed className="w-5 h-5 text-blue-600 shrink-0" />}
               <span className="truncate">{r.label}</span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${themeResidence(r.couleur).badge}`}>{r.kind === "poste" ? "Postes" : "Chambres"}</span>
+              {!r.is_active && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 bg-red-50 text-red-700">Bloc désactivé</span>}
               <span className="text-xs sm:text-sm font-normal text-gray-400 shrink-0">· {rPlaces.length}</span>
             </h2>
             <PlaceGroups mode="people" places={rPlaces} isPoste={r.kind === "poste"} {...rowActions} />
@@ -487,17 +594,62 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
         </section>
       )}
 
-      {/* ================= Gérer les chambres & étages (repliable, super-admin) ================= */}
+      {/* ================= Gérer les blocs, chambres & étages (repliable, super-admin) ================= */}
       {canEditStructure && (
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <button onClick={() => setStructureOpen((o) => !o)} className="w-full flex items-center justify-between px-4 sm:px-5 py-4 text-left cursor-pointer hover:bg-gray-50">
-            <span className="flex items-center gap-2 font-bold text-gray-600"><Settings className="w-5 h-5" /> Gérer les chambres & étages</span>
+            <span className="flex items-center gap-2 font-bold text-gray-600"><Settings className="w-5 h-5" /> Gérer les blocs, chambres & étages</span>
             <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${structureOpen ? "rotate-180" : ""}`} />
           </button>
           {structureOpen && (
             <div className="px-4 sm:px-5 pb-5 space-y-6">
+              {/* --- Les blocs eux-mêmes --- */}
+              <div>
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2"><Building2 className="w-4 h-4 text-gray-500" /> Blocs du foyer <span className="text-xs font-normal text-gray-400">· {blocs.length}</span></h3>
+                  <button onClick={() => setBlocForm({ ...EMPTY_BLOC_FORM, open: true })} className="shrink-0 flex items-center gap-1 bg-gray-800 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-black cursor-pointer whitespace-nowrap">
+                    <Plus className="w-4 h-4" /> Ajouter un bloc
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mb-3">
+                  Un bloc, c&apos;est une résidence ou un ensemble de postes (Corail). Chaque bloc a son propre encadré partout dans l&apos;application :
+                  comptabilité des repas, présences au foyer, organisation des services, ciblage des événements, intercalaires de l&apos;accueil.
+                </p>
+                <div className="grid gap-2">
+                  {[...blocs].sort((a, b) => a.ordre - b.ordre).map((b, i, arr) => (
+                    <div key={b.value} className={`flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border px-4 py-3 ${b.is_active ? "border-gray-100 bg-white" : "border-gray-200 bg-gray-50 opacity-70"}`}>
+                      <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                        {b.kind === "poste" ? <Briefcase className="w-4 h-4 text-amber-600 shrink-0" /> : <DoorClosed className="w-4 h-4 text-blue-600 shrink-0" />}
+                        <span className="font-medium text-gray-800 truncate">{b.label}</span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${themeResidence(b.couleur).badge}`}>{COULEUR_LABEL[b.couleur]}</span>
+                        <span className="text-xs text-gray-400">{b.kind === "poste" ? "postes" : "chambres"} · {b.nb_places}</span>
+                        {!b.is_active && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-700">Désactivé</span>}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
+                        <button onClick={() => moveBloc(b, -1)} disabled={i === 0} className="p-2 rounded-full text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default cursor-pointer" title="Monter">
+                          <ArrowUp className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => moveBloc(b, 1)} disabled={i === arr.length - 1} className="p-2 rounded-full text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default cursor-pointer" title="Descendre">
+                          <ArrowDown className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setBlocForm({ open: true, editing: b, label: b.label, kind: b.kind, couleur: b.couleur })} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 cursor-pointer" title="Modifier">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => toggleBloc(b)} className={`p-2 rounded-full cursor-pointer ${b.is_active ? "text-gray-500 hover:bg-gray-100" : "text-green-600 hover:bg-green-50"}`} title={b.is_active ? "Désactiver" : "Réactiver"}>
+                          <Power className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => removeBloc(b)} className="p-2 rounded-full text-red-600 hover:bg-red-50 cursor-pointer" title="Supprimer">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* --- Les places de chaque bloc --- */}
               <p className="text-xs text-gray-400">Structure physique du foyer : créez, modifiez, désactivez ou supprimez les chambres et postes. Les chambres désactivées n&apos;apparaissent pas dans la liste des utilisatrices.</p>
-              {RESIDENCES.map((r) => {
+              {blocsAffiches.map((r) => {
                 const rPlaces = places.filter((p) => p.residence === r.value);
                 return (
                   <div key={r.value}>
@@ -507,9 +659,11 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
                         <span className="truncate">{r.label}</span>
                         <span className="text-xs font-normal text-gray-400 shrink-0">· {rPlaces.length}</span>
                       </h3>
-                      <button onClick={() => openCreate(r.value, r.kind)} className="shrink-0 flex items-center gap-1 bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-800 cursor-pointer whitespace-nowrap">
-                        <Plus className="w-4 h-4" /> Ajouter
-                      </button>
+                      {r.is_active && (
+                        <button onClick={() => openCreate(r.value, r.kind)} className="shrink-0 flex items-center gap-1 bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-800 cursor-pointer whitespace-nowrap">
+                          <Plus className="w-4 h-4" /> Ajouter
+                        </button>
+                      )}
                     </div>
                     {rPlaces.length === 0 ? (
                       <p className="text-sm text-gray-400 italic">Aucune {r.kind === "poste" ? "place" : "chambre"} pour le moment.</p>
@@ -524,10 +678,12 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
         </section>
       )}
 
-      {form.open && <PlaceModal form={form} setForm={setForm} onSave={save} saving={saving} />}
+      {blocForm.open && <BlocModal form={blocForm} setForm={setBlocForm} onSave={saveBloc} saving={savingBloc} />}
+      {form.open && <PlaceModal form={form} blocs={blocsAffiches} setForm={setForm} onSave={save} saving={saving} />}
       {inviteFor && (
         <InviteModal
           place={inviteFor}
+          blocs={blocsAffiches}
           email={inviteEmail}
           setEmail={setInviteEmail}
           archived={archived}
@@ -539,6 +695,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
       {moveFor && (
         <MoveModal
           place={moveFor}
+          blocs={blocsAffiches}
           freePlaces={places.filter((p) => p.is_active && !p.occupant && !p.invitation && p.id !== moveFor.id)}
           onClose={() => setMoveFor(null)}
           onMove={doMove}
@@ -547,6 +704,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
       {assignFor && (
         <AssignModal
           name={assignFor.name}
+          blocs={blocsAffiches}
           freePlaces={places.filter((p) => p.is_active && !p.occupant && !p.invitation)}
           onClose={() => setAssignFor(null)}
           onAssign={doAssign}
@@ -588,18 +746,19 @@ function PlaceGroups({ places, isPoste, mode, ...actions }: { places: PlaceWithS
     // Clé = étage normalisé (« Étage 4 ») → fusionne r12_etage4, etage_4, 4…
     const byEtage = new Map<string, PlaceWithStatus[]>();
     for (const p of places) {
-      const key = formatEtage(p.etage) ?? "Étage ?";
+      // Sans étage renseigné, pas d'intertitre inventé : la clé vide regroupe ces places.
+      const key = formatEtage(p.etage) ?? "";
       if (!byEtage.has(key)) byEtage.set(key, []);
       byEtage.get(key)!.push(p);
     }
-    return [...byEtage.entries()].sort((a, b) => a[0].localeCompare(b[0], "fr", { numeric: true })).map(([label, items]) => ({ label, items }));
+    return [...byEtage.entries()].sort((a, b) => a[0].localeCompare(b[0], "fr", { numeric: true })).map(([label, items]) => ({ label: label || null, items }));
   }, [places, isPoste]);
 
   return (
     <div className="space-y-4">
       {groups.map((g) => (
         <div key={g.label ?? "postes"}>
-          {!isPoste && <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">{g.label}</p>}
+          {!isPoste && g.label && <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">{g.label}</p>}
           <div className="grid gap-2">
             {g.items.map((p) => (
               <PlaceRow key={p.id} p={p} mode={mode} {...actions} />
@@ -704,6 +863,7 @@ function StatusBadge({ p }: { p: PlaceWithStatus }) {
 // --- Modale d'invitation (avec choix des droits en cas de réassignation) ---
 function InviteModal({
   place,
+  blocs,
   email,
   setEmail,
   archived,
@@ -712,6 +872,7 @@ function InviteModal({
   sending,
 }: {
   place: PlaceWithStatus;
+  blocs: { value: string; label: string }[];
   email: string;
   setEmail: (v: string) => void;
   archived: ArchivedAccount[];
@@ -735,7 +896,7 @@ function InviteModal({
           <Mail className="w-5 h-5" /> Inviter une résidente
         </h3>
         <p className="text-sm text-gray-500 mb-4">
-          {place.kind === "poste" ? "Poste" : "Chambre"} <span className="font-medium">{placeName(place)}</span> — résidence {place.residence}.
+          {place.kind === "poste" ? "Poste" : "Chambre"} <span className="font-medium">{placeName(place)}</span> — {blocs.find((b) => b.value === place.residence)?.label ?? labelResidenceDefaut(place.residence)}.
         </p>
 
         {archived.length > 0 && (
@@ -801,18 +962,19 @@ function InviteModal({
 // --- Modale de déplacement (choisir une place libre) ---
 function MoveModal({
   place,
+  blocs,
   freePlaces,
   onClose,
   onMove,
 }: {
   place: PlaceWithStatus;
+  blocs: { value: string; label: string }[];
   freePlaces: PlaceWithStatus[];
   onClose: () => void;
   onMove: (targetId: string) => void;
 }) {
   const [target, setTarget] = useState("");
-  const optionLabel = (p: PlaceWithStatus) =>
-    p.kind === "poste" ? `Corail · ${placeName(p)}` : `Rés. ${p.residence} · ${formatEtage(p.etage) ?? "?"} · ${placeName(p)}`;
+  const optionLabel = (p: PlaceWithStatus) => placeOptionLabel(p, blocs);
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
@@ -844,18 +1006,19 @@ function MoveModal({
 // --- Modale d'attribution d'une chambre à un compte sans place (maintenance) ---
 function AssignModal({
   name,
+  blocs,
   freePlaces,
   onClose,
   onAssign,
 }: {
   name: string;
+  blocs: { value: string; label: string }[];
   freePlaces: PlaceWithStatus[];
   onClose: () => void;
   onAssign: (targetId: string) => void;
 }) {
   const [target, setTarget] = useState("");
-  const optionLabel = (p: PlaceWithStatus) =>
-    p.kind === "poste" ? `Corail · ${placeName(p)}` : `Rés. ${p.residence} · ${formatEtage(p.etage) ?? "?"} · ${placeName(p)}`;
+  const optionLabel = (p: PlaceWithStatus) => placeOptionLabel(p, blocs);
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
@@ -884,14 +1047,80 @@ function AssignModal({
   );
 }
 
+// --- Modale création / édition d'un bloc du foyer ---
+// Le type (chambres / postes) se fige dès qu'il y a des places : les changer après coup
+// laisserait des chambres sans étage, ou des postes rangés sous un étage inexistant.
+function BlocModal({ form, setForm, onSave, saving }: { form: BlocForm; setForm: (f: BlocForm) => void; onSave: () => void; saving: boolean }) {
+  const typeFige = !!form.editing && form.editing.nb_places > 0;
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <h3 className="text-lg font-semibold text-blue-800 mb-1 flex items-center gap-2">
+          <Building2 className="w-5 h-5" /> {form.editing ? "Modifier le bloc" : "Ajouter un bloc"}
+        </h3>
+        <p className="text-xs text-gray-400 mb-4">
+          Le bloc apparaîtra avec son propre encadré dans la comptabilité des repas, les présences, l&apos;organisation des services,
+          le ciblage des événements et les intercalaires de l&apos;accueil.
+        </p>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nom du bloc</label>
+            <input
+              autoFocus
+              value={form.label}
+              onChange={(e) => setForm({ ...form, label: e.target.value })}
+              onKeyDown={(e) => e.key === "Enter" && !saving && onSave()}
+              placeholder="Ex : Résidence 48, Corail, La Basse-Frette…"
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contenu</label>
+            <select
+              value={form.kind}
+              disabled={typeFige}
+              onChange={(e) => setForm({ ...form, kind: e.target.value as PlaceKind })}
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none disabled:bg-gray-100 cursor-pointer"
+            >
+              <option value="chambre">Des chambres, réparties par étage (une résidence)</option>
+              <option value="poste">Des postes, sans étage (une intendance, comme Corail)</option>
+            </select>
+            {typeFige && <p className="text-xs text-gray-400 mt-1">Ce bloc contient déjà {form.editing!.nb_places} place(s) : son contenu ne peut plus changer.</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Couleur</label>
+            <div className="flex flex-wrap gap-2">
+              {COULEURS_RESIDENCE.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setForm({ ...form, couleur: c })}
+                  className={`text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer ${themeResidence(c).badge} ${form.couleur === c ? "ring-2 ring-offset-1 ring-blue-600" : ""}`}
+                >
+                  {COULEUR_LABEL[c]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={() => setForm({ ...form, open: false })} className="px-4 py-2 rounded-lg border border-gray-400 text-gray-600 hover:bg-gray-100 cursor-pointer">Annuler</button>
+          <button onClick={onSave} disabled={saving} className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-800 disabled:opacity-50 cursor-pointer">
+            <Save className="w-4 h-4" /> {saving ? "Enregistrement…" : "Enregistrer"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Modale création / édition d'une place ---
-function PlaceModal({ form, setForm, onSave, saving }: { form: Form; setForm: (f: Form) => void; onSave: () => void; saving: boolean }) {
+function PlaceModal({ form, blocs, setForm, onSave, saving }: { form: Form; blocs: { value: string; label: string }[]; setForm: (f: Form) => void; onSave: () => void; saving: boolean }) {
   const isPoste = form.kind === "poste";
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
         <h3 className="text-lg font-semibold text-blue-800 mb-4">
-          {form.editingId ? "Modifier" : "Ajouter"} {isPoste ? "un poste" : "une chambre"} — {RESIDENCES.find((r) => r.value === form.residence)?.label}
+          {form.editingId ? "Modifier" : "Ajouter"} {isPoste ? "un poste" : "une chambre"} — {blocs.find((r) => r.value === form.residence)?.label ?? labelResidenceDefaut(form.residence)}
         </h3>
         <div className="space-y-4">
           {!isPoste && (

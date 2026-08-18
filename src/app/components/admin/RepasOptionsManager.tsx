@@ -11,6 +11,9 @@ import MultiDatePicker from "@/app/components/MultiDatePicker";
 import EventVisibilitySelector from "@/app/components/EventVisibilitySelector";
 import { Switch } from "@/components/ui/switch";
 import { useMyRights } from "@/lib/useMyRights";
+import { useResidences } from "@/lib/useResidences";
+import { labelResidenceCourt, themeResidence } from "@/lib/residences";
+import type { Residence } from "@/types/Residence";
 
 const SERVICES: { value: Service; label: string }[] = [
   { value: "dejeuner", label: "Déjeuner" },
@@ -44,19 +47,27 @@ function weekLabel(monday: Date): string {
   return `${from} – ${to}`;
 }
 
-function ResBadge({ r }: { r: string }) {
+// Rattachement compta d'une option : un bloc du foyer, dans sa couleur, ou « sa résidence ».
+function ResBadge({ r, blocs }: { r: string; blocs: Residence[] }) {
   if (r === "personne") {
-    return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">Sa résidence</span>;
+    return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">Sa résidence</span>;
   }
+  const bloc = blocs.find((b) => b.value === r);
   return (
-    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${r === "12" ? "bg-blue-100 text-blue-700" : "bg-pink-100 text-pink-700"}`}>
-      Rés. {r}
+    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${themeResidence(bloc?.couleur).badge}`}>
+      {bloc ? bloc.label : labelResidenceCourt(r)}
     </span>
   );
 }
 
 export default function RepasOptionsManager() {
   const canEdit = useMyRights().canEdit("repas");
+  // Rattachements possibles d'une option : les **lieux de service**, c'est-à-dire les
+  // blocs qui contiennent des chambres. Un bloc de postes (Corail, l'intendance) n'est pas
+  // un lieu physique où l'on sert un repas — on n'y rattache donc pas d'option. La liste
+  // reste celle de l'Administration : une nouvelle résidence s'y ajoute d'elle-même.
+  const { residences: blocs } = useResidences();
+  const blocsLieux = useMemo(() => blocs.filter((b) => b.kind === "chambre"), [blocs]);
   const [catalog, setCatalog] = useState<MealOptionCatalog[]>([]);
   const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +81,7 @@ export default function RepasOptionsManager() {
     residence: string;
     delai: string;
     visibilite: { residence: string[]; etage: string[]; groupes: string[]; exclusions: string[] };
-  }>({ open: false, editing: null, label: "", residence: "12", delai: "0", visibilite: { residence: [], etage: [], groupes: [], exclusions: [] } });
+  }>({ open: false, editing: null, label: "", residence: "personne", delai: "0", visibilite: { residence: [], etage: [], groupes: [], exclusions: [] } });
 
   // Modale picker (ouverture d'un service)
   const [picker, setPicker] = useState<{ date: string; service: Service; selected: Set<string> } | null>(null);
@@ -111,7 +122,7 @@ export default function RepasOptionsManager() {
   // ---------- Catalogue ----------
   const emptyVis = { residence: [], etage: [], groupes: [], exclusions: [] };
   const openAddOption = () =>
-    setOptForm({ open: true, editing: null, label: "", residence: "12", delai: "0", visibilite: emptyVis });
+    setOptForm({ open: true, editing: null, label: "", residence: blocsLieux[0]?.value ?? "personne", delai: "0", visibilite: emptyVis });
   const openEditOption = (o: MealOptionCatalog) =>
     setOptForm({
       open: true,
@@ -282,7 +293,7 @@ export default function RepasOptionsManager() {
               >
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-gray-800">{o.label}</span>
-                  <ResBadge r={o.residence} />
+                  <ResBadge r={o.residence} blocs={blocs} />
                   {o.delai_commande > 0 && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 flex items-center gap-1">
                       <Clock className="w-3 h-3" /> {o.delai_commande} j avant
@@ -362,7 +373,7 @@ export default function RepasOptionsManager() {
                           {opts.map((so) => (
                             <span key={so.id} className="text-xs bg-blue-50 text-blue-800 rounded-full px-2 py-1 flex items-center gap-1">
                               {so.option?.label ?? "?"}
-                              {so.option && <ResBadge r={so.option.residence} />}
+                              {so.option && <ResBadge r={so.option.residence} blocs={blocs} />}
                             </span>
                           ))}
                         </div>
@@ -391,8 +402,9 @@ export default function RepasOptionsManager() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Lieu</label>
                     <select value={optForm.residence} onChange={(e) => setOptForm((f) => ({ ...f, residence: e.target.value }))} className="w-full border border-gray-300 rounded-lg p-2 text-gray-700 focus:ring-2 focus:ring-blue-600 focus:outline-none">
-                      <option value="12">Résidence 12</option>
-                      <option value="36">Résidence 36</option>
+                      {blocsLieux.map((b) => (
+                        <option key={b.value} value={b.value}>{b.label}</option>
+                      ))}
                       <option value="personne">Résidence de la personne</option>
                     </select>
                   </div>
@@ -452,7 +464,7 @@ export default function RepasOptionsManager() {
                             }}
                           />
                           <span className="text-sm text-gray-800">{o.label}</span>
-                          <ResBadge r={o.residence} />
+                          <ResBadge r={o.residence} blocs={blocs} />
                                 </label>
                       </li>
                     );

@@ -6,10 +6,12 @@ import { CalendarDays, Table2, Scale, Soup, Moon as MoonIcon, CalendarCheck, Dow
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AdminDaysSkeleton } from "@/app/components/Skeleton";
-import { Residence } from "@/types/Residence";
-import { Presence, MealOptionCatalog, Service } from "@/types/MealOption";
+import { labelResidenceDefaut } from "@/lib/residences";
+import { Presence, MealOptionCatalog, Service, type OptionVisibilite } from "@/types/MealOption";
 import { PersonneDetail, PersonneAdmin, sortAdminPeople, formatEtage, estCompteActive } from "@/lib/adminPeople";
 import { isAwayForMeal, type AbsenceCompta } from "@/lib/mealCompta";
+import { optionVisibleFor } from "@/lib/optionVisibility";
+import { nomInvite } from "@/lib/invites";
 import { statutRepas, mangeUnRepas, type StatutRepas } from "@/lib/presenceStatut";
 import { downloadCSV } from "@/lib/csvExport";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
@@ -17,6 +19,7 @@ import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
 import DetailListModal from "@/app/components/admin/DetailListModal";
 import MealOptionEditModal from "@/app/components/admin/MealOptionEditModal";
 import { useMyRights } from "@/lib/useMyRights";
+import { useResidences } from "@/lib/useResidences";
 import TopBar from "@/app/components/TopBar";
 import RepasNav from "@/app/components/admin/RepasNav";
 
@@ -28,20 +31,29 @@ function formatColDay(dateKey: string): string {
 }
 
 type InviteMeal = { id: number; invite_par: string; nom: string; prenom: string; date_repas: string; type_repas: "dejeuner" | "diner"; option_id: string | null };
-type OpenServiceOption = { date: string; service: Service; option_id: string; label: string; residence: string };
+type OpenServiceOption = { date: string; service: Service; option_id: string; label: string; residence: string; visibilite: OptionVisibilite | null };
 type OptionGroup = { option_id: string; label: string; people: PersonneDetail[]; notes: Record<string, string> };
 type ServiceDetail = { open: boolean; options: OptionGroup[] };
 
 export default function AdminRepasPage() {
   const { supabase } = useSupabase();
   const canEdit = useMyRights().canEdit("repas");
+  // Deux découpages différents, à ne pas confondre :
+  // - ORGANISATION : les **lieux de service**, c'est-à-dire les blocs qui contiennent des
+  //   chambres. Un bloc de postes (Corail, l'intendance) n'est pas un lieu physique où
+  //   l'on sert un repas : il n'y a rien à y préparer, donc pas d'encadré.
+  // - COMPTABILITÉ : le bloc de rattachement de **chaque personne**, Corail compris —
+  //   sinon les comptes qui y sont rattachés disparaîtraient du décompte (voir blocsCompta).
+  const { residences } = useResidences();
+  const blocsLieux = useMemo(() => residences.filter((r) => r.kind === "chambre"), [residences]);
   const [allPeople, setAllPeople] = useState<PersonneAdmin[]>([]);
-  const [residences, setResidences] = useState<Residence[]>([]);
   const [presences, setPresences] = useState<Presence[]>([]);
   const [absences, setAbsences] = useState<AbsenceCompta[]>([]);
   const [mealOptions, setMealOptions] = useState<MealOptionCatalog[]>([]);
   const [invites, setInvites] = useState<InviteMeal[]>([]);
   const [openServiceOptions, setOpenServiceOptions] = useState<OpenServiceOption[]>([]);
+  // Groupes de chaque personne : servent au ciblage des options (jamais aux droits).
+  const [groupesByUser, setGroupesByUser] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -62,9 +74,8 @@ export default function AdminRepasPage() {
     if (!startDate || !endDate) return;
     setLoading(true);
 
-    const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: optsRes }, { data: invitesData }, { data: placesData }] =
+    const [{ data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: optsRes }, { data: invitesData }, { data: placesData }] =
       await Promise.all([
-        supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
         // Tous les comptes sont chargés (archivés compris) : ceux qui ne sont pas activés
         // sortent des listes via `horsSuivi`, mais restent visibles là où ils ont des repas
         // enregistrés sur la période — sinon la compta d'un départ en cours de mois serait
@@ -81,14 +92,14 @@ export default function AdminRepasPage() {
 
     const { data: soData } = await supabase
       .from("meal_service_options")
-      .select("date, service, option:meal_options(id, label, residence)")
+      .select("date, service, option:meal_options(id, label, residence, visibilite)")
       .gte("date", startDate)
       .lte("date", endDate);
     setOpenServiceOptions(
       (soData ?? [])
         .map((so) => {
-          const o = so.option as unknown as { id: string; label: string; residence: string } | null;
-          return o ? { date: so.date as string, service: so.service as Service, option_id: o.id, label: o.label, residence: o.residence } : null;
+          const o = so.option as unknown as { id: string; label: string; residence: string; visibilite: OptionVisibilite | null } | null;
+          return o ? { date: so.date as string, service: so.service as Service, option_id: o.id, label: o.label, residence: o.residence, visibilite: o.visibilite ?? null } : null;
         })
         .filter(Boolean) as OpenServiceOption[]
     );
@@ -100,7 +111,6 @@ export default function AdminRepasPage() {
     const placeLabels: Record<string, string> = {};
     (placesData || []).forEach((p) => { if (p.id && p.label) placeLabels[p.id] = p.label; });
 
-    setResidences(residencesData || []);
     setMealOptions((optionsData as MealOptionCatalog[]) || []);
     setAllPeople([
       ...(residentesData?.map((r) => ({
@@ -117,6 +127,20 @@ export default function AdminRepasPage() {
         horsSuivi: true, // invitée : compte hors gestion des chambres, jamais dans les listes (R-ADM-02)
       })) || []),
     ]);
+
+    // Groupes : nécessaires pour savoir à quelles options une résidente a droit — un
+    // invité ne mange que ce que son invitante peut choisir (R-INV-05). Tolérant :
+    // sans la table `groupes`, seul le ciblage résidence/étage s'applique.
+    fetch("/api/admin/groupes")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const map: Record<string, string[]> = {};
+        ((j?.groupes ?? []) as { id: string; membres: string[] }[]).forEach((g) =>
+          g.membres.forEach((uid) => { map[uid] = [...(map[uid] ?? []), g.id]; })
+        );
+        setGroupesByUser(map);
+      })
+      .catch(() => {});
 
     // Un seul appel : les séjours d'absence viennent avec les inscriptions, sous le droit
     // Repas (ils servent à déduire les jours intérieurs de la compta, cf. isAwayForMeal).
@@ -154,6 +178,25 @@ export default function AdminRepasPage() {
     [allPeople, presences, invites]
   );
 
+  // Blocs de la comptabilité : ceux du foyer, PLUS tout rattachement rencontré dans les
+  // données qui n'y figure pas (bloc désactivé, compte sans bloc). Une personne ne doit
+  // jamais disparaître d'un décompte faute d'encadré où la ranger.
+  const blocsCompta = useMemo(() => {
+    const list = [...residences];
+    const connus = new Set(residences.map((r) => r.value));
+    people.forEach((p) => {
+      const v = p.residence ?? "";
+      if (connus.has(v)) return;
+      connus.add(v);
+      list.push({
+        value: v,
+        label: v ? `${labelResidenceDefaut(v)} (hors foyer)` : "Sans bloc",
+        kind: "chambre", ordre: 900, couleur: "blue", is_active: false,
+      });
+    });
+    return list;
+  }, [residences, people]);
+
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
   const optionsById = useMemo(() => new Map(mealOptions.map((o) => [o.id, o])), [mealOptions]);
 
@@ -172,10 +215,10 @@ export default function AdminRepasPage() {
   const getDayOptionDetail = useCallback(
     (dateKey: string): Record<string, { dejeuner: ServiceDetail; diner: ServiceDetail }> => {
       const res: Record<string, { dejeuner: ServiceDetail; diner: ServiceDetail }> = {};
-      residences.forEach((r) => (res[r.value] = { dejeuner: { open: false, options: [] }, diner: { open: false, options: [] } }));
+      blocsLieux.forEach((r) => (res[r.value] = { dejeuner: { open: false, options: [] }, diner: { open: false, options: [] } }));
       (["dejeuner", "diner"] as Service[]).forEach((svc) => {
         const openOpts = openServiceOptions.filter((so) => so.date === dateKey && so.service === svc);
-        residences.forEach((r) => {
+        blocsLieux.forEach((r) => {
           // Options ouvertes pertinentes pour ce lieu (résidence de l'option, ou « personne »).
           const relevant = new Map<string, OpenServiceOption>();
           openOpts.forEach((so) => { if (so.residence === r.value || so.residence === "personne") relevant.set(so.option_id, so); });
@@ -205,17 +248,17 @@ export default function AdminRepasPage() {
       });
       return res;
     },
-    [residences, openServiceOptions, presences, absences, peopleById, comptaResidence, invites]
+    [blocsLieux, openServiceOptions, presences, absences, peopleById, comptaResidence, invites]
   );
 
   // Agrégat par personne (compta fin de mois) : nb de déjeuners/dîners mangés sur la période,
   // groupé par résidence de la personne (déductions d'absences incluses).
   const comptaByResidence = useMemo(() => {
     const map: Record<string, { person: PersonneDetail; dejeuner: number; diner: number; total: number }[]> = {};
-    residences.forEach((r) => (map[r.value] = []));
+    blocsCompta.forEach((r) => (map[r.value] = []));
     people.forEach((person) => {
-      const rk = person.residence;
-      if (!rk || !map[rk]) return;
+      const rk = person.residence ?? "";
+      if (!map[rk]) return;
       let dej = 0, din = 0;
       daysInRange.forEach((date) => {
         (["dejeuner", "diner"] as Service[]).forEach((service) => {
@@ -240,17 +283,17 @@ export default function AdminRepasPage() {
       (a.person.prenom || "").localeCompare(b.person.prenom || "", "fr", { sensitivity: "base" });
     Object.keys(map).forEach((k) => map[k].sort(byEtageNom));
     return map;
-  }, [residences, people, daysInRange, absences, presences, invites]);
+  }, [blocsCompta, people, daysInRange, absences, presences, invites]);
 
   // Totaux du récap = par résidence de la personne (cohérent avec l'agrégat, pour la facturation)
   const comptaTotals = useMemo(() => {
     const t: Record<string, { dejeuner: number; diner: number }> = {};
-    residences.forEach((r) => {
+    blocsCompta.forEach((r) => {
       const rows = comptaByResidence[r.value] ?? [];
       t[r.value] = { dejeuner: rows.reduce((a, x) => a + x.dejeuner, 0), diner: rows.reduce((a, x) => a + x.diner, 0) };
     });
     return t;
-  }, [residences, comptaByResidence]);
+  }, [blocsCompta, comptaByResidence]);
 
   const comptaGrand = useMemo(() => {
     let dej = 0, din = 0;
@@ -288,7 +331,7 @@ export default function AdminRepasPage() {
     const base = cellStatut(p, date, service).label;
     const guests = cellGuests(p.id, date, service);
     if (guests.length === 0) return base;
-    const gtxt = guests.map((g) => `+ invité: ${g.prenom} ${g.nom}`).join(" ");
+    const gtxt = guests.map((g) => `+ invité: ${nomInvite(g)}`).join(" ");
     return `${base} ${gtxt}`;
   };
 
@@ -307,7 +350,7 @@ export default function AdminRepasPage() {
 
   const exportCompta = () => {
     const rows: (string | number)[][] = [["Résidence", "Étage", "Nom", "Prénom", "Déjeuners", "Dîners", "Total"]];
-    residences.forEach((r) => {
+    blocsCompta.forEach((r) => {
       (comptaByResidence[r.value] ?? []).forEach((row) => {
         rows.push([r.label, formatEtage(row.person.etage) ?? "", row.person.nom, row.person.prenom, row.dejeuner, row.diner, row.total]);
       });
@@ -325,6 +368,38 @@ export default function AdminRepasPage() {
     return det?.[listModal.service].options.find((o) => o.option_id === listModal.option_id) ?? null;
   }, [listModal, getDayOptionDetail]);
 
+  // Ciblage d'une résidente : ce qu'elle voit dans son propre sélecteur de repas.
+  const cibleDe = useCallback(
+    (userId: string) => {
+      const p = peopleById.get(userId);
+      return { residence: p?.residence, etage: p?.etage, chambre: p?.chambre, user_id: userId, groupes: groupesByUser[userId] ?? [] };
+    },
+    [peopleById, groupesByUser]
+  );
+
+  // Options du jour+service de la popup **ouvertes à cette résidente** : un invité ne
+  // mange que ce que son invitante peut choisir — pas de pique-nique pour l'invité de
+  // quelqu'un qui n'y a pas droit.
+  const optionsPourResidente = useCallback(
+    (userId: string): { option_id: string; label: string }[] => {
+      if (!listModal || !userId) return [];
+      const seen = new Set<string>();
+      return openServiceOptions
+        .filter((so) => so.date === listModal.date && so.service === listModal.service)
+        .filter((so) => optionVisibleFor({ visibilite: so.visibilite } as MealOptionCatalog, cibleDe(userId)))
+        .filter((so) => (seen.has(so.option_id) ? false : seen.add(so.option_id)))
+        .map((so) => ({ option_id: so.option_id, label: so.label }));
+    },
+    [listModal, openServiceOptions, cibleDe]
+  );
+
+  // Qui a invité chaque convive de la popup (id de `invites_repas` → user_id de l'invitante).
+  const inviteurParInvite = useMemo(() => {
+    const map: Record<number, string> = {};
+    invites.forEach((inv) => { map[inv.id] = inv.invite_par; });
+    return map;
+  }, [invites]);
+
   // Options ouvertes (déduplot) pour le jour + service de la popup.
   const modalDayOptions = useMemo(() => {
     if (!listModal) return [];
@@ -341,6 +416,14 @@ export default function AdminRepasPage() {
   const residentesForAdd = useMemo(
     () => allPeople.filter((p) => !p.isInvite && !p.horsSuivi).map((p) => ({ id: p.id, nom: p.nom, prenom: p.prenom })).sort((a, b) => a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom)),
     [allPeople]
+  );
+
+  // Invitantes possibles pour l'option ouverte : seules celles à qui cette option est
+  // proposée. Sinon on inscrirait l'invité d'une résidente à un repas qu'elle-même ne
+  // peut pas choisir (le serveur refuse déjà — autant ne pas le proposer).
+  const inviteursPossibles = useMemo(
+    () => (listModal ? residentesForAdd.filter((r) => optionsPourResidente(r.id).some((o) => o.option_id === listModal.option_id)) : []),
+    [listModal, residentesForAdd, optionsPourResidente]
   );
 
   const postJson = async (url: string, method: string, body: unknown) => {
@@ -418,7 +501,7 @@ export default function AdminRepasPage() {
                   <div key={date} className="rounded-2xl border-2 border-gray-100 bg-white shadow-sm p-4">
                     <p className="text-sm font-bold text-orange-900 uppercase tracking-wide mb-3">{formatJourLong(date)}</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {residences.map((r) => {
+                      {blocsLieux.map((r) => {
                         const det = optDetail[r.value];
                         const anyContent = det.dejeuner.open || det.diner.open;
                         return (
@@ -473,7 +556,7 @@ export default function AdminRepasPage() {
             <div>
               <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2"><Scale className="text-amber-600" /> Récapitulatif de la période</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                {residences.map((r) => (
+                {blocsCompta.map((r) => (
                   <div key={r.value} className="rounded-2xl bg-white border border-amber-100 shadow-sm p-5">
                     <p className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-3">{r.label}</p>
                     <div className="flex items-center justify-between">
@@ -493,7 +576,7 @@ export default function AdminRepasPage() {
             </div>
 
             {/* Agrégat par personne, par résidence */}
-            {residences.map((r) => (
+            {blocsCompta.map((r) => (
               <div key={r.value} className="bg-white shadow-sm border border-gray-200 rounded-xl p-6">
                 <h3 className="text-xl font-semibold text-amber-800 mb-4">Comptabilité — {r.label}</h3>
                 <table className="min-w-full border text-sm bg-white">
@@ -512,8 +595,10 @@ export default function AdminRepasPage() {
                       const items: ({ header: string } | { row: (typeof rows)[number] })[] = [];
                       let last: string | null = null;
                       rows.forEach((row) => {
-                        const et = formatEtage(row.person.etage) ?? "Étage ?";
-                        if (et !== last) { items.push({ header: et }); last = et; }
+                        // Bloc de postes (intendance) : aucun étage, donc aucun intertitre.
+                        const et = formatEtage(row.person.etage);
+                        if (!et) last = null;
+                        else if (et !== last) { items.push({ header: et }); last = et; }
                         items.push({ row });
                       });
                       return items.map((it, i) =>
@@ -580,7 +665,7 @@ export default function AdminRepasPage() {
                   <span className="flex flex-col items-center gap-0.5">
                     {base}
                     {guests.map((g) => (
-                      <span key={g.id} title={`${g.prenom} ${g.nom}${optionsById.get(g.option_id ?? "")?.label ? ` · ${optionsById.get(g.option_id ?? "")?.label}` : ""}`} className="text-[10px] text-purple-600 whitespace-nowrap">+👤 {g.prenom}</span>
+                      <span key={g.id} title={`${nomInvite(g)}${optionsById.get(g.option_id ?? "")?.label ? ` · ${optionsById.get(g.option_id ?? "")?.label}` : ""}`} className="text-[10px] text-purple-600 whitespace-nowrap">+👤 {g.prenom || g.nom}</span>
                     ))}
                   </span>
                 );
@@ -600,6 +685,8 @@ export default function AdminRepasPage() {
           optionId={listModal?.option_id ?? ""}
           dayServiceOptions={modalDayOptions}
           residentes={residentesForAdd}
+          inviteursPossibles={inviteursPossibles}
+          optionsPourInvite={(inviteId) => optionsPourResidente(inviteurParInvite[inviteId] ?? "")}
           onSetResidentOption={setResidentOption}
           onSetGuestOption={setGuestOption}
           onAddResident={addResidentToOption}

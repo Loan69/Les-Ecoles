@@ -8,6 +8,7 @@ import { Eye, EyeOff, Lock, CheckCircle } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { useSupabase } from "../providers";
 import { formatEtage, formatChambre } from "@/lib/adminPeople";
+import { labelResidenceDefaut, toResidence } from "@/lib/residences";
 import { FormSkeleton } from "../components/Skeleton";
 
 export default function ActivationPage() {
@@ -36,10 +37,14 @@ export default function ActivationPage() {
         const { data: place } = await supabase.from("places").select("*").eq("id", placeId).maybeSingle();
         if (place) {
           const name = place.label || formatChambre(place.code) || place.code;
+          // Le nom du bloc vient de la table `residences` (« Corail », « Résidence 12 »…) :
+          // une nouvelle résidence s'annonce correctement dès sa création.
+          const { data: blocRow } = await supabase.from("residences").select("*").eq("value", place.residence).maybeSingle();
+          const bloc = blocRow ? toResidence(blocRow as Record<string, unknown>).label : labelResidenceDefaut(String(place.residence));
           setPlaceLabel(
             place.kind === "poste"
-              ? `Corail · ${name}`
-              : `Résidence ${place.residence} · ${formatEtage(place.etage) ?? ""} · ${name}`.replace(/ · $/, "")
+              ? `${bloc} · ${name}`
+              : `${bloc} · ${formatEtage(place.etage) ?? ""} · ${name}`.replace(/ · $/, "")
           );
         }
       }

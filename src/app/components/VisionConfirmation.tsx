@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { useSupabase } from "@/app/providers";
 import { formatChambre } from "@/lib/adminPeople";
+import { useResidences } from "@/lib/useResidences";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { PeopleListSkeleton } from "@/app/components/Skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ export default function VisionConfirmation({ eventId }: VisionConfirmationsProps
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const { supabase } = useSupabase();
+  const { label, theme } = useResidences();
 
   const fetchParticipants = useCallback(async () => {
     if (!eventId) return;
@@ -140,11 +142,9 @@ export default function VisionConfirmation({ eventId }: VisionConfirmationsProps
                       </div>
                     </div>
                     
-                    <Badge variant="outline" className={`
-                      text-[10px] font-bold px-2 py-0.5 rounded-lg border-orange-200
-                      ${r.residence === "12" ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-purple-50 text-purple-700 border-purple-100"}
-                    `}>
-                      Rès. {r.residence}
+                    {/* Bloc d'appartenance, dans sa couleur réglée en Administration. */}
+                    <Badge variant="outline" className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border-transparent ${theme(r.residence).badge}`}>
+                      {r.residence ? label(r.residence) : "Sans bloc"}
                     </Badge>
                   </div>
                 ))}

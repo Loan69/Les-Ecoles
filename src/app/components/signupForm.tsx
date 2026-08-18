@@ -7,6 +7,7 @@ import { Option } from "@/types/Option";
 import DateNaissanceSelect from "./DateNaissanceSelect";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { useResidences } from "@/lib/useResidences";
 
 type Role = "residente" | "invitee";
 
@@ -16,6 +17,9 @@ interface Props {
 
 export default function SignupForm({ role }: Props) {
   const { supabase } = useSupabase();
+  // Les blocs de postes (intendance) n'ont ni étage ni chambre à saisir : la règle suit
+  // le type du bloc, pas son nom — un nouveau bloc de postes est traité comme Corail.
+  const { residences: blocs } = useResidences();
   const [formData, setFormData] = useState({
     nom: "",
     prenom: "",
@@ -66,7 +70,8 @@ export default function SignupForm({ role }: Props) {
     if (role === "residente") {
       if (!formData.datenaissance) missingFields.push("date de naissance");
       if (!selection.residence?.value) missingFields.push("résidence");
-      if (selection.residence?.value !== "corail") {
+      const bloc = blocs.find((b) => b.value === selection.residence?.value);
+      if (bloc?.kind !== "poste") {
         if (!selection.etage?.value) missingFields.push("étage");
         if (!selection.chambre?.value) missingFields.push("chambre");
       }

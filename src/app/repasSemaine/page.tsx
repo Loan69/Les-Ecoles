@@ -15,6 +15,7 @@ import { CHOIX_NON } from "@/lib/presenceStatut";
 import { eventVisibleFor } from "@/lib/eventVisibility";
 import { optionVisibleFor } from "@/lib/optionVisibility";
 import { formatLieu } from "@/lib/eventLieu";
+import { nomInvite } from "@/lib/invites";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import { WeekDaysSkeleton } from "../components/Skeleton";
 import LogoutButton from "../components/logoutButton";
@@ -23,6 +24,7 @@ import AdministrationButton from "../components/administrationButton";
 import InviteModal, { EditingInvite } from "../components/inviteModal";
 import RepasNav from "../components/admin/RepasNav";
 import { useMyRights } from "@/lib/useMyRights";
+import { useResidences } from "@/lib/useResidences";
 import { useSectionGuard } from "@/lib/useSectionGuard";
 
 const SERVICES: { value: Service; label: string }[] = [
@@ -86,6 +88,8 @@ export default function SemaineRepas() {
   const days = useMemo(() => weekDates(currentMonday), [currentMonday]);
   const accesSection = useSectionGuard("repas"); // niveau Aucun → redirigé vers l'accueil
   const myRights = useMyRights();
+  // Libellés des lieux d'événement (blocs du foyer), tels que réglés en Administration.
+  const { residences } = useResidences();
   const canRepas = myRights.canView("repas"); // accès à l'Espace intendance repas
 
   // Semaine de référence (date sélectionnée dans l'appli)
@@ -294,7 +298,7 @@ export default function SemaineRepas() {
                         <div key={e.id} className={`text-xs rounded-md px-2 py-1 border ${e.couleur || "border-gray-200 bg-gray-50"}`}>
                           <span className="font-medium text-gray-800">📌 {e.titre}</span>
                           {e.heures && <span className="text-gray-500"> · {e.heures}</span>}
-                          {formatLieu(e.lieu) && <span className="text-gray-500"> · 📍 {formatLieu(e.lieu)}</span>}
+                          {formatLieu(e.lieu, residences) && <span className="text-gray-500"> · 📍 {formatLieu(e.lieu, residences)}</span>}
                         </div>
                       ))}
                     </div>
@@ -335,7 +339,7 @@ export default function SemaineRepas() {
                       <div className="space-y-1">
                         {invitesForDay(dateKey).map((inv) => (
                           <div key={inv.id} className="flex items-center justify-between gap-2 text-xs bg-purple-50 border border-purple-100 rounded-lg px-2.5 py-1.5">
-                            <span className="text-purple-800 truncate">👤 {inv.prenom} {inv.nom} · {inv.type_repas === "dejeuner" ? "Midi" : "Soir"}{optionLabelById(inv.option_id) ? ` · ${optionLabelById(inv.option_id)}` : ""}</span>
+                            <span className="text-purple-800 truncate">👤 {nomInvite(inv)} · {inv.type_repas === "dejeuner" ? "Midi" : "Soir"}{optionLabelById(inv.option_id) ? ` · ${optionLabelById(inv.option_id)}` : ""}</span>
                             <div className="flex items-center gap-1 shrink-0">
                               <button onClick={() => { setEditingInvite(inv); setIsInviteOpen(true); }} title="Modifier l'invitation" className="p-1 rounded text-blue-500 hover:bg-blue-50 cursor-pointer">
                                 <Pencil className="w-3.5 h-3.5" />

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ChevronDown, Plus, Pencil, Trash2, Check, X, Users, Search } from "lucide-react";
 import { sortAdminPeople, type PersonneDetail } from "@/lib/adminPeople";
+import { labelResidenceCourt } from "@/lib/residences";
 import type { Groupe } from "@/types/Groupe";
 import GroupeBadge from "../GroupeBadge";
 
@@ -207,7 +208,7 @@ export default function GroupesPanel({
                               />
                               <span className="text-sm text-gray-800 truncate">{p.nom} {p.prenom}</span>
                             </span>
-                            <span className="text-[10px] text-gray-400 shrink-0">Rés. {p.residence ?? "?"}</span>
+                            <span className="text-[10px] text-gray-400 shrink-0">{p.residence ? labelResidenceCourt(p.residence) : "Sans bloc"}</span>
                           </label>
                         ))}
                       </div>

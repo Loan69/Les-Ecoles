@@ -12,13 +12,14 @@ import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { Residente } from "@/types/Residente";
 import { HomeSkeleton } from "../components/Skeleton";
-import { Residence } from "@/types/Residence";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import { formatLieu } from "@/lib/eventLieu";
 import { statutRepas } from "@/lib/presenceStatut";
+import { nomInvite } from "@/lib/invites";
 import { useMyRights } from "@/lib/useMyRights";
+import { useResidences } from "@/lib/useResidences";
 import { cibleEstVide, dansCible, estExclue } from "@/lib/visibilite";
 import VisionConfirmation from "../components/VisionConfirmation";
 import ConfirmationToggle from "../components/ConfirmationToggle";
@@ -45,9 +46,15 @@ export default function HomePage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isReady, setIsReady] = useState(false);
-  const [residences, setResidences] = useState<Residence[]>([]);
-  const [selectedResidenceValue, setSelectedResidenceValue] = useState<string | null>("12");
-  const [selectedResidenceLabel, setSelectedResidenceLabel] = useState<string | null>("Résidence 12");
+  // Intercalaires du haut : un par bloc du foyer (Résidence 12, Résidence 36, Corail…),
+  // lus dans la table `residences` — un bloc ajouté depuis l'Administration s'y ajoute seul.
+  const { residences, theme: themeResidence } = useResidences();
+  // Intercalaires : seuls les blocs d'habitation (des chambres) sont des **lieux
+  // d'événement**. Un bloc de postes (Corail, l'intendance) est un lieu de travail :
+  // il n'a pas d'onglet ici — ses membres voient les événements qui les ciblent via
+  // les rappels « Aujourd'hui » et la visibilité par groupe/personne.
+  const blocsLieux = residences.filter((r) => r.kind === "chambre");
+  const [selectedResidenceValue, setSelectedResidenceValue] = useState<string | null>(null);
   const [reminders, setReminders] = useState<CalendarEvent[]>([]);
 
   // --- Résumé « ma journée » (lecture seule) ---
@@ -93,15 +100,13 @@ export default function HomePage() {
     fetchUser();
   }, [router, supabase]);
 
+  // Intercalaire ouvert par défaut : le bloc de l'utilisatrice, sinon le premier du foyer.
+  // Une intendante rattachée à Corail arrive donc sur Corail, pas sur la Résidence 12.
   useEffect(() => {
-    const fetchResidences = async () => {
-      const { data, error } = await supabase.from("residences").select("value, label").neq("value", "corail");
-      if (!error && data) {
-        setResidences(data.map((item) => ({ value: item.value, label: item.label })));
-      }
-    };
-    fetchResidences();
-  }, [supabase]);
+    if (selectedResidenceValue || blocsLieux.length === 0) return;
+    const mien = blocsLieux.find((r) => r.value === profil?.residence);
+    setSelectedResidenceValue((mien ?? blocsLieux[0]).value);
+  }, [blocsLieux, profil, selectedResidenceValue]);
 
   useEffect(() => {
     const storedDate = localStorage.getItem("dateSelectionnee");
@@ -156,11 +161,7 @@ export default function HomePage() {
         ]);
 
         if (profilError) console.error("Erreur profil :", profilError);
-        if (profilData) {
-          setProfil(profilData);
-          setSelectedResidenceValue(profilData.residence);
-          setSelectedResidenceLabel(profilData.residence === "12" ? "Résidence 12" : "Résidence 36");
-        }
+        if (profilData) setProfil(profilData);
 
         if (eventsError) console.error("Erreur événements :", eventsError);
         if (eventsData) setEvents(eventsData);
@@ -313,15 +314,16 @@ export default function HomePage() {
       })
     : [];
 
-  // Couleur de la résidence sélectionnée (jaune pour la 12, rose pour la 36).
-  const is12 = selectedResidenceValue === "12";
+  // Couleur de l'intercalaire sélectionné : celle du bloc, réglée en Administration.
+  const blocSelectionne = blocsLieux.find((r) => r.value === selectedResidenceValue) ?? null;
+  const themeBloc = themeResidence(selectedResidenceValue);
 
-  // Événements du jour SANS lieu résidence (ou lieu hors 12/36) : ils ne rentrent
-  // pas dans la carte « Événements » d'une résidence → on les montre comme rappels « Aujourd'hui ».
-  const RES_LIEUX = ["12", "36"];
+  // Événements du jour rattachés à AUCUN bloc du foyer : ils ne rentrent dans la carte
+  // « Événements » d'aucun intercalaire → on les montre comme rappels « Aujourd'hui ».
+  const blocsValues = blocsLieux.map((r) => r.value);
   const todayOffsiteEvents = events.filter((event) => {
     const lieux = event.lieu || [];
-    if (lieux.some((l) => RES_LIEUX.includes(l))) return false; // événement rattaché à une résidence → carte normale
+    if (lieux.some((l) => blocsValues.includes(l))) return false; // événement rattaché à un bloc → carte normale
 
     if (estExclue(event.visibilite, cibleViewer)) return false;
     if (!profil?.residence) return event.visible_invites === true;
@@ -391,7 +393,7 @@ export default function HomePage() {
                 <span className="font-bold text-yellow-800 bg-yellow-100 rounded px-1.5 py-0.5 flex-shrink-0">Aujourd&apos;hui</span>
                 <span className="text-yellow-800 font-medium truncate">{evt.titre}</span>
                 {evt.heures && <span className="text-yellow-700/80 truncate">· {evt.heures}</span>}
-                {formatLieu(evt.lieu) && <span className="text-yellow-700/80 truncate">· 📍 {formatLieu(evt.lieu)}</span>}
+                {formatLieu(evt.lieu, residences) && <span className="text-yellow-700/80 truncate">· 📍 {formatLieu(evt.lieu, residences)}</span>}
               </div>
             ))}
             {reminders.map((evt) => {
@@ -430,24 +432,21 @@ export default function HomePage() {
         </section>
         )}
 
-        {/* Intercalaires résidence — couleurs du logo (12 = jaune, 36 = rose) */}
-        <div className="flex justify-center mb-4">
-          {residences.map((res) => {
+        {/* Intercalaires — un par bloc du foyer, dans sa couleur */}
+        <div className="flex justify-center flex-wrap mb-4">
+          {blocsLieux.map((res) => {
             const active = selectedResidenceValue === res.value;
-            const activeColor =
-              res.value === "12" ? "bg-yellow-400 border-yellow-400 text-amber-900" : "bg-pink-400 border-pink-400 text-white";
+            // Onglet court : le numéro pour les résidences, le nom du bloc sinon (« Corail »).
+            const court = /^\d+$/.test(res.value) ? res.value : res.label;
             return (
               <button
                 key={res.value}
-                onClick={() => {
-                  setSelectedResidenceValue(res.value);
-                  setSelectedResidenceLabel(res.label);
-                }}
-                className={`cursor-pointer flex items-center justify-center w-20 h-12 text-lg font-bold border rounded-t-xl transition-colors ${
-                  active ? activeColor : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"
+                onClick={() => setSelectedResidenceValue(res.value)}
+                className={`cursor-pointer flex items-center justify-center min-w-20 px-3 h-12 text-lg font-bold border rounded-t-xl transition-colors ${
+                  active ? themeResidence(res.value).ongletActif : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"
                 }`}
               >
-                {res.value}
+                {court}
               </button>
             );
           })}
@@ -455,13 +454,13 @@ export default function HomePage() {
 
         {/* Carte ÉVÉNEMENTS — masquée si Événements = Aucun */}
         {accesEvenements && (
-        <section className={`rounded-xl shadow-md border-2 p-4 mb-4 ${is12 ? "bg-yellow-100 border-yellow-300" : "bg-pink-100 border-pink-300"}`}>
-          <h3 className={`text-xs font-bold uppercase tracking-wide mb-3 ${is12 ? "text-amber-800" : "text-pink-800"}`}>Événements</h3>
+        <section className={`rounded-xl shadow-md border-2 p-4 mb-4 ${themeBloc.carte}`}>
+          <h3 className={`text-xs font-bold uppercase tracking-wide mb-3 ${themeBloc.titre}`}>Événements</h3>
 
           {/* Événements du jour */}
           {filteredEvents.length === 0 ? (
             <p className="text-gray-400 italic text-sm">
-              Aucun évènement prévu pour la {selectedResidenceLabel}.
+              Aucun évènement prévu pour {blocSelectionne?.label ?? "ce bloc"}.
             </p>
           ) : (
             filteredEvents.map((e) => (
@@ -474,7 +473,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 {e.heures && <p className="text-xs text-gray-600 mt-1 italic">{e.heures}</p>}
-                {formatLieu(e.lieu) && <p className="text-xs text-gray-500 mt-1">📍 {formatLieu(e.lieu)}</p>}
+                {formatLieu(e.lieu, residences) && <p className="text-xs text-gray-500 mt-1">📍 {formatLieu(e.lieu, residences)}</p>}
               </div>
             ))
           )}
@@ -511,7 +510,7 @@ export default function HomePage() {
               <div className="space-y-1">
                 {invitesRepas.map((inv) => (
                   <div key={inv.id} className="flex items-center justify-between gap-2 text-xs bg-purple-50 border border-purple-100 rounded-lg px-2.5 py-1.5">
-                    <span className="text-purple-800 truncate">👤 {inv.prenom} {inv.nom} · {inv.type_repas === "dejeuner" ? "Midi" : "Soir"}{inv.option_label ? ` · ${inv.option_label}` : ""}</span>
+                    <span className="text-purple-800 truncate">👤 {nomInvite(inv)} · {inv.type_repas === "dejeuner" ? "Midi" : "Soir"}{inv.option_label ? ` · ${inv.option_label}` : ""}</span>
                     <div className="flex items-center gap-1 shrink-0">
                       <button onClick={() => { setEditingInvite(inv); setIsInviteOpen(true); }} title="Modifier l'invitation" className="p-1 rounded text-blue-500 hover:bg-blue-50 cursor-pointer">
                         <Pencil className="w-3.5 h-3.5" />

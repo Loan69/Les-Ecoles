@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.19 — 2026-08-17.
+> Version 1.21 — 2026-08-18.
 
 Une administratrice est une résidente qui a **au moins un droit d'intendance sur une section**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), des outils d'intendance correspondant à ses droits.
 
@@ -87,7 +87,12 @@ Panneau ⚙️ **Administration**. L'écran affiche **directement** la gestion d
 
 > ⚠️ **À ne faire qu'après avoir facturé la période.** La *désactivation* conserve l'historique des repas ; la *suppression*, elle, retire la personne de la **comptabilité passée**. Une fois supprimée, on ne peut plus la retrouver ni la réactiver.
 
-**Gérer les chambres & étages** : un second panneau repliable, **réservé au super-admin**, permet d'**ajouter / modifier / désactiver / supprimer** les chambres et postes — la **structure physique** du foyer, séparée de la liste des personnes. L'ajout est rare : les chambres sont normalement déjà toutes là. Résidences **12 / 36** → des **chambres** (par étage) ; Corail → des **postes** (Cuisine, Ménage… ; sans chambre).
+**Gérer les blocs, chambres & étages** : un second panneau repliable, **réservé au super-admin**, contient la **structure physique** du foyer, séparée de la liste des personnes.
+
+- **Blocs du foyer** (en haut du panneau) — un « bloc », c'est une **résidence** (Résidence 12, Résidence 36) ou un **ensemble de postes** (Corail, l'intendance). On peut en **ajouter**, les **renommer**, changer leur **couleur**, les **réordonner** (↑ ↓), les **désactiver** ou les **supprimer**. À la création, on choisit ce que le bloc contient : *des chambres réparties par étage* (une résidence) ou *des postes sans étage* (une intendance).
+  > **Un bloc ajouté ici obtient tout de suite son propre encadré partout** : comptabilité des repas, organisation des services, présences au foyer, ciblage des événements, rattachement d'une option de repas et intercalaires de l'accueil. Rien d'autre n'est à faire.
+  > **Suppression** : possible seulement si le bloc ne contient **aucune chambre/poste** et **aucun compte** (même parti). Sinon, le **désactiver**. Et son contenu (chambres ou postes) se **fige** dès qu'il contient une place.
+- **Chambres et postes**, bloc par bloc : **ajouter / modifier / désactiver / supprimer**. L'ajout est rare : les chambres sont normalement déjà toutes là. Une chambre désactivée disparaît de la liste des utilisatrices.
 
 **Supprimer** un compte reste possible mais **irréversible** (réservé au super-admin) : pour un simple départ, préférer la **désactivation** ci-dessus.
 
@@ -208,7 +213,9 @@ Accès : **barre de navigation repas** → **Inscriptions & compta**. Deux ongle
 ### Onglet « Organisation » — repas à préparer
 Les jours sont **empilés** ; pour chaque jour et chaque résidence, les **options ouvertes** au midi et au soir, avec leur nombre d'inscrits. **Chaque option est cliquable** → la **liste des personnes comptées**. Les **invités** ne forment plus une tuile à part : chacun est compté **dans l'option** à laquelle il est rattaché et apparaît dans cette liste, annoté **« invité par Prénom Nom »**.
 
-> **Édition (niveau ≥ 3).** Dans cette liste, une admin **édition** peut corriger les inscriptions, même après l'heure de verrouillage : **changer l'option** de chaque inscrit (ou la passer à **« Non »**, ou **retirer sa réponse**), **ajouter une résidente** — seuls les **comptes activés** sont proposés (§3.1) — (déplacée automatiquement si elle était inscrite ailleurs pour ce service), et **ajouter / retirer un invité** — au choix **depuis le carnet** (invité déjà connu) ou **nouveau** — en indiquant la **résidente qui invite** (pour la comptabilité). Tout se reporte aussitôt sur le **détail** et la **compta**. En **niveau 2**, la liste reste en **lecture seule**.
+> **Édition (niveau ≥ 3).** Dans cette liste, une admin **édition** peut corriger les inscriptions, même après l'heure de verrouillage : **changer l'option** de chaque inscrit (ou la passer à **« Non »**, ou **retirer sa réponse**), **ajouter une résidente** — seuls les **comptes activés** sont proposés (§3.1) — (déplacée automatiquement si elle était inscrite ailleurs pour ce service), et **ajouter / retirer un invité** — au choix **depuis le carnet** (champ de recherche parmi les invités déjà venus) ou **nouveau** (**le nom ou le prénom suffit**) — en indiquant la **résidente qui invite** (pour la comptabilité). Tout se reporte aussitôt sur le **détail** et la **compta**.
+
+> **Un invité mange ce que son invitante peut choisir.** La liste « Invité par » ne propose que les résidentes à qui **cette** option est ouverte, et l'option d'un invité déjà là ne peut basculer que vers celles ouvertes à **son** invitante. Autrement dit : pas de pique-nique pour l'invité de quelqu'un qui n'y a pas droit — le serveur refuse aussi, pas seulement l'écran. En **niveau 2**, la liste reste en **lecture seule**.
 
 **Le bouton « Voir le détail »** ouvre le **tableau** (habitantes × jours/service). Chaque case indique l'un de **quatre** états :
 

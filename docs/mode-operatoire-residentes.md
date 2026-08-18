@@ -1,7 +1,7 @@
 # Mode opératoire — Résidentes & invitées
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour les **habitantes** (résidentes et invitées). À mettre à jour à chaque évolution de l'appli.
-> Version 1.7 — 2026-08-17.
+> Version 1.8 — 2026-08-18.
 
 Cette application sert à gérer, au quotidien, **ta présence au foyer la nuit** et **tes repas** (midi et soir), à consulter les **événements** du foyer et les **informations pratiques**. Elle est pensée pour le **téléphone** (mais marche aussi sur ordinateur).
 
@@ -100,9 +100,11 @@ Un jour verrouillé est signalé par un cadenas 🔒. En cas de besoin, rapproch
 ## 6. Inviter quelqu'un à un repas
 
 Depuis l'onglet 🍴 **Repas de la semaine**, bouton **« Inviter quelqu'un »** :
-1. Choisis la personne (un invité déjà connu, ou **« Nouvel invité »** avec nom + prénom).
+1. Choisis la personne : tape son nom dans le **champ de recherche** pour la retrouver parmi tes invités déjà venus, ou saisis un **nouvel invité** juste en dessous. **Le nom ou le prénom suffit** — inutile de connaître les deux.
 2. Choisis **une date**.
 3. Choisis le **repas** dans la liste des options ouvertes ce jour-là (par ex. *Déjeuner · Repas classique*, *Dîner · Pique-nique*…).
+
+> Tu ne vois dans cette liste que **les repas auxquels tu as toi-même droit** : si le pique-nique ne t'est pas proposé, tu ne peux pas non plus y inscrire ton invité.
 
 L'invité·e est ajouté·e au décompte des couverts de cette option. Sa présence est comptabilisée dans **tes** repas.
 

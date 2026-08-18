@@ -1,11 +1,12 @@
-// Lot 3 — Places : chambres (résidences 12/36) et postes (corail, intendance).
+// Lot 3 — Places : chambres (blocs « résidence ») et postes (blocs « intendance », comme Corail).
+// Le bloc d'accueil est une ligne de la table `residences` — voir src/lib/residences.ts.
 // L'occupation n'est pas stockée : elle est déduite d'un compte résidente actif.
 
 export type PlaceKind = "chambre" | "poste";
 
 export interface Place {
   id: string;
-  residence: string; // "12" | "36" | "corail"
+  residence: string; // valeur d'un bloc de `residences` ("12", "36", "corail"…)
   kind: PlaceKind;
   etage: string | null; // renseigné pour les chambres, null pour les postes
   code: string; // code chambre (ex. grand_palais) ou libellé de poste (ex. Cuisine)

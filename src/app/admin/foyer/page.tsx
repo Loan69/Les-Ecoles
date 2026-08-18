@@ -5,7 +5,7 @@ import { useSupabase } from "@/app/providers";
 import { CalendarDays, Home, Moon, Plus, Table2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { AdminDaysSkeleton } from "@/app/components/Skeleton";
-import { Residence } from "@/types/Residence";
+import { labelResidenceDefaut } from "@/lib/residences";
 import { Absence } from "@/types/Absence";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
@@ -17,6 +17,7 @@ import DetailListModal from "@/app/components/admin/DetailListModal";
 import AbsenceEditModal from "@/app/components/admin/AbsenceEditModal";
 import FoyerLockSettings from "@/app/components/admin/FoyerLockSettings";
 import { useMyRights } from "@/lib/useMyRights";
+import { useResidences } from "@/lib/useResidences";
 import TopBar from "@/app/components/TopBar";
 
 function formatJourLong(dateKey: string): string {
@@ -34,7 +35,9 @@ function formatColDay(dateKey: string): string {
 export default function AdminFoyerView() {
   const { supabase } = useSupabase();
   const [allPeople, setAllPeople] = useState<PersonneAdmin[]>([]);
-  const [residences, setResidences] = useState<Residence[]>([]);
+  // Un encadré par bloc du foyer (Résidence 12, Résidence 36, Corail…) : la liste vient
+  // de la table `residences`, un bloc ajouté depuis l'Administration apparaît ici aussitôt.
+  const { residences } = useResidences();
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -62,9 +65,8 @@ export default function AdminFoyerView() {
     if (!startDate || !endDate) return;
     setLoading(true);
 
-    const [{ data: residencesData }, { data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: placesData }] =
+    const [{ data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: placesData }] =
       await Promise.all([
-        supabase.from("residences").select("label, value").neq("value", "corail").order("label"),
         // Tous les comptes (archivés compris, hors compte technique jamais listé) : ceux qui
         // ne sont pas activés sortent des listes via `horsSuivi`, mais restent visibles les
         // jours où ils ont une absence déclarée — l'historique n'est pas réécrit (R-ADM-02).
@@ -84,7 +86,6 @@ export default function AdminFoyerView() {
     const placeLabels: Record<string, string> = {};
     (placesData || []).forEach((p) => { if (p.id && p.label) placeLabels[p.id] = p.label; });
 
-    setResidences(residencesData || []);
     setAllPeople([
       ...(residentesData?.map((r) => ({
         id: r.user_id,
@@ -148,6 +149,25 @@ export default function AdminFoyerView() {
 
   // Comptes activés seuls : vivier pour enregistrer une NOUVELLE absence (R-ADM-02).
   const peopleActives = useMemo(() => allPeople.filter((p) => !p.horsSuivi), [allPeople]);
+
+  // Blocs affichés : ceux du foyer, PLUS tout rattachement rencontré dans les données qui
+  // n'y figure pas (bloc désactivé, compte sans bloc). Personne ne disparaît d'un décompte
+  // faute d'encadré où la ranger.
+  const blocsAffiches = useMemo(() => {
+    const list = [...residences];
+    const connus = new Set(residences.map((r) => r.value));
+    people.forEach((p) => {
+      const v = p.residence ?? "";
+      if (connus.has(v)) return;
+      connus.add(v);
+      list.push({
+        value: v,
+        label: v ? `${labelResidenceDefaut(v)} (hors foyer)` : "Sans bloc",
+        kind: "chambre", ordre: 900, couleur: "blue", is_active: false,
+      });
+    });
+    return list;
+  }, [residences, people]);
 
   const isAbsentOn = useCallback(
     (personId: string, dateKey: string) =>
@@ -276,7 +296,7 @@ export default function AdminFoyerView() {
                 >
                   <p className="text-sm font-bold text-blue-900 uppercase tracking-wide mb-3">{formatJourLong(date)}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {residences.map((res) => {
+                    {blocsAffiches.map((res) => {
                       const inRes = people.filter((p) => p.residence === res.value && visibleOn(p, date));
                       const absent = inRes.filter((p) => isAbsentOn(p.id, date));
                       const present = inRes.filter((p) => !isAbsentOn(p.id, date));

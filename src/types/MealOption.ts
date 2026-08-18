@@ -14,7 +14,7 @@ export type OptionVisibilite = Cible;
 export interface MealOptionCatalog {
   id: string;
   label: string;
-  residence: string; // "12" / "36" — rattachement compta, imposé
+  residence: string; // bloc de rattachement compta (valeur de `residences`), ou "personne"
   delai_commande: number; // jours d'avance (0 = clôture le jour même à l'heure de lock ; 1 = la veille ; etc.)
   is_active: boolean;
   visibilite?: OptionVisibilite | null;

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSupabase } from "../providers";
 import { sortAdminPeople, formatEtage, PersonneDetail } from "@/lib/adminPeople";
+import { useResidences } from "@/lib/useResidences";
 import type { Cible } from "@/lib/visibilite";
 
 interface Props {
@@ -18,8 +19,11 @@ type Resid = { user_id: string; nom: string; prenom: string; residence: string; 
 
 export default function EventVisibilitySelector({ value, onChange, disabled = false }: Props) {
   const { supabase } = useSupabase();
+  // Blocs du foyer : leur ordre et leur nom d'affichage viennent de l'Administration.
+  const { residences: blocs, label: labelBloc } = useResidences();
 
-  const [residences, setResidences] = useState<Opt[]>([]);
+  // Valeurs de bloc réellement représentées dans les places (source de vérité de la structure).
+  const [residenceValues, setResidenceValues] = useState<string[]>([]);
   const [etages, setEtages] = useState<Opt[]>([]);
   const [residentes, setResidentes] = useState<Resid[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -60,8 +64,6 @@ export default function EventVisibilitySelector({ value, onChange, disabled = fa
           }
         }
       });
-      const residenceLabel = (r: string) => (r === "corail" ? "Corail" : /^\d+$/.test(r) ? `Résidence ${r}` : r);
-      const resOpts: Opt[] = [...resSet].sort().map((r) => ({ value: r, label: residenceLabel(r) }));
       etageOpts.sort((a, b) => a.label.localeCompare(b.label, "fr", { numeric: true }));
 
       // Groupes : la composition ne se lit pas en direct (RLS), elle passe par l'API.
@@ -77,12 +79,21 @@ export default function EventVisibilitySelector({ value, onChange, disabled = fa
         // silencieux : le ciblage résidence/étage reste utilisable
       }
 
-      setResidences(resOpts);
+      setResidenceValues([...resSet]);
       setEtages(etageOpts);
       setResidentes((rData || []).map((r) => ({ ...r, residence: String(r.residence) })));
       setLoaded(true);
     })();
   }, [supabase]);
+
+  // Blocs proposés au ciblage : ceux du foyer qui ont au moins une place, dans l'ordre
+  // de l'Administration, puis les valeurs orphelines rencontrées dans `places`.
+  const residencesAffichees = useMemo(() => {
+    const presentes = new Set(residenceValues);
+    const ordonnees = blocs.map((b) => b.value).filter((v) => presentes.has(v));
+    const restantes = residenceValues.filter((v) => !ordonnees.includes(v)).sort();
+    return [...ordonnees, ...restantes];
+  }, [blocs, residenceValues]);
 
   const etagesByResidence = useMemo(() => {
     const map: Record<string, Opt[]> = {};
@@ -206,14 +217,14 @@ export default function EventVisibilitySelector({ value, onChange, disabled = fa
     <div className={`space-y-4 ${disabled ? "opacity-60 pointer-events-none select-none" : ""}`}>
       {/* Résidences + étages */}
       <div className="space-y-3">
-        {residences.map((res) => {
-          const checked = checkedResidences.has(res.value);
-          const ets = etagesByResidence[res.value] ?? [];
+        {residencesAffichees.map((res) => {
+          const checked = checkedResidences.has(res);
+          const ets = etagesByResidence[res] ?? [];
           return (
-            <div key={res.value} className="border border-gray-200 rounded-xl p-3">
+            <div key={res} className="border border-gray-200 rounded-xl p-3">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={checked} onChange={() => toggleResidence(res.value)} className="w-4 h-4 accent-blue-600" />
-                <span className="font-medium text-gray-800">{res.label}</span>
+                <input type="checkbox" checked={checked} onChange={() => toggleResidence(res)} className="w-4 h-4 accent-blue-600" />
+                <span className="font-medium text-gray-800">{labelBloc(res)}</span>
               </label>
               {checked && ets.length > 0 && (
                 <div className="mt-2 ml-6 flex flex-wrap gap-x-4 gap-y-1">

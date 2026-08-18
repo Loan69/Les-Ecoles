@@ -4,12 +4,25 @@ import { createBrowserClient } from '@supabase/ssr';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { rightsFromRow, RIGHTS_COLUMNS, EMPTY_RIGHTS, type Rights } from '@/lib/roles';
+import { toResidences } from '@/lib/residences';
+import type { Residence } from '@/types/Residence';
 
 type SupabaseContextType = {
   supabase: SupabaseClient;
 };
 
 const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined);
+
+// Blocs du foyer (Résidence 12, Résidence 36, Corail, …), chargés une seule fois et
+// partagés : presque chaque écran en a besoin (encadrés, couleurs, libellés) et la
+// liste est minuscule. Voir src/lib/residences.ts.
+type ResidencesContextType = {
+  residences: Residence[]; // blocs actifs, dans l'ordre d'affichage
+  loading: boolean;
+  reload: () => Promise<void>;
+};
+
+const ResidencesContext = createContext<ResidencesContextType | undefined>(undefined);
 
 // Droits de l'utilisatrice courante, chargés **une seule fois par session** et partagés.
 // Avant, chaque composant appelant useMyRights refaisait ses propres requêtes (auth + résidente),
@@ -37,6 +50,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [rights, setRights] = useState<Rights>(EMPTY_RIGHTS);
   const [groupes, setGroupes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [residences, setResidences] = useState<Residence[]>([]);
+  const [residencesLoading, setResidencesLoading] = useState(true);
+
+  // `select("*")` et non la liste des colonnes : tant que supabase/blocs-dynamiques.sql
+  // n'est pas passé, kind/ordre/couleur/is_active n'existent pas — toResidences les déduit.
+  const reloadResidences = useCallback(async () => {
+    const { data } = await supabase.from('residences').select('*').order('value');
+    setResidences(toResidences(data as Record<string, unknown>[] | null).filter((r) => r.is_active));
+    setResidencesLoading(false);
+  }, [supabase]);
 
   const reload = useCallback(async () => {
     // getSession lit le stockage local (aucun appel réseau) ; le rafraîchissement du jeton
@@ -66,6 +89,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     reload();
+    reloadResidences();
 
     // Connexion / déconnexion / changement de compte : les droits changent.
     // TOKEN_REFRESHED est ignoré (fréquent, sans effet sur les droits).
@@ -73,16 +97,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
         // Ne jamais rappeler supabase de façon synchrone dans ce callback (interblocage
         // documenté par supabase-js) : on repousse d'un tick.
-        setTimeout(() => { reload(); }, 0);
+        setTimeout(() => { reload(); reloadResidences(); }, 0);
       }
     });
     return () => sub.subscription.unsubscribe();
-  }, [supabase, reload]);
+  }, [supabase, reload, reloadResidences]);
 
   return (
     <SupabaseContext.Provider value={{ supabase }}>
       <RightsContext.Provider value={{ rights, groupes, loading, reload }}>
-        {children}
+        <ResidencesContext.Provider value={{ residences, loading: residencesLoading, reload: reloadResidences }}>
+          {children}
+        </ResidencesContext.Provider>
       </RightsContext.Provider>
     </SupabaseContext.Provider>
   );
@@ -100,6 +126,14 @@ export const useRightsContext = () => {
   const context = useContext(RightsContext);
   if (!context) {
     throw new Error('useRightsContext must be used within Providers');
+  }
+  return context;
+};
+
+export const useResidencesContext = () => {
+  const context = useContext(ResidencesContext);
+  if (!context) {
+    throw new Error('useResidencesContext must be used within Providers');
   }
   return context;
 };

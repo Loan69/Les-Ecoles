@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer, createSupabaseAdmin } from "@/lib/supabaseServer";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import { cibleEstVide, dansCible, estExclue, type Cible } from "@/lib/visibilite";
+import { optionRefuseePour } from "@/lib/mealOptionAccess";
+import { nomInviteManquant } from "@/lib/invites";
 
 type Body = {
   id?: number;
@@ -25,45 +25,11 @@ async function resolveGuest(supabase: import("@supabase/supabase-js").SupabaseCl
 }
 
 function validate(b: Body): string | null {
-  if (!b.nom?.trim() || !b.prenom?.trim()) return "Nom et prénom requis.";
+  // Nom OU prénom : on ne connaît pas toujours les deux (cf. src/lib/invites.ts).
+  if (nomInviteManquant(b.nom, b.prenom)) return "Indiquez au moins le nom ou le prénom de l'invité.";
   if (b.service !== "dejeuner" && b.service !== "diner") return "Repas invalide (midi ou soir).";
   if (!b.date) return "Date requise.";
   if (!b.option_id) return "Option requise.";
-  return null;
-}
-
-// Vérifie qu'une option est bien ouverte ce jour-là ET proposée à l'invitante.
-// Renvoie le message d'erreur, ou null si tout va bien.
-async function optionRefusee(
-  supabase: SupabaseClient,
-  userId: string,
-  profil: { residence?: string | null; etage?: string | null; chambre?: string | null } | null,
-  body: Body
-): Promise<string | null> {
-  const { data: so } = await supabase
-    .from("meal_service_options")
-    .select("option:meal_options(is_active, visibilite)")
-    .eq("date", body.date!)
-    .eq("service", body.service!)
-    .eq("option_id", body.option_id!)
-    .maybeSingle();
-
-  const opt = so?.option as { is_active?: boolean; visibilite?: Cible | null } | null;
-  if (!opt) return "Cette option n'est pas proposée ce jour.";
-  if (!opt.is_active) return "Cette option n'est plus disponible.";
-  if (cibleEstVide(opt.visibilite)) return null;
-
-  const { data: mesGroupes } = await supabase.from("groupe_membres").select("groupe_id").eq("user_id", userId);
-  const viewer = {
-    residence: profil?.residence,
-    etage: profil?.etage,
-    chambre: profil?.chambre,
-    user_id: userId,
-    groupes: (mesGroupes ?? []).map((g) => g.groupe_id as string),
-  };
-  if (estExclue(opt.visibilite, viewer) || !dansCible(opt.visibilite, viewer)) {
-    return "Cette option ne vous est pas proposée.";
-  }
   return null;
 }
 
@@ -77,20 +43,20 @@ export async function POST(req: Request) {
   const v = validate(body);
   if (v) return NextResponse.json({ error: v }, { status: 400 });
 
-  const { data: profil } = await supabase.from("residentes").select("residence, etage, chambre").eq("user_id", user.id).maybeSingle();
+  const { data: profil } = await supabase.from("residentes").select("residence").eq("user_id", user.id).maybeSingle();
   const comptaResidence = profil?.residence ?? null;
 
   // On n'invite que sur une option que l'invitante peut elle-même choisir : réservée à
   // l'intendance ou ciblée ailleurs, elle est refusée (l'écran ne la propose déjà pas).
-  const refus = await optionRefusee(supabase, user.id, profil, body);
+  const refus = await optionRefuseePour(supabase, user.id, body.date!, body.service!, body.option_id!);
   if (refus) return NextResponse.json({ error: refus }, { status: 403 });
 
-  const g = await resolveGuest(supabase, body.guestId, body.nom!.trim(), body.prenom!.trim());
+  const g = await resolveGuest(supabase, body.guestId, (body.nom ?? "").trim(), (body.prenom ?? "").trim());
   if (g.error || !g.id) return NextResponse.json({ error: g.error ?? "Invité introuvable." }, { status: 500 });
 
   const { error } = await supabase.from("invites_repas").insert({
-    nom: body.nom!.trim(),
-    prenom: body.prenom!.trim(),
+    nom: (body.nom ?? "").trim(),
+    prenom: (body.prenom ?? "").trim(),
     date_repas: body.date,
     type_repas: body.service,
     option_id: body.option_id,
@@ -113,15 +79,20 @@ export async function PUT(req: Request) {
   const v = validate(body);
   if (v) return NextResponse.json({ error: v }, { status: 400 });
 
-  const g = await resolveGuest(supabase, body.guestId, body.nom!.trim(), body.prenom!.trim());
+  // Même contrôle qu'à la création : on ne déplace pas un invité vers une option
+  // qui n'est pas ouverte à l'invitante.
+  const refus = await optionRefuseePour(supabase, user.id, body.date!, body.service!, body.option_id!);
+  if (refus) return NextResponse.json({ error: refus }, { status: 403 });
+
+  const g = await resolveGuest(supabase, body.guestId, (body.nom ?? "").trim(), (body.prenom ?? "").trim());
   if (g.error || !g.id) return NextResponse.json({ error: g.error ?? "Invité introuvable." }, { status: 500 });
 
   const admin = createSupabaseAdmin();
   const { error } = await admin
     .from("invites_repas")
     .update({
-      nom: body.nom!.trim(),
-      prenom: body.prenom!.trim(),
+      nom: (body.nom ?? "").trim(),
+      prenom: (body.prenom ?? "").trim(),
       date_repas: body.date,
       type_repas: body.service,
       option_id: body.option_id,

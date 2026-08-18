@@ -6,6 +6,8 @@ import { PersonneDetail, sortAdminPeople } from "@/lib/adminPeople";
 import { UserPlus, X } from "lucide-react";
 import { useSupabase } from "@/app/providers";
 import { CHOIX_NON } from "@/lib/presenceStatut";
+import GuestPicker, { type CarnetInvite } from "@/app/components/GuestPicker";
+import { nomInvite, nomInviteManquant } from "@/lib/invites";
 
 export type OptionChoice = { option_id: string; label: string };
 type Residente = { id: string; nom: string; prenom: string };
@@ -17,8 +19,13 @@ interface Props {
   people: PersonneDetail[]; // personnes actuellement dans cette option (live)
   notes?: Record<string, string>;
   optionId: string; // option de la tuile (valeur courante des lignes)
-  dayServiceOptions: OptionChoice[]; // options ouvertes pour ce jour + service
-  residentes: Residente[]; // vivier pour l'ajout + l'invitant
+  dayServiceOptions: OptionChoice[]; // options ouvertes pour ce jour + service (résidentes)
+  residentes: Residente[]; // vivier pour l'ajout d'une résidente
+  // Qui peut inviter sur CETTE option : seules les résidentes à qui elle est proposée.
+  inviteursPossibles: Residente[];
+  // Options ouvertes à l'**invitante** de cet invité : un invité ne mange que ce que
+  // la personne qui l'invite peut elle-même choisir.
+  optionsPourInvite: (inviteId: number) => OptionChoice[];
   // choix : "" = sans réponse (retire la ligne) · "non" = « Non » explicite · sinon l'id de l'option.
   onSetResidentOption: (userId: string, choix: string) => Promise<void>;
   onSetGuestOption: (inviteId: number, optionId: string | null) => Promise<void>;
@@ -33,6 +40,7 @@ const guestInviteId = (p: PersonneDetail): number | null => {
 
 export default function MealOptionEditModal({
   open, onClose, title, people, notes, optionId, dayServiceOptions, residentes,
+  inviteursPossibles, optionsPourInvite,
   onSetResidentOption, onSetGuestOption, onAddResident, onAddGuest,
 }: Props) {
   const { supabase } = useSupabase();
@@ -40,8 +48,8 @@ export default function MealOptionEditModal({
   const [busy, setBusy] = useState(false);
   const [addResId, setAddResId] = useState("");
   const [guestFormOpen, setGuestFormOpen] = useState(false);
-  const [existingGuests, setExistingGuests] = useState<{ id: number; nom: string; prenom: string }[]>([]);
-  const [pickedGuest, setPickedGuest] = useState(""); // "" = nouvel invité, sinon id du carnet
+  const [existingGuests, setExistingGuests] = useState<CarnetInvite[]>([]);
+  const [pickedGuest, setPickedGuest] = useState<number | null>(null); // null = nouvel invité
   const [gNom, setGNom] = useState("");
   const [gPrenom, setGPrenom] = useState("");
   const [gInviter, setGInviter] = useState("");
@@ -50,15 +58,15 @@ export default function MealOptionEditModal({
   useEffect(() => {
     if (!open) return;
     supabase.from("invites").select("id, nom, prenom").eq("is_active", true).then(({ data }) => {
-      setExistingGuests((data ?? []).sort((a, b) => a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom)));
+      // nom ou prénom peut être vide : on trie sur le libellé affiché.
+      setExistingGuests(((data ?? []) as CarnetInvite[]).sort((a, b) => nomInvite(a).localeCompare(nomInvite(b), "fr")));
     });
   }, [open, supabase]);
 
-  const pickGuest = (value: string) => {
-    setPickedGuest(value);
-    if (!value) { setGNom(""); setGPrenom(""); return; }
-    const g = existingGuests.find((x) => String(x.id) === value);
-    if (g) { setGNom(g.nom); setGPrenom(g.prenom); }
+  const pickGuest = (g: CarnetInvite | null) => {
+    setPickedGuest(g?.id ?? null);
+    setGNom(g?.nom ?? "");
+    setGPrenom(g?.prenom ?? "");
   };
 
   const run = async (fn: () => Promise<void>) => {
@@ -83,10 +91,10 @@ export default function MealOptionEditModal({
   };
 
   const submitGuest = () => {
-    if ((!gNom.trim() && !gPrenom.trim()) || !gInviter) return;
+    if (nomInviteManquant(gNom, gPrenom) || !gInviter) return;
     run(async () => {
       await onAddGuest(gNom.trim(), gPrenom.trim(), gInviter);
-      setGNom(""); setGPrenom(""); setGInviter(""); setPickedGuest(""); setGuestFormOpen(false);
+      setGNom(""); setGPrenom(""); setGInviter(""); setPickedGuest(null); setGuestFormOpen(false);
     });
   };
 
@@ -106,7 +114,7 @@ export default function MealOptionEditModal({
             {sorted.map((p) => (
               <li key={p.id} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2 bg-white border border-gray-100 rounded-lg px-3 py-2 text-sm shadow-sm">
                 <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
-                  <span className="font-medium text-gray-800 break-words">{p.nom} {p.prenom}</span>
+                  <span className="font-medium text-gray-800 break-words">{guestInviteId(p) === null ? `${p.nom} ${p.prenom}` : nomInvite(p)}</span>
                   {notes?.[p.id] && <span className="text-xs bg-purple-50 text-purple-700 rounded px-1.5 py-0.5">{notes[p.id]}</span>}
                 </span>
                 <select
@@ -115,7 +123,7 @@ export default function MealOptionEditModal({
                   onChange={(e) => changeFor(p, e.target.value)}
                   className="w-full sm:w-auto sm:shrink-0 border border-gray-300 rounded-md px-2 py-1 text-xs focus:ring-2 focus:ring-blue-600 focus:outline-none cursor-pointer disabled:opacity-50"
                 >
-                  {dayServiceOptions.map((o) => (
+                  {(guestInviteId(p) === null ? dayServiceOptions : optionsPourInvite(guestInviteId(p)!)).map((o) => (
                     <option key={o.option_id} value={o.option_id}>{o.label}</option>
                   ))}
                   <option value={CHOIX_NON}>— Non (ne mange pas)</option>
@@ -150,26 +158,30 @@ export default function MealOptionEditModal({
           ) : (
             <div className="rounded-lg border border-gray-200 p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-gray-500">Nouvel invité</span>
+                <span className="text-xs font-medium text-gray-500">Ajouter un invité</span>
                 <button onClick={() => setGuestFormOpen(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer"><X className="w-4 h-4" /></button>
               </div>
-              <select value={pickedGuest} onChange={(e) => pickGuest(e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none cursor-pointer">
-                <option value="">✚ Nouvel invité</option>
-                {existingGuests.map((g) => (
-                  <option key={g.id} value={g.id}>{g.nom} {g.prenom}</option>
-                ))}
-              </select>
-              <div className="grid grid-cols-2 gap-2">
-                <input value={gNom} onChange={(e) => { setGNom(e.target.value); setPickedGuest(""); }} placeholder="Nom" className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none" />
-                <input value={gPrenom} onChange={(e) => { setGPrenom(e.target.value); setPickedGuest(""); }} placeholder="Prénom" className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none" />
-              </div>
+              <GuestPicker
+                guests={existingGuests}
+                selectedId={pickedGuest}
+                onSelect={pickGuest}
+                nom={gNom}
+                prenom={gPrenom}
+                setNom={(v) => { setGNom(v); setPickedGuest(null); }}
+                setPrenom={(v) => { setGPrenom(v); setPickedGuest(null); }}
+                compact
+              />
+              {/* Seules les résidentes à qui CETTE option est proposée peuvent inviter dessus. */}
               <select value={gInviter} onChange={(e) => setGInviter(e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none cursor-pointer">
                 <option value="">— Invité par (résidente) —</option>
-                {residentes.map((r) => (
+                {inviteursPossibles.map((r) => (
                   <option key={r.id} value={r.id}>{r.nom} {r.prenom}</option>
                 ))}
               </select>
-              <button onClick={submitGuest} disabled={busy || (!gNom.trim() && !gPrenom.trim()) || !gInviter} className="w-full bg-blue-600 text-white rounded-lg py-1.5 text-sm font-medium hover:bg-blue-800 disabled:opacity-50 cursor-pointer">
+              {inviteursPossibles.length === 0 && (
+                <p className="text-[11px] text-amber-700">Aucune résidente ne peut inviter sur cette option : elle est ciblée sur un public qui n&apos;inclut personne d&apos;activé.</p>
+              )}
+              <button onClick={submitGuest} disabled={busy || nomInviteManquant(gNom, gPrenom) || !gInviter} className="w-full bg-blue-600 text-white rounded-lg py-1.5 text-sm font-medium hover:bg-blue-800 disabled:opacity-50 cursor-pointer">
                 Ajouter l&apos;invité
               </button>
             </div>

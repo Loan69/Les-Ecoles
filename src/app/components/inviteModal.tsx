@@ -2,14 +2,16 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Trash2, UserPlus } from "lucide-react";
+import { X, UserPlus } from "lucide-react";
 import { useSupabase } from "../providers";
 import { toast } from "sonner";
 import { useMyRights } from "@/lib/useMyRights";
 import { optionVisibleFor } from "@/lib/optionVisibility";
+import GuestPicker, { type CarnetInvite } from "./GuestPicker";
+import { nomInvite, nomInviteManquant } from "@/lib/invites";
 import type { MealOptionCatalog } from "@/types/MealOption";
 
-type GuestRow = { id: number; nom: string; prenom: string };
+type GuestRow = CarnetInvite;
 type Service = "dejeuner" | "diner";
 type DayOption = { service: Service; option_id: string; label: string };
 
@@ -40,7 +42,8 @@ export default function InviteModal({
   const { groupes: mesGroupes } = useMyRights();
 
   const [guests, setGuests] = useState<GuestRow[]>([]);
-  const [selectedGuestId, setSelectedGuestId] = useState<string>("");
+  // Invité du carnet retenu, ou null = saisie libre d'un nouveau nom.
+  const [selectedGuestId, setSelectedGuestId] = useState<number | null>(null);
   const [nom, setNom] = useState("");
   const [prenom, setPrenom] = useState("");
   const [date, setDate] = useState("");
@@ -48,11 +51,10 @@ export default function InviteModal({
   const [pickedKey, setPickedKey] = useState(""); // `${service}|${option_id}`
   const [submitting, setSubmitting] = useState(false);
 
-  const isNewGuest = selectedGuestId === "" || selectedGuestId === "new";
-
   const loadGuests = useCallback(async () => {
     const { data } = await supabase.from("invites").select("id, nom, prenom").eq("is_active", true);
-    setGuests((data ?? []).sort((a, b) => a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom)));
+    // nom ou prénom peut être vide : on trie sur le libellé affiché, jamais sur un champ seul.
+    setGuests(((data ?? []) as GuestRow[]).sort((a, b) => nomInvite(a).localeCompare(nomInvite(b), "fr")));
   }, [supabase]);
 
   // Ouverture : reset ou pré-remplissage (édition).
@@ -60,13 +62,13 @@ export default function InviteModal({
     if (!isOpen) return;
     loadGuests();
     if (editing) {
-      setSelectedGuestId(editing.id_invite ? String(editing.id_invite) : "new");
-      setNom(editing.nom);
-      setPrenom(editing.prenom);
+      setSelectedGuestId(editing.id_invite ?? null);
+      setNom(editing.nom ?? "");
+      setPrenom(editing.prenom ?? "");
       setDate(editing.date_repas);
       setPickedKey(editing.option_id ? `${editing.type_repas}|${editing.option_id}` : "");
     } else {
-      setSelectedGuestId("");
+      setSelectedGuestId(null);
       setNom("");
       setPrenom("");
       setDate("");
@@ -121,25 +123,14 @@ export default function InviteModal({
     [dayOptions]
   );
 
-  const handleSelectGuest = (value: string) => {
-    setSelectedGuestId(value);
-    if (value === "" || value === "new") {
-      setNom("");
-      setPrenom("");
-    } else {
-      const g = guests.find((i) => i.id === Number(value));
-      if (g) {
-        setNom(g.nom ?? "");
-        setPrenom(g.prenom ?? "");
-      }
-    }
+  const handleSelectGuest = (g: GuestRow | null) => {
+    setSelectedGuestId(g?.id ?? null);
+    setNom(g?.nom ?? "");
+    setPrenom(g?.prenom ?? "");
   };
 
-  const deleteGuest = async () => {
-    if (isNewGuest) return;
-    const g = guests.find((i) => i.id === Number(selectedGuestId));
-    if (!g) return;
-    toast(`Retirer ${g.prenom} ${g.nom} du carnet ?`, {
+  const deleteGuest = async (g: GuestRow) => {
+    toast(`Retirer ${nomInvite(g)} du carnet ?`, {
       description: "Ses invitations passées sont conservées ; il ne sera plus proposé.",
       action: {
         label: "Retirer",
@@ -148,7 +139,7 @@ export default function InviteModal({
           const j = await res.json();
           if (!res.ok) return toast.error(j.error || "Erreur.");
           toast.success("Invité retiré du carnet.");
-          handleSelectGuest("");
+          handleSelectGuest(null);
           await loadGuests();
         },
       },
@@ -156,7 +147,8 @@ export default function InviteModal({
   };
 
   const confirm = async () => {
-    if (!nom.trim() || !prenom.trim()) return toast.error("Nom et prénom requis.");
+    // Nom OU prénom : on ne connaît pas toujours les deux (« la sœur de Marie »).
+    if (nomInviteManquant(nom, prenom)) return toast.error("Indique au moins le nom ou le prénom.");
     if (!date) return toast.error("Sélectionnez une date.");
     if (!pickedKey) return toast.error("Sélectionnez un repas.");
     const [service, optionId] = pickedKey.split("|") as [Service, string];
@@ -165,7 +157,7 @@ export default function InviteModal({
     const payload = {
       nom: nom.trim(),
       prenom: prenom.trim(),
-      guestId: isNewGuest ? undefined : Number(selectedGuestId),
+      guestId: selectedGuestId ?? undefined,
       date,
       service,
       option_id: optionId,
@@ -195,31 +187,20 @@ export default function InviteModal({
             <div className="w-full bg-blue-500 h-[1px] mb-4" />
 
             <div className="space-y-4">
-              {/* Invité */}
+              {/* Invité : recherche dans le carnet, ou saisie d'un nouveau nom */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Invité</label>
-                <div className="flex gap-2">
-                  <select value={selectedGuestId} onChange={(e) => handleSelectGuest(e.target.value)} className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-600 focus:outline-none">
-                    <option value="">— Sélectionner —</option>
-                    <option value="new">✚ Nouvel invité</option>
-                    {guests.map((g) => (
-                      <option key={g.id} value={g.id}>{g.nom} {g.prenom}</option>
-                    ))}
-                  </select>
-                  {!isNewGuest && (
-                    <button onClick={deleteGuest} title="Retirer du carnet" className="p-2 rounded-lg text-red-600 hover:bg-red-50 cursor-pointer">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+                <GuestPicker
+                  guests={guests}
+                  selectedId={selectedGuestId}
+                  onSelect={handleSelectGuest}
+                  nom={nom}
+                  prenom={prenom}
+                  setNom={setNom}
+                  setPrenom={setPrenom}
+                  onRemoveFromCarnet={deleteGuest}
+                />
               </div>
-
-              {isNewGuest && (
-                <div className="grid grid-cols-2 gap-2">
-                  <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom" className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-600 focus:outline-none" />
-                  <input value={prenom} onChange={(e) => setPrenom(e.target.value)} placeholder="Prénom" className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-600 focus:outline-none" />
-                </div>
-              )}
 
               {/* Date */}
               <div>

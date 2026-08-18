@@ -1,3 +1,5 @@
+import { labelResidenceCourt } from "@/lib/residences";
+
 // Modèle commun pour les tableaux de détail admin (présences, repas, plus tard chambres).
 // Garantit un classement identique partout : résidence → étage → chambre → nom → prénom,
 // les invitées (sans étage/chambre) étant placées en fin de bloc résidence.
@@ -6,7 +8,7 @@ export interface PersonneDetail {
   id: string; // identifiant unique (user_id, ou "invite-XX" pour un invité repas)
   nom: string;
   prenom: string;
-  residence?: string; // "12" / "36"
+  residence?: string; // bloc d'appartenance (valeur de `residences` : "12", "36", "corail"…)
   etage?: string | null;
   chambre?: string | null;
   isInvite: boolean; // true = invitée / invité (placée après les résidentes)
@@ -82,10 +84,13 @@ export function formatChambre(chambre?: string | null): string | null {
 }
 
 // Libellé compact de rattachement (pour les listes).
+// Le bloc est nommé par labelResidenceCourt : « Rés. 12 » pour une résidence numérotée,
+// « Corail » pour un bloc de postes — jamais la valeur technique brute.
 export function personneSublabel(p: PersonneDetail): string {
+  const bloc = p.residence ? labelResidenceCourt(p.residence) : null;
   // Invitée repas : pas de résidence par définition → juste « invitée ».
-  if (p.isInvite) return p.residence ? `Rés. ${p.residence} · invitée` : "invitée";
-  const parts = [`Rés. ${p.residence ?? "?"}`];
+  if (p.isInvite) return bloc ? `${bloc} · invitée` : "invitée";
+  const parts = [bloc ?? "Sans bloc"];
   const et = formatEtage(p.etage);
   if (et) parts.push(et);
   const ch = formatChambre(p.chambre);

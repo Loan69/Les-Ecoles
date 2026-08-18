@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireSectionEdit } from "@/lib/apiAuth";
 import { logMealEdit } from "@/lib/mealAudit";
+import { optionRefuseePour } from "@/lib/mealOptionAccess";
+import { nomInvite } from "@/lib/invites";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -32,6 +34,12 @@ export async function POST(req: Request) {
   if (service !== "dejeuner" && service !== "diner") return NextResponse.json({ error: "Service invalide." }, { status: 400 });
   if (!option_id) return NextResponse.json({ error: "Option requise." }, { status: 400 });
 
+  // Un invité mange ce que son invitante peut choisir : même règle que lorsqu'elle
+  // saisit l'invitation elle-même. Une administratrice ne contourne pas le ciblage
+  // (pas de pique-nique pour l'invité d'une résidente qui n'y a pas droit).
+  const refus = await optionRefuseePour(supabase, invite_par, date, service, option_id, "Cette option n'est pas ouverte à la résidente qui invite.");
+  if (refus) return NextResponse.json({ error: refus }, { status: 403 });
+
   const { data: profil } = await supabase.from("residentes").select("residence").eq("user_id", invite_par).maybeSingle();
   const g = await resolveGuest(supabase, nomV, prenomV);
   if (g.error || !g.id) return NextResponse.json({ error: g.error ?? "Invité introuvable." }, { status: 500 });
@@ -48,7 +56,7 @@ export async function POST(req: Request) {
   });
   if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
   await logMealEdit(supabase, userId, {
-    action: "guest_add", entity: "invite", guestName: `${nomV} ${prenomV}`.trim(),
+    action: "guest_add", entity: "invite", guestName: nomInvite({ nom: nomV, prenom: prenomV }),
     dateRepas: date, service, optionBeforeId: null, optionAfterId: option_id,
     details: { invite_par },
   });
@@ -65,7 +73,13 @@ export async function PUT(req: Request) {
 
   // État avant modification (pour le journal).
   const { data: prev } = await supabase.from("invites_repas").select("nom, prenom, date_repas, type_repas, option_id, invite_par").eq("id", id).maybeSingle();
-  const guestName = prev ? `${prev.nom ?? ""} ${prev.prenom ?? ""}`.trim() : null;
+  const guestName = prev ? nomInvite(prev) : null;
+
+  // Déplacer un invité vers une autre option : elle doit être ouverte à son invitante.
+  if (option_id && prev?.invite_par && prev.date_repas && prev.type_repas) {
+    const refus = await optionRefuseePour(supabase, prev.invite_par, prev.date_repas, prev.type_repas, option_id, "Cette option n'est pas ouverte à la résidente qui invite.");
+    if (refus) return NextResponse.json({ error: refus }, { status: 403 });
+  }
 
   if (!option_id) {
     const { error: delErr } = await supabase.from("invites_repas").delete().eq("id", id);
@@ -99,7 +113,7 @@ export async function DELETE(req: Request) {
   const { error: delErr } = await supabase.from("invites_repas").delete().eq("id", id);
   if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
   await logMealEdit(supabase, userId, {
-    action: "guest_remove", entity: "invite", guestName: prev ? `${prev.nom ?? ""} ${prev.prenom ?? ""}`.trim() : null,
+    action: "guest_remove", entity: "invite", guestName: prev ? nomInvite(prev) : null,
     dateRepas: prev?.date_repas ?? null, service: prev?.type_repas ?? null,
     optionBeforeId: prev?.option_id ?? null, optionAfterId: null, details: { invite_par: prev?.invite_par },
   });
