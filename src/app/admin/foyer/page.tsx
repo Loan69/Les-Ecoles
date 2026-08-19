@@ -38,6 +38,11 @@ export default function AdminFoyerView() {
   // Un encadré par bloc du foyer (Résidence 12, Résidence 36, Corail…) : la liste vient
   // de la table `residences`, un bloc ajouté depuis l'Administration apparaît ici aussitôt.
   const { residences, labelEtage, ordreStructure } = useResidences();
+  // La présence au foyer, c'est « qui dort ici cette nuit ». Un bloc d'intendance
+  // regroupe des personnes qui travaillent au foyer sans y loger : la question n'a pas
+  // de sens pour elles, on n'affiche donc que les blocs d'habitation (R-RES-02, R-RES-06).
+  const blocsHabitation = useMemo(() => residences.filter((r) => r.kind === "chambre"), [residences]);
+  const blocsPostes = useMemo(() => new Set(residences.filter((r) => r.kind === "poste").map((r) => r.value)), [residences]);
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -103,8 +108,9 @@ export default function AdminFoyerView() {
         etage: (r.place_id && placeById[r.place_id]?.etage) || r.etage,
         chambre: (r.place_id && placeLabels[r.place_id]) || (r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre),
         isInvite: false,
-        // Hors du suivi si le compte n'est pas activé (R-ADM-02) ou si Absences = Aucun
-        // (R-NIV-11).
+        // Hors du suivi si le compte n'est pas activé (R-ADM-02) ou si Absences = Masquée
+        // (R-NIV-11). La règle des blocs d'intendance s'ajoute au rendu, où la liste des
+        // blocs est disponible — elle arrive après ce chargement.
         horsSuivi: !estCompteActive(r) || Number(r.niveau_absences ?? 1) === 0,
       })) || []),
       ...(inviteesData?.map((i) => ({
@@ -150,19 +156,26 @@ export default function AdminFoyerView() {
   // Personnes affichées : les comptes activés suivant les absences, PLUS ceux qui en sont
   // hors (départ, invitée, Absences = Aucun) mais gardent une absence déclarée sur la
   // période — on ne réécrit pas l'historique.
+  // Quelqu'un d'un bloc d'intendance ne dort pas au foyer : la présence de nuit ne le
+  // concerne pas. Même traitement que les autres cas « hors suivi ».
+  const horsPresences = useCallback(
+    (p: PersonneAdmin) => p.horsSuivi || blocsPostes.has(p.residence ?? ""),
+    [blocsPostes]
+  );
+
   const people = useMemo(
-    () => allPeople.filter((p) => !p.horsSuivi || absences.some((a) => a.user_id === p.id)),
-    [allPeople, absences]
+    () => allPeople.filter((p) => !horsPresences(p) || absences.some((a) => a.user_id === p.id)),
+    [allPeople, absences, horsPresences]
   );
 
   // Comptes activés seuls : vivier pour enregistrer une NOUVELLE absence (R-ADM-02).
-  const peopleActives = useMemo(() => allPeople.filter((p) => !p.horsSuivi), [allPeople]);
+  const peopleActives = useMemo(() => allPeople.filter((p) => !horsPresences(p)), [allPeople, horsPresences]);
 
   // Blocs affichés : ceux du foyer, PLUS tout rattachement rencontré dans les données qui
   // n'y figure pas (bloc désactivé, compte sans bloc). Personne ne disparaît d'un décompte
   // faute d'encadré où la ranger.
   const blocsAffiches = useMemo(() => {
-    const list = [...residences];
+    const list = [...blocsHabitation];
     const connus = new Set(residences.map((r) => r.value));
     people.forEach((p) => {
       const v = p.residence ?? "";
@@ -175,7 +188,7 @@ export default function AdminFoyerView() {
       });
     });
     return list;
-  }, [residences, people]);
+  }, [residences, blocsHabitation, people]);
 
   const isAbsentOn = useCallback(
     (personId: string, dateKey: string) =>
@@ -186,8 +199,8 @@ export default function AdminFoyerView() {
   // Une personne hors suivi n'apparaît QUE les jours couverts par son absence : elle ne doit
   // jamais gonfler le compteur « au foyer » d'un jour où elle n'habite plus là.
   const visibleOn = useCallback(
-    (p: PersonneAdmin, dateKey: string) => !p.horsSuivi || isAbsentOn(p.id, dateKey),
-    [isAbsentOn]
+    (p: PersonneAdmin, dateKey: string) => !horsPresences(p) || isAbsentOn(p.id, dateKey),
+    [isAbsentOn, horsPresences]
   );
 
   // --- Marquage (création absence ou forçage présence) ---
@@ -407,7 +420,7 @@ export default function AdminFoyerView() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         people={peopleActives}
-        residences={residences}
+        residences={blocsHabitation}
         onSubmit={handleSubmit}
       />
     </div>

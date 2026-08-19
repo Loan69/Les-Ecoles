@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.23 — 2026-08-19.
+> Version 1.24 — 2026-08-19.
 
 Une administratrice est une résidente qui a **au moins un droit d'intendance sur une section**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), des outils d'intendance correspondant à ses droits.
 
@@ -92,7 +92,8 @@ Panneau ⚙️ **Administration**. L'écran affiche **directement** la gestion d
 **Gérer les blocs, chambres & étages** : un second panneau repliable, **réservé au super-admin**, contient la **structure physique** du foyer, séparée de la liste des personnes.
 
 - **Blocs du foyer** (en haut du panneau) — un « bloc », c'est une **résidence** (Résidence 12, Résidence 36) ou un **ensemble de postes** (Corail, l'intendance). On peut en **ajouter**, les **renommer**, changer leur **couleur**, les **réordonner** (↑ ↓), les **désactiver** ou les **supprimer**. À la création, on choisit ce que le bloc contient : *des chambres réparties par étage* (une résidence) ou *des postes sans étage* (une intendance).
-  > **Un bloc ajouté ici obtient tout de suite son propre encadré partout** : comptabilité des repas, organisation des services, présences au foyer, ciblage des événements, rattachement d'une option de repas et intercalaires de l'accueil. Rien d'autre n'est à faire.
+  > **Un bloc ajouté ici obtient tout de suite son propre encadré partout** : comptabilité des repas, ciblage des événements et — s'il s'agit d'une **résidence** — organisation des services, présences au foyer, rattachement d'une option de repas et intercalaires de l'accueil. Rien d'autre n'est à faire.
+  > Un bloc d'**intendance** n'apparaît pas dans les **présences au foyer** : ses membres travaillent au foyer sans y dormir, la question « au foyer ce soir ? » ne les concerne pas. Ils restent en revanche dans la **comptabilité des repas**, qu'ils prennent sur place.
   > **Suppression** : possible seulement si le bloc ne contient **aucune chambre/poste** et **aucun compte** (même parti). Sinon, le **désactiver**. Et son contenu (chambres ou postes) se **fige** dès qu'il contient une place.
 - **Étages**, dans chaque bloc « résidence » : **ajouter / renommer / réordonner (↑ ↓) / supprimer**. Un étage peut exister **avant** d'avoir la moindre chambre — c'est ainsi qu'on dessine la structure d'un foyer qui démarre. Il ne se supprime que **vide**.
 - **Chambres**, à l'intérieur de chaque étage (bouton **« + Chambre »** sur la ligne de l'étage), et **postes** pour un bloc d'intendance : **ajouter / modifier / désactiver / supprimer**. L'ajout est rare une fois le foyer en place. Une chambre désactivée disparaît de la liste des utilisatrices.

@@ -56,9 +56,7 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
   const handleToggle = async () => {
     if (!user || loading) return;
 
-    // Mise à jour optimiste : le bouton bascule immédiatement, l'enregistrement suit.
-    // Il demande deux allers-retours (lire les confirmations puis les réécrire, pour ne
-    // pas écraser celles des autres) : attendre les deux figeait le bouton une bonne seconde.
+    // Mise à jour optimiste : le bouton bascule tout de suite, l'enregistrement suit.
     const previous = checked;
     setChecked(!checked);
     setLoading(true);
@@ -70,39 +68,49 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
     };
 
     try {
-        // Récupérer les confirmations actuelles
-        const { data, error } = await supabase
-        .from("evenements")
-        .select("confirmations")
-        .eq("id", eventId)
-        .single();
+      // Une seule écriture, côté base : la ligne est verrouillée le temps de
+      // l'opération. Auparavant on lisait la liste puis on la réécrivait entière —
+      // deux personnes confirmant dans la même seconde lisaient la même version, et
+      // la seconde écriture effaçait la première sans que personne ne le voie.
+      const { data, error } = await supabase.rpc("basculer_confirmation_evenement", { p_event_id: eventId });
 
-        if (error) {
-        revert("❌ Erreur fetch confirmations :", error);
-        return;
+      if (error) {
+        // Tolérant : tant que supabase/confirmations-evenements.sql n'est pas passé,
+        // la fonction n'existe pas — on retombe sur l'ancienne écriture.
+        const absente = error.code === "PGRST202" || /basculer_confirmation_evenement/i.test(error.message ?? "");
+        if (!absente) {
+          revert("❌ Erreur confirmation :", error);
+          return;
         }
-
-        // Toujours récupérer un tableau
-        const confirmations: string[] = data?.confirmations || [];
-        const userId = user.id;
-
-        // Ajouter ou retirer l'utilisateur
-        const updatedConfirmations = previous
-        ? confirmations.filter(id => id !== userId)
-        : [...confirmations, userId];
-
+        const { data: evt, error: readErr } = await supabase
+          .from("evenements")
+          .select("confirmations")
+          .eq("id", eventId)
+          .single();
+        if (readErr) {
+          revert("❌ Erreur fetch confirmations :", readErr);
+          return;
+        }
+        const confirmations: string[] = evt?.confirmations || [];
+        const updated = previous
+          ? confirmations.filter((id) => id !== user.id)
+          : [...confirmations, user.id];
         const { error: updateError } = await supabase
-        .from("evenements")
-        .update({ confirmations: updatedConfirmations })
-        .eq("id", eventId);
-
+          .from("evenements")
+          .update({ confirmations: updated })
+          .eq("id", eventId);
         if (updateError) revert("❌ Erreur update confirmations :", updateError);
+        return;
+      }
+
+      // La base renvoie l'état réel après bascule : on s'y aligne.
+      if (typeof data === "boolean") setChecked(data);
     } catch (err) {
-        revert("❌ Exception handleToggle :", err);
+      revert("❌ Exception handleToggle :", err);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-    };
+  };
 
   const activeLabel = isIntendance ? "Fait" : "Je participe"
 
