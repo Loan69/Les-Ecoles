@@ -39,12 +39,18 @@ export default function ActivationPage() {
           const name = place.label || formatChambre(place.code) || place.code;
           // Le nom du bloc vient de la table `residences` (« Corail », « Résidence 12 »…) :
           // une nouvelle résidence s'annonce correctement dès sa création.
-          const { data: blocRow } = await supabase.from("residences").select("*").eq("value", place.residence).maybeSingle();
+          const [{ data: blocRow }, { data: etageRow }] = await Promise.all([
+            supabase.from("residences").select("*").eq("value", place.residence).maybeSingle(),
+            place.etage
+              ? supabase.from("etages").select("label").eq("residence", place.residence).eq("value", place.etage).maybeSingle()
+              : Promise.resolve({ data: null }),
+          ]);
           const bloc = blocRow ? toResidence(blocRow as Record<string, unknown>).label : labelResidenceDefaut(String(place.residence));
+          const etage = (etageRow as { label?: string } | null)?.label ?? formatEtage(place.etage) ?? "";
           setPlaceLabel(
             place.kind === "poste"
               ? `${bloc} · ${name}`
-              : `${bloc} · ${formatEtage(place.etage) ?? ""} · ${name}`.replace(/ · $/, "")
+              : [bloc, etage, name].filter(Boolean).join(" · ")
           );
         }
       }

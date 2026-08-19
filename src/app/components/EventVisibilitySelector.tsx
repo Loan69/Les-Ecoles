@@ -47,7 +47,9 @@ export default function EventVisibilitySelector({ value, onChange, disabled = fa
       const [{ data: placesData }, { data: rData }] = await Promise.all([
         supabase.from("places").select("residence, etage").eq("is_active", true),
         // Comptes activés uniquement : actifs, rattachés à une chambre ou un poste (R-ADM-02).
-        supabase.from("residentes").select("user_id, nom, prenom, residence, etage").eq("statut", "active").eq("is_technique", false).not("place_id", "is", null),
+        // L'étage vient de la PLACE, pas de la copie héritée `residentes.etage` qui a
+        // pu dériver : sinon une personne échappe au ciblage de son propre étage.
+        supabase.from("residentes").select("user_id, nom, prenom, residence, etage, place:places(residence, etage)").eq("statut", "active").eq("is_technique", false).not("place_id", "is", null),
       ]);
 
       const resSet = new Set<string>();
@@ -79,7 +81,12 @@ export default function EventVisibilitySelector({ value, onChange, disabled = fa
 
       setResidenceValues([...resSet]);
       setEtages(etageOpts);
-      setResidentes((rData || []).map((r) => ({ ...r, residence: String(r.residence) })));
+      setResidentes(
+        (rData || []).map((r) => {
+          const place = r.place as unknown as { residence?: string; etage?: string | null } | null;
+          return { ...r, residence: String(place?.residence ?? r.residence), etage: place?.etage ?? r.etage };
+        })
+      );
       setLoaded(true);
     })();
   }, [supabase]);

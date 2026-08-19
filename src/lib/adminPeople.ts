@@ -37,11 +37,26 @@ export function estCompteActive(r: {
   return r.statut === "active" && !!r.place_id && !r.is_technique;
 }
 
-export function sortAdminPeople<T extends PersonneDetail>(people: T[]): T[] {
+// Ordre d'affichage de la structure, tel que réglé en Administration.
+// Sans lui, le tri retombe sur la CLÉ TECHNIQUE des blocs et des étages — ce qui plaçait
+// un étage nommé « 7 test » (clé « 12_7_test ») avant l'étage 6 (clé « r12_etage6 »),
+// puisque « 1 » précède « r » alphabétiquement.
+export type OrdreStructure = {
+  rangBloc?: (value?: string | null) => number;
+  rangEtage?: (value?: string | null) => number;
+};
+
+export function sortAdminPeople<T extends PersonneDetail>(people: T[], ordre?: OrdreStructure): T[] {
   return [...people].sort((a, b) => {
     const resA = a.residence ?? "";
     const resB = b.residence ?? "";
-    if (resA !== resB) return resA.localeCompare(resB, "fr", { numeric: true });
+    if (resA !== resB) {
+      if (ordre?.rangBloc) {
+        const d = ordre.rangBloc(resA) - ordre.rangBloc(resB);
+        if (d !== 0) return d;
+      }
+      return resA.localeCompare(resB, "fr", { numeric: true });
+    }
 
     // Résidentes avant invitées au sein d'une même résidence
     if (a.isInvite !== b.isInvite) return a.isInvite ? 1 : -1;
@@ -49,7 +64,13 @@ export function sortAdminPeople<T extends PersonneDetail>(people: T[]): T[] {
     if (!a.isInvite) {
       const etA = a.etage ?? "";
       const etB = b.etage ?? "";
-      if (etA !== etB) return etA.localeCompare(etB, "fr", { numeric: true });
+      if (etA !== etB) {
+        if (ordre?.rangEtage) {
+          const d = ordre.rangEtage(etA) - ordre.rangEtage(etB);
+          if (d !== 0) return d;
+        }
+        return etA.localeCompare(etB, "fr", { numeric: true });
+      }
       const chA = a.chambre ?? "";
       const chB = b.chambre ?? "";
       if (chA !== chB) return chA.localeCompare(chB, "fr", { numeric: true });

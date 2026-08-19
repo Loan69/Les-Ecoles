@@ -9,7 +9,7 @@ import { labelResidenceDefaut } from "@/lib/residences";
 import { Absence } from "@/types/Absence";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
-import { PersonneAdmin, sortAdminPeople, formatEtage, estCompteActive } from "@/lib/adminPeople";
+import { PersonneAdmin, sortAdminPeople, estCompteActive } from "@/lib/adminPeople";
 import { downloadCSV } from "@/lib/csvExport";
 import AbsenceAdminModal, { MarquagePayload } from "@/app/components/admin/AbsenceAdminModal";
 import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
@@ -37,7 +37,7 @@ export default function AdminFoyerView() {
   const [allPeople, setAllPeople] = useState<PersonneAdmin[]>([]);
   // Un encadré par bloc du foyer (Résidence 12, Résidence 36, Corail…) : la liste vient
   // de la table `residences`, un bloc ajouté depuis l'Administration apparaît ici aussitôt.
-  const { residences } = useResidences();
+  const { residences, labelEtage, ordreStructure } = useResidences();
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -73,7 +73,7 @@ export default function AdminFoyerView() {
         supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id, statut, niveau_absences").eq("is_technique", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("select_options_residence").select("value, label"),
-        supabase.from("places").select("id, label"),
+        supabase.from("places").select("id, label, residence, etage"),
       ]);
 
     // Code chambre/étage → libellé lisible (ex. "grand_palais" → "Grand Palais")
@@ -84,15 +84,23 @@ export default function AdminFoyerView() {
     // Libellé de chambre propre depuis `places` (source de vérité), via place_id :
     // residentes.chambre peut contenir un code brut legacy (« r36_etage6_la_rochelle »).
     const placeLabels: Record<string, string> = {};
-    (placesData || []).forEach((p) => { if (p.id && p.label) placeLabels[p.id] = p.label; });
+    // Étage et bloc viennent eux aussi de la place : `residentes.etage` est une copie
+    // héritée qui peut avoir dérivé (un « r12_etage3 » face au « 3 » de la place), ce qui
+    // sortait la personne du classement par étage et affichait sa clé technique.
+    const placeById: Record<string, { residence: string; etage: string | null }> = {};
+    (placesData || []).forEach((p) => {
+      if (!p.id) return;
+      if (p.label) placeLabels[p.id] = p.label;
+      placeById[p.id] = { residence: String(p.residence), etage: p.etage };
+    });
 
     setAllPeople([
       ...(residentesData?.map((r) => ({
         id: r.user_id,
         nom: r.nom,
         prenom: r.prenom,
-        residence: r.residence != null ? String(r.residence) : undefined,
-        etage: r.etage,
+        residence: (r.place_id && placeById[r.place_id]?.residence) || (r.residence != null ? String(r.residence) : undefined),
+        etage: (r.place_id && placeById[r.place_id]?.etage) || r.etage,
         chambre: (r.place_id && placeLabels[r.place_id]) || (r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre),
         isInvite: false,
         // Hors du suivi si le compte n'est pas activé (R-ADM-02) ou si Absences = Aucun
@@ -207,9 +215,9 @@ export default function AdminFoyerView() {
   const exportDetail = () => {
     const header = ["Résidence", "Étage", "Nom", "Prénom", ...tableColumns.map((c) => c.label)];
     const rows: (string | number)[][] = [header];
-    sortAdminPeople(people).forEach((p) => {
+    sortAdminPeople(people, ordreStructure).forEach((p) => {
       const cells = tableColumns.map((c) => (!visibleOn(p, c.key) ? "" : isAbsentOn(p.id, c.key) ? "Sortie" : "Au foyer"));
-      rows.push([p.residence ?? "", formatEtage(p.etage) ?? "", p.nom, p.prenom, ...cells]);
+      rows.push([p.residence ?? "", labelEtage(p.etage) ?? "", p.nom, p.prenom, ...cells]);
     });
     downloadCSV(`presences_${startDate}_${endDate}.csv`, rows);
   };

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Power, DoorClosed, Briefcase, UserCheck, Mail, Save, RefreshCw, X, ArrowLeftRight, LogOut, SlidersHorizontal, ShieldCheck, ChevronDown, Archive, Settings, Building2, ArrowUp, ArrowDown } from "lucide-react";
 import { PlaceWithStatus, PlaceKind } from "@/types/Place";
-import { formatEtage, formatChambre } from "@/lib/adminPeople";
+import { formatChambre } from "@/lib/adminPeople";
 import { SECTIONS, SECTION_LABEL, SECTION_AIDE, NIVEAU_LABEL, NIVEAU_AIDE, NIV, niveauxPourSection, asNiveauSection, hasAnyAdmin, type Rights, type Section } from "@/lib/roles";
 import { COULEURS_RESIDENCE, COULEUR_LABEL, labelResidenceDefaut, themeResidence } from "@/lib/residences";
 import type { CouleurResidence, Residence } from "@/types/Residence";
@@ -49,10 +49,12 @@ function placeName(p: PlaceWithStatus): string {
 }
 
 // Libellé d'une place dans une liste déroulante : « Corail · Cuisine », « Résidence 12 · Étage 4 · Orsay ».
-function placeOptionLabel(p: PlaceWithStatus, blocs: { value: string; label: string }[]): string {
+// Le nom de l'étage vient de la liste déclarée (`labelEtage`), jamais de sa clé technique :
+// un étage nommé « 7 test » s'affichait sinon « 12_7_test », et un renommage n'était pas suivi.
+function placeOptionLabel(p: PlaceWithStatus, blocs: { value: string; label: string }[], labelEtage: (v?: string | null) => string | null): string {
   const bloc = blocs.find((b) => b.value === p.residence)?.label ?? labelResidenceDefaut(p.residence);
   // Pas d'étage (poste, ou chambre dont l'étage manque) : on n'affiche pas de segment vide.
-  return [bloc, formatEtage(p.etage), placeName(p)].filter(Boolean).join(" · ");
+  return [bloc, labelEtage(p.etage), placeName(p)].filter(Boolean).join(" · ");
 }
 
 // Numéro d'étage « propre » pour la saisie (r12_etage4 / etage_2 / 4 -> "4" / "2" / "4").
@@ -267,7 +269,10 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
     if (!res.ok) return toast.error(j.error || "Erreur.");
     toast.success(etageForm.editing ? "Étage modifié." : "Étage ajouté.");
     setEtageForm(EMPTY_ETAGE_FORM);
-    await load();
+    // La liste partagée alimente tous les autres écrans (compta, détails, ciblage,
+    // sélecteurs de chambre) : sans ce rafraîchissement, un renommage n'y arriverait
+    // qu'au prochain rechargement de page.
+    await Promise.all([load(), reloadBlocsPartages()]);
   };
 
   // Échange l'ordre de deux étages voisins du même bloc.
@@ -280,7 +285,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
       fetch("/api/admin/etages", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: e.id, ordre: voisin.ordre }) }),
       fetch("/api/admin/etages", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: voisin.id, ordre: e.ordre }) }),
     ]);
-    await load();
+    await Promise.all([load(), reloadBlocsPartages()]);
   };
 
   const removeEtage = (e: EtageWithCount) => {
@@ -297,7 +302,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
           const j = await res.json();
           if (!res.ok) return toast.error(j.error || "Erreur.");
           toast.success("Étage supprimé.");
-          await load();
+          await Promise.all([load(), reloadBlocsPartages()]);
         },
       },
       cancel: { label: "Annuler", onClick: () => {} },
@@ -629,43 +634,6 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
       {/* ================= Groupes (repliable) ================= */}
       <GroupesPanel groupes={groupes} people={peopleForGroupes} canEdit={canEdit} onChanged={load} />
 
-      {/* ================= Comptes désactivés (repliable) ================= */}
-      {archived.length > 0 && (
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <button onClick={() => setArchivedOpen((o) => !o)} className="w-full flex items-center justify-between px-4 sm:px-5 py-4 text-left cursor-pointer hover:bg-gray-50">
-            <span className="flex items-center gap-2 font-bold text-gray-600"><Archive className="w-5 h-5" /> Comptes désactivés <span className="text-xs font-normal text-gray-400">· {archived.length}</span></span>
-            <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${archivedOpen ? "rotate-180" : ""}`} />
-          </button>
-          {archivedOpen && (
-            <div className="px-4 sm:px-5 pb-4 space-y-2">
-              <p className="text-xs text-gray-400">Ces comptes sont désactivés (connexion bloquée, historique conservé). Pour en réactiver un, utilisez « Inviter » sur une chambre libre et sélectionnez-le.</p>
-              {canEdit && (
-                <p className="text-xs text-gray-400">La <b>suppression définitive</b> (🗑) efface le compte et retire ses repas passés de la comptabilité : ne l&apos;utilisez qu&apos;une fois la période facturée.</p>
-              )}
-              {archived.map((a) => (
-                <div key={a.user_id} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-700 truncate">{a.nom.toUpperCase()} {a.prenom}</p>
-                    <p className="text-xs text-gray-400 truncate">{a.email}</p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                    <RightsSummary r={a.rights} />
-                    {canEdit && a.user_id !== currentUserId && (
-                      <button
-                        onClick={() => deleteAccount(a.user_id, `${a.prenom} ${a.nom}`, true)}
-                        className="p-2 rounded-full text-red-600 hover:bg-red-50 cursor-pointer"
-                        title="Supprimer définitivement"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
 
       {/* ================= Gérer les blocs, chambres & étages (repliable, super-admin) ================= */}
       {canEditStructure && (
@@ -829,6 +797,44 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
                   </div>
                 );
               })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ================= Comptes désactivés (repliable) ================= */}
+      {archived.length > 0 && (
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <button onClick={() => setArchivedOpen((o) => !o)} className="w-full flex items-center justify-between px-4 sm:px-5 py-4 text-left cursor-pointer hover:bg-gray-50">
+            <span className="flex items-center gap-2 font-bold text-gray-600"><Archive className="w-5 h-5" /> Comptes désactivés <span className="text-xs font-normal text-gray-400">· {archived.length}</span></span>
+            <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${archivedOpen ? "rotate-180" : ""}`} />
+          </button>
+          {archivedOpen && (
+            <div className="px-4 sm:px-5 pb-4 space-y-2">
+              <p className="text-xs text-gray-400">Ces comptes sont désactivés (connexion bloquée, historique conservé). Pour en réactiver un, utilisez « Inviter » sur une chambre libre et sélectionnez-le.</p>
+              {canEdit && (
+                <p className="text-xs text-gray-400">La <b>suppression définitive</b> (🗑) efface le compte et retire ses repas passés de la comptabilité : ne l&apos;utilisez qu&apos;une fois la période facturée.</p>
+              )}
+              {archived.map((a) => (
+                <div key={a.user_id} className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-700 truncate">{a.nom.toUpperCase()} {a.prenom}</p>
+                    <p className="text-xs text-gray-400 truncate">{a.email}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                    <RightsSummary r={a.rights} />
+                    {canEdit && a.user_id !== currentUserId && (
+                      <button
+                        onClick={() => deleteAccount(a.user_id, `${a.prenom} ${a.nom}`, true)}
+                        className="p-2 rounded-full text-red-600 hover:bg-red-50 cursor-pointer"
+                        title="Supprimer définitivement"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </section>
@@ -1132,7 +1138,8 @@ function MoveModal({
   onMove: (targetId: string) => void;
 }) {
   const [target, setTarget] = useState("");
-  const optionLabel = (p: PlaceWithStatus) => placeOptionLabel(p, blocs);
+  const { labelEtage } = useResidences();
+  const optionLabel = (p: PlaceWithStatus) => placeOptionLabel(p, blocs, labelEtage);
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
@@ -1176,7 +1183,8 @@ function AssignModal({
   onAssign: (targetId: string) => void;
 }) {
   const [target, setTarget] = useState("");
-  const optionLabel = (p: PlaceWithStatus) => placeOptionLabel(p, blocs);
+  const { labelEtage } = useResidences();
+  const optionLabel = (p: PlaceWithStatus) => placeOptionLabel(p, blocs, labelEtage);
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">

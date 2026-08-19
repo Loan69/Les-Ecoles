@@ -5,7 +5,7 @@ import { useResidencesContext } from "@/app/providers";
 import { labelResidence, themeResidence, type ThemeResidence } from "@/lib/residences";
 import type { Residence } from "@/types/Residence";
 import type { Etage } from "@/types/Etage";
-import { formatEtage } from "@/lib/adminPeople";
+import { formatEtage, type OrdreStructure } from "@/lib/adminPeople";
 
 export type MesResidences = {
   // Blocs actifs du foyer, dans l'ordre d'affichage. Tout écran qui présente
@@ -19,6 +19,9 @@ export type MesResidences = {
   // (un étage renommé suit partout) ; sinon on retombe sur formatEtage, qui sait lire
   // les clés héritées (« r12_etage4 » → « Étage 4 »).
   labelEtage: (value?: string | null) => string | null;
+  // Classement de la structure, à passer à sortAdminPeople : les blocs et les étages
+  // se rangent dans l'ordre réglé en Administration, pas dans celui de leurs clés.
+  ordreStructure: OrdreStructure;
 };
 
 // Les blocs sont chargés dans `Providers`, **une seule fois par session** : ce hook
@@ -37,6 +40,17 @@ export function useResidences(): MesResidences {
       theme: (value?: string | null) => themeResidence(residences.find((r) => r.value === value)?.couleur),
       labelEtage: (value?: string | null) =>
         value ? etages.find((e) => e.value === value)?.label ?? formatEtage(value) : null,
+      ordreStructure: {
+        // Un bloc ou un étage inconnu passe en fin de liste plutôt que n'importe où.
+        rangBloc: (value?: string | null) => {
+          const i = residences.findIndex((r) => r.value === value);
+          return i === -1 ? Number.MAX_SAFE_INTEGER : residences[i].ordre * 1000 + i;
+        },
+        rangEtage: (value?: string | null) => {
+          const i = etages.findIndex((e) => e.value === value);
+          return i === -1 ? Number.MAX_SAFE_INTEGER : etages[i].ordre * 1000 + i;
+        },
+      },
     }),
     [residences, etages, loading]
   );

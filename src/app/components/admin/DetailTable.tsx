@@ -21,8 +21,8 @@ interface DetailTableProps<T extends PersonneDetail> {
 // les invitées formant un bloc « Invitées » en fin de chaque résidence.
 export default function DetailTable<T extends PersonneDetail>({ people, columns, renderCell }: DetailTableProps<T>) {
   // Noms des blocs et des étages tels que réglés en Administration.
-  const { label: labelBloc, labelEtage } = useResidences();
-  const sorted = sortAdminPeople(people);
+  const { label: labelBloc, labelEtage, ordreStructure } = useResidences();
+  const sorted = sortAdminPeople(people, ordreStructure);
   const span = columns.length + 1;
 
   const rows: ReactNode[] = [];
