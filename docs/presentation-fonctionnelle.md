@@ -1,7 +1,7 @@
 # Les Écoles — Présentation fonctionnelle de l'application
 
 > **Document vivant** — mis à jour à chaque nouvelle fonctionnalité ou évolution.
-> Dernière mise à jour : 17 août 2026 · Version 1.7
+> Dernière mise à jour : 19 août 2026 · Version 1.8
 
 ---
 
@@ -16,7 +16,11 @@ Elle remplace les listes papier et les échanges informels par un outil unique o
 
 L'équipe d'intendance (les administratrices) dispose en parallèle d'un **tableau de bord** pour connaître en temps réel le nombre de couverts à préparer, savoir qui est présent, gérer les comptes et organiser la vie du foyer (événements, repas spéciaux, etc.).
 
-Le foyer est organisé en **deux résidences** : la **Résidence 12** et la **Résidence 36**.
+Le foyer est organisé en **blocs**, déclarés dans l'application et non figés dans le programme. Un bloc est
+soit une **résidence** — un lieu physique, avec ses étages et ses chambres — soit une **équipe** rattachée au
+foyer sans y loger, avec ses **postes** plutôt que des chambres. Aux Écoles, cela donne aujourd'hui la
+**Résidence 12**, la **Résidence 36** et **Corail** (l'intendance), mais l'intendance peut en ajouter,
+en renommer et en réordonner : tout écran qui présente « un encadré par bloc » suit cette liste.
 
 ---
 
@@ -62,7 +66,7 @@ On y trouve, de haut en bas :
 - en haut à droite, l'accès **Profil** et **Déconnexion** ; au centre, le **logo** ;
 - la **date du jour** avec les chevrons et l'icône calendrier ;
 - une carte **Présence au foyer** (lecture seule : au foyer / sortie ce soir) ;
-- un **sélecteur de résidence** (12 / 36) — onglets de **couleur propre** (12 bleu, 36 rose) — pour filtrer les événements ;
+- un **sélecteur de résidence** — un onglet par **résidence**, dans sa **couleur** et son **ordre** réglés en administration — pour filtrer les événements. Une équipe (Corail) n'y figure pas : n'étant pas un lieu physique, elle n'accueille pas d'événement ;
 - une carte **Événements** : rappels compacts des événements à venir + événements du jour ;
 - une carte **Repas du jour** (lecture seule : déjeuner / dîner choisis).
 
@@ -116,7 +120,7 @@ Lorsqu'un événement le demande, l'habitante peut **confirmer ou non sa partici
 
 ### 4.8. Son profil
 
-Un écran **profil** récapitule les informations de l'habitante : nom, prénom, résidence, étage, chambre, date de naissance et statut (Résidente / Administratrice).
+Un écran **profil** récapitule les informations de l'habitante : nom, prénom, résidence, étage, chambre, date de naissance et les **groupes** auxquels elle appartient (« Staff 12 », « Intendance »…). L'ancienne ligne « Statut » (Résidente / Administratrice) a disparu : elle ne reflétait qu'un attribut technique, alors que les droits se règlent section par section.
 
 ---
 
@@ -130,9 +134,10 @@ Une **liste unique** rassemble les personnes et leurs chambres, classée **rési
 
 - Chaque ligne montre la **chambre**, son **occupante** (ou **Libre** / **Invitation envoyée**) et le **résumé de ses droits**.
 - **Inviter** une résidente sur une chambre libre (nouvelle personne par email, ou réactivation d'un **compte désactivé**). Si le compte réactivé avait des droits admin, on choisit de **repartir de zéro** ou de **garder ses anciens droits**.
-- **Régler les droits** d'une occupante (par section : Aucun / Lecture / Édition, ou Super-admin) via **« Droits »** — réservé au **super-admin**.
+- **Régler les droits** d'une occupante via **« Droits »** — réservé au **super-admin**. Un niveau par section, parmi **Masquée** (la section n'existe pas pour elle), **Habitante** (usage normal, ses propres données), **Admin · consulter** (voit les données de tout le foyer) et **Admin · gérer** (les modifie) ; ou **Super-admin**, qui a tout.
 - **Déplacer** une résidente vers une autre chambre, ou **Libérer / désactiver** son compte (historique conservé).
-- Deux panneaux repliables : **Comptes désactivés** (réactivables) et **Gérer les chambres & étages** (structure physique du foyer).
+- Deux panneaux repliables : **Gérer les blocs, chambres & étages** (la structure du foyer, réservée au **super-admin**) et, en fin d'écran, **Comptes désactivés** (réactivables).
+- Dans le panneau de structure : créer un **bloc** (résidence ou équipe) avec son nom, son contenu, sa couleur et son rang ; puis, dans une résidence, créer un **étage** — même vide — avant d'y ajouter des **chambres**. Un étage se renomme et se réordonne ; sa position commande le classement des personnes partout dans l'application.
 - **Supprimer** définitivement un compte reste possible (irréversible, réservé au **super-admin**).
 
 > Les **invitées** (comptes simplifiés pour les repas) ne sont plus gérées depuis un onglet dédié : on les invite directement à un repas depuis **Repas de la semaine**. Elles conservent l'inscription libre et n'occupent aucune chambre.
@@ -153,7 +158,7 @@ Les administratrices peuvent définir des **menus spéciaux** qui remplacent les
 
 - choix du **service** concerné (déjeuner / dîner) ;
 - liste d'options personnalisées, chacune pouvant être **ciblée** (résidences, étages, groupes) ou proposée à toutes, **active** ou **inactive** ;
-- chaque option spéciale est rattachée à une **résidence**.
+- chaque option spéciale est rattachée à une **résidence** — le lieu où le repas est servi, donc jamais une équipe.
 
 Les règles existantes sont listées, avec mise en évidence des **conflits** (quand deux règles se chevauchent, la plus récente l'emporte et l'autre est signalée comme inactive). Les règles peuvent être **modifiées** ou **supprimées**.
 
@@ -193,7 +198,7 @@ Les administratrices créent et gèrent les événements du calendrier. Pour cha
 - **une ou plusieurs dates** ;
 - **horaire** ;
 - **lieu(x)** : une ou plusieurs résidences ;
-- **visibilité ciblée** : par résidence (Corail inclus), par étage et/ou par chambre — la liste des personnes est celle des comptes actifs ;
+- **visibilité ciblée** : par bloc (équipes comprises), par étage et/ou par chambre — la liste des personnes est celle des comptes actifs ;
 - **demande de confirmation** de participation (oui / non) ;
 - **rappel** : nombre de jours avant l'événement où afficher un rappel.
 

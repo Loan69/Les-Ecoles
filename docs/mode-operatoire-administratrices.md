@@ -32,9 +32,9 @@ Les droits se règlent **section par section** de l'appli. Sur chaque section, u
 | 📖 Administratif | Infos pratiques |
 | 🏠 Accueil | *(aucune — toujours accessible)* |
 
-> La section **Comptes** n'a pas de page côté résidente : elle garde donc **3 niveaux** (Utilisateur / Lecture / Édition), sans « Aucun ».
+> La section **Comptes** n'a pas de page côté habitante : elle garde donc **3 niveaux** (Habitante / Admin · consulter / Admin · gérer), sans « Masquée ».
 >
-> Mettre une section à **« Aucun »** ne supprime rien : si la personne avait déjà des repas ou des absences enregistrés, ils **restent visibles et comptés** dans les vues d'intendance sur les périodes concernées. On peut revenir en arrière à tout moment.
+> Mettre une section à **« Masquée »** ne supprime rien : si la personne avait déjà des repas ou des absences enregistrés, ils **restent visibles et comptés** dans les vues d'intendance sur les périodes concernées. On peut revenir en arrière à tout moment.
 
 Les **5 sections** :
 
@@ -72,7 +72,7 @@ Panneau ⚙️ **Administration**. L'écran affiche **directement** la gestion d
 - **Invitation envoyée · email** → **relancer** (↻) ou **annuler** (✕).
 - **Occupée · Nom Prénom** → **« Droits »** (super-admin uniquement), **« Déplacer »** (⇄) et **« Libérer / désactiver »** (⤴).
 
-**Régler les droits** d'une occupante : bouton **« Droits »** → cocher **Super-admin** ou choisir, **par section** (Repas, Événements, Absences, Comptes, Infos pratiques), le niveau **Aucun / Lecture / Édition**. Réservé au **super-admin**. On ne peut pas régler **ses propres** droits (anti-blocage).
+**Régler les droits** d'une occupante : bouton **« Droits »** → cocher **Super-admin** ou choisir, **par section** (Repas, Événements, Absences, Comptes, Infos pratiques), le niveau **Masquée / Habitante / Admin · consulter / Admin · gérer**. Réservé au **super-admin**. On ne peut pas régler **ses propres** droits (anti-blocage).
 
 **Inviter une résidente** (sur une place **libre**) :
 1. Clique **« Inviter »**.
@@ -254,7 +254,7 @@ Cette section se lit à trois niveaux (voir §1) :
 | **Lecture** | En plus : le bouton **« Voir les inscrits »** sur les événements à confirmation (**qui** a répondu présent — une personne **désactivée depuis** son inscription y reste listée). |
 | **Édition** | En plus : **créer, modifier et supprimer** des événements. |
 
-> **« Voir les inscrits » dépend de la section Événements** (≥ Lecture) et non du simple fait d'être admin. Une administratrice qui n'a de droits que sur **Repas** n'y a donc pas accès : si elle en a besoin, passe-la à **Événements — Lecture**.
+> **« Voir les inscrits » dépend de la section Événements** (≥ Admin · consulter) et non du simple fait d'être admin. Une administratrice qui n'a de droits que sur **Repas** n'y a donc pas accès : si elle en a besoin, passe-la à **Événements — Admin · consulter**.
 >
 > Un **événement d'intendance** ne se marque plus « réservé au staff » : cible-le sur un **groupe** (ex. « Staff 12 »).
 
