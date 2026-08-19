@@ -35,7 +35,17 @@ async function validate(supabase: SupabaseClient, body: Body): Promise<string | 
   if (body.kind !== "chambre" && body.kind !== "poste") return "Type invalide (chambre ou poste).";
   if (body.kind !== r.kind)
     return r.kind === "poste" ? `Le bloc « ${r.label} » ne comporte que des postes.` : `Le bloc « ${r.label} » ne comporte que des chambres.`;
-  if (body.kind === "chambre" && !(body.etage ?? "").trim()) return "L'étage est requis pour une chambre.";
+  if (body.kind === "chambre") {
+    const etage = (body.etage ?? "").trim();
+    if (!etage) return "L'étage est requis pour une chambre.";
+    // L'étage doit exister dans la liste du bloc : on ne crée plus d'étage « par
+    // effet de bord » en le tapant à la main, sinon deux orthographes = deux étages.
+    // Tolérant : tant que supabase/etages-dynamiques.sql n'est pas passé, on accepte
+    // la saisie libre d'avant.
+    const { data: etages, error: eErr } = await supabase.from("etages").select("value").eq("residence", body.residence);
+    if (!eErr && !(etages ?? []).some((e) => e.value === etage))
+      return "Cet étage n'existe pas dans ce bloc. Créez-le d'abord depuis « Gérer les blocs, chambres & étages ».";
+  }
   if (!(body.name ?? "").trim()) return body.kind === "poste" ? "Le nom du poste est requis." : "Le nom de la chambre est requis.";
   return null;
 }

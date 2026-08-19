@@ -22,16 +22,29 @@ export const SECTION_LABEL: Record<Section, string> = {
 // déjà attribués gardent leur sens, aucune donnée à migrer.
 export const NIV = { AUCUN: 0, UTILISATEUR: 1, LECTURE: 2, EDITION: 3 } as const;
 export type NiveauSection = 0 | 1 | 2 | 3;
+// Les deux niveaux d'intendance le disent : sans cela l'échelle se lit mal — « Utilisateur »
+// semblait donner PLUS de droits que « Lecture », alors qu'il désigne l'usage ordinaire
+// d'une habitante sur ses propres données, et « Lecture » l'accès à celles de tout le foyer.
 export const NIVEAU_LABEL: Record<NiveauSection, string> = {
-  0: "Aucun (page masquée)",
-  1: "Utilisateur",
-  2: "Lecture",
-  3: "Édition",
+  0: "Masquée",
+  1: "Habitante",
+  2: "Intendance · consulter",
+  3: "Intendance · gérer",
+};
+
+// Une ligne sous chaque niveau, dans le panneau « Droits » : ce que le mot recouvre,
+// indépendamment de la section.
+export const NIVEAU_AIDE: Record<NiveauSection, string> = {
+  0: "la section n'apparaît pas du tout",
+  1: "usage normal : ses propres données",
+  2: "voit les données de tout le foyer",
+  3: "modifie les données de tout le foyer",
 };
 export const NIVEAUX_SECTION: NiveauSection[] = [0, 1, 2, 3];
 
-// « Comptes » n'a pas de page côté résidente (le ⚙️ Administration est déjà masqué
-// en dessous de Lecture) : « Aucun » y serait indiscernable d'« Utilisateur », on ne le propose pas.
+// « Comptes » n'a pas de page côté habitante (le ⚙️ Administration est déjà masqué
+// en dessous de « Intendance · consulter ») : « Masquée » y serait indiscernable
+// d'« Habitante », on ne le propose pas.
 export function niveauxPourSection(s: Section): NiveauSection[] {
   return s === "comptes" ? [1, 2, 3] : NIVEAUX_SECTION;
 }
@@ -39,11 +52,11 @@ export function niveauxPourSection(s: Section): NiveauSection[] {
 // Ce que chaque niveau donne concrètement, section par section.
 // Affiché sous le sélecteur du panneau « Droits ». Voir R-NIV-10 / R-NIV-11.
 export const SECTION_AIDE: Record<Section, string> = {
-  repas: "Aucun = onglet Repas masqué, retirée des listes de l'intendance · Utilisateur = s'inscrire à ses repas · Lecture = voir les inscriptions et la compta · Édition = paramétrer les repas et corriger les inscriptions",
-  evenements: "Aucun = onglet Calendrier masqué, aucun événement ni rappel · Utilisateur = voir les événements et les rappels · Lecture = voir en plus les inscrits et les événements réservés au staff · Édition = créer et modifier les événements",
-  absences: "Aucun = onglet Présence foyer masqué, retirée des listes de présence · Utilisateur = déclarer ses propres absences · Lecture = voir les présences de tout le foyer · Édition = marquer les absences des autres",
-  comptes: "Utilisateur = voir son profil · Lecture = voir les comptes et les chambres · Édition = inviter, déplacer et archiver",
-  infos: "Aucun = onglet Administratif masqué · Utilisateur = lire les rubriques · Lecture = idem · Édition = créer et modifier les rubriques",
+  repas: "Masquée = onglet Repas caché, retirée des listes de l'intendance · Habitante = s'inscrire à ses repas · Intendance consulter = voir les inscriptions et la compta · Intendance gérer = paramétrer les repas et corriger les inscriptions",
+  evenements: "Masquée = onglet Calendrier caché, aucun événement ni rappel · Habitante = voir les événements et les rappels · Intendance consulter = voir en plus les inscrits et les événements ciblés sur l'intendance · Intendance gérer = créer et modifier les événements",
+  absences: "Masquée = onglet Présence foyer caché, retirée des listes de présence · Habitante = déclarer ses propres absences · Intendance consulter = voir les présences de tout le foyer · Intendance gérer = marquer les absences des autres",
+  comptes: "Habitante = voir son profil · Intendance consulter = voir les comptes et les chambres · Intendance gérer = inviter, déplacer et archiver",
+  infos: "Masquée = onglet Administratif caché · Habitante = lire les rubriques · Intendance consulter = idem · Intendance gérer = créer et modifier les rubriques",
 };
 
 export function asNiveauSection(n: number | null | undefined): NiveauSection {

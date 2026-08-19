@@ -1,8 +1,8 @@
 "use client";
 
 import { ReactNode } from "react";
-import { PersonneDetail, formatChambre, formatEtage, sortAdminPeople } from "@/lib/adminPeople";
-import { labelResidenceDefaut } from "@/lib/residences";
+import { PersonneDetail, formatChambre, sortAdminPeople } from "@/lib/adminPeople";
+import { useResidences } from "@/lib/useResidences";
 
 export interface DetailColumn {
   key: string;
@@ -20,6 +20,8 @@ interface DetailTableProps<T extends PersonneDetail> {
 // 1re colonne figée. Regroupement par résidence (titre) puis par étage (sous-titre),
 // les invitées formant un bloc « Invitées » en fin de chaque résidence.
 export default function DetailTable<T extends PersonneDetail>({ people, columns, renderCell }: DetailTableProps<T>) {
+  // Noms des blocs et des étages tels que réglés en Administration.
+  const { label: labelBloc, labelEtage } = useResidences();
   const sorted = sortAdminPeople(people);
   const span = columns.length + 1;
 
@@ -37,7 +39,7 @@ export default function DetailTable<T extends PersonneDetail>({ people, columns,
             colSpan={span}
             className="sticky left-0 bg-blue-100 border border-gray-200 p-1.5 text-left text-xs font-bold uppercase tracking-wide text-blue-900"
           >
-            {p.residence ? labelResidenceDefaut(p.residence) : "Sans bloc"}
+            {p.residence ? labelBloc(p.residence) : "Sans bloc"}
           </th>
         </tr>
       );
@@ -45,7 +47,7 @@ export default function DetailTable<T extends PersonneDetail>({ people, columns,
 
     // Pas d'étage (poste d'intendance, par exemple) : aucun sous-titre — un « Étage ? »
     // n'aurait aucun sens là où la notion d'étage n'existe pas.
-    const section = p.isInvite ? "Invitées" : formatEtage(p.etage);
+    const section = p.isInvite ? "Invitées" : labelEtage(p.etage);
     if (!section) prevSection = undefined;
     if (section && section !== prevSection) {
       prevSection = section;

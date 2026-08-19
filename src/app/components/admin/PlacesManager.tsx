@@ -5,11 +5,13 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Power, DoorClosed, Briefcase, UserCheck, Mail, Save, RefreshCw, X, ArrowLeftRight, LogOut, SlidersHorizontal, ShieldCheck, ChevronDown, Archive, Settings, Building2, ArrowUp, ArrowDown } from "lucide-react";
 import { PlaceWithStatus, PlaceKind } from "@/types/Place";
 import { formatEtage, formatChambre } from "@/lib/adminPeople";
-import { SECTIONS, SECTION_LABEL, SECTION_AIDE, NIVEAU_LABEL, NIV, niveauxPourSection, asNiveauSection, hasAnyAdmin, type Rights, type Section } from "@/lib/roles";
+import { SECTIONS, SECTION_LABEL, SECTION_AIDE, NIVEAU_LABEL, NIVEAU_AIDE, NIV, niveauxPourSection, asNiveauSection, hasAnyAdmin, type Rights, type Section } from "@/lib/roles";
 import { COULEURS_RESIDENCE, COULEUR_LABEL, labelResidenceDefaut, themeResidence } from "@/lib/residences";
 import type { CouleurResidence, Residence } from "@/types/Residence";
+import type { EtageWithCount } from "@/types/Etage";
 import { PlacesSkeleton } from "../Skeleton";
 import { useMyRights } from "@/lib/useMyRights";
+import { useResidences } from "@/lib/useResidences";
 import { useResidencesContext } from "@/app/providers";
 import GroupesPanel from "./GroupesPanel";
 import GroupeBadge from "../GroupeBadge";
@@ -33,6 +35,10 @@ const EMPTY_FORM: Form = { open: false, editingId: null, residence: "", kind: "c
 // Modale d'ajout / renommage d'un bloc.
 type BlocForm = { open: boolean; editing: Bloc | null; label: string; kind: PlaceKind; couleur: CouleurResidence };
 const EMPTY_BLOC_FORM: BlocForm = { open: false, editing: null, label: "", kind: "chambre", couleur: "blue" };
+
+// Modale d'ajout / renommage d'un étage.
+type EtageForm = { open: boolean; editing: EtageWithCount | null; residence: string; label: string };
+const EMPTY_ETAGE_FORM: EtageForm = { open: false, editing: null, residence: "", label: "" };
 
 type ArchivedAccount = { user_id: string; nom: string; prenom: string; email: string; rights: Rights };
 type UserRights = { rights: Rights; source_pk: string; name: string; email: string | null };
@@ -95,6 +101,9 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
   const [blocs, setBlocs] = useState<Bloc[]>([]);
   const [blocForm, setBlocForm] = useState<BlocForm>(EMPTY_BLOC_FORM);
   const [savingBloc, setSavingBloc] = useState(false);
+  const [etages, setEtages] = useState<EtageWithCount[]>([]);
+  const [etageForm, setEtageForm] = useState<EtageForm>(EMPTY_ETAGE_FORM);
+  const [savingEtage, setSavingEtage] = useState(false);
   const [places, setPlaces] = useState<PlaceWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<Form>(EMPTY_FORM);
@@ -114,17 +123,21 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
   const [groupes, setGroupes] = useState<Groupe[]>([]);
 
   const load = useCallback(async () => {
-    const [placesRes, archivedRes, usersRes, groupesRes, blocsRes] = await Promise.all([
+    const [placesRes, archivedRes, usersRes, groupesRes, blocsRes, etagesRes] = await Promise.all([
       fetch("/api/admin/places"),
       fetch("/api/admin/residentes"),
       fetch("/api/admin/users"),
       fetch("/api/admin/groupes"),
       fetch("/api/admin/residences"),
+      fetch("/api/admin/etages"),
     ]);
     const j = await placesRes.json();
     if (placesRes.ok) setPlaces(j.places ?? []);
     else toast.error(j.error || "Erreur de chargement.");
     if (blocsRes.ok) setBlocs(((await blocsRes.json()).residences ?? []) as Bloc[]);
+    // Tolérant : tant que supabase/etages-dynamiques.sql n'est pas passé, la liste est
+    // vide et le formulaire de chambre retombe sur la saisie libre d'avant.
+    if (etagesRes.ok) setEtages(((await etagesRes.json()).etages ?? []) as EtageWithCount[]);
     if (archivedRes.ok) setArchived((await archivedRes.json()).archived ?? []);
     if (usersRes.ok) {
       const uj = await usersRes.json();
@@ -231,8 +244,68 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
     });
   };
 
-  const openCreate = (residence: string, kind: PlaceKind) =>
-    setForm({ ...EMPTY_FORM, open: true, residence, kind });
+  // --- Étages d'un bloc « résidence » --------------------------------------
+  // Un étage se déclare AVANT d'y ranger des chambres : c'est ce qui permet de
+  // dessiner la structure d'un foyer encore vide.
+  const etagesDe = useCallback((residence: string) => etages.filter((e) => e.residence === residence), [etages]);
+
+  const saveEtage = async () => {
+    if (!etageForm.label.trim()) {
+      toast.error("Le nom de l'étage est requis.");
+      return;
+    }
+    setSavingEtage(true);
+    const res = await fetch("/api/admin/etages", {
+      method: etageForm.editing ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        etageForm.editing ? { id: etageForm.editing.id, label: etageForm.label } : { residence: etageForm.residence, label: etageForm.label }
+      ),
+    });
+    const j = await res.json();
+    setSavingEtage(false);
+    if (!res.ok) return toast.error(j.error || "Erreur.");
+    toast.success(etageForm.editing ? "Étage modifié." : "Étage ajouté.");
+    setEtageForm(EMPTY_ETAGE_FORM);
+    await load();
+  };
+
+  // Échange l'ordre de deux étages voisins du même bloc.
+  const moveEtage = async (e: EtageWithCount, sens: -1 | 1) => {
+    const ordonnes = etagesDe(e.residence);
+    const i = ordonnes.findIndex((x) => x.id === e.id);
+    const voisin = ordonnes[i + sens];
+    if (!voisin) return;
+    await Promise.all([
+      fetch("/api/admin/etages", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: e.id, ordre: voisin.ordre }) }),
+      fetch("/api/admin/etages", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: voisin.id, ordre: e.ordre }) }),
+    ]);
+    await load();
+  };
+
+  const removeEtage = (e: EtageWithCount) => {
+    toast(`Supprimer l'étage « ${e.label} » ?`, {
+      description: "Possible seulement s'il ne contient plus aucune chambre.",
+      action: {
+        label: "Supprimer",
+        onClick: async () => {
+          const res = await fetch("/api/admin/etages", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: e.id }),
+          });
+          const j = await res.json();
+          if (!res.ok) return toast.error(j.error || "Erreur.");
+          toast.success("Étage supprimé.");
+          await load();
+        },
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
+    });
+  };
+
+  const openCreate = (residence: string, kind: PlaceKind, etage = "") =>
+    setForm({ ...EMPTY_FORM, open: true, residence, kind, etage });
 
   const openEdit = (p: PlaceWithStatus) =>
     setForm({ open: true, editingId: p.id, residence: p.residence, kind: p.kind, etage: etageNumber(p.etage), name: placeName(p) });
@@ -612,8 +685,10 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
                   </button>
                 </div>
                 <p className="text-xs text-gray-400 mb-3">
-                  Un bloc, c&apos;est une résidence ou un ensemble de postes (Corail). Chaque bloc a son propre encadré partout dans l&apos;application :
-                  comptabilité des repas, présences au foyer, organisation des services, ciblage des événements, intercalaires de l&apos;accueil.
+                  Un bloc, c&apos;est une <b>résidence</b> (des chambres réparties par étage) ou un <b>ensemble de postes</b> (une intendance).
+                  Tout bloc a son encadré dans la <b>comptabilité des repas</b>, les <b>présences au foyer</b> et le <b>ciblage des événements</b>.
+                  Seule une <b>résidence</b>, lieu physique, apparaît en plus dans l&apos;<b>organisation des services</b>, les <b>options de repas</b>
+                  et les <b>intercalaires de l&apos;accueil</b>.
                 </p>
                 <div className="grid gap-2">
                   {[...blocs].sort((a, b) => a.ordre - b.ordre).map((b, i, arr) => (
@@ -647,28 +722,109 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
                 </div>
               </div>
 
-              {/* --- Les places de chaque bloc --- */}
-              <p className="text-xs text-gray-400">Structure physique du foyer : créez, modifiez, désactivez ou supprimez les chambres et postes. Les chambres désactivées n&apos;apparaissent pas dans la liste des utilisatrices.</p>
+              {/* --- Les places de chaque bloc, rangées par étage --- */}
+              <p className="text-xs text-gray-400">Structure physique du foyer. Dans une résidence, on déclare d&apos;abord un <b>étage</b>, puis on y ajoute des chambres. Une chambre désactivée n&apos;apparaît plus dans la liste des utilisatrices.</p>
               {blocsAffiches.map((r) => {
                 const rPlaces = places.filter((p) => p.residence === r.value);
+                const rEtages = etagesDe(r.value);
+                // Chambres dont l'étage n'est pas (ou plus) déclaré : rangées à part plutôt
+                // que masquées, pour qu'on puisse les rattacher.
+                const valeursEtages = new Set(rEtages.map((e) => e.value));
+                // Aucun étage déclaré alors que des chambres en portent un : c'est l'état
+                // d'AVANT supabase/etages-dynamiques.sql. On retombe alors sur le regroupement
+                // d'origine plutôt que de présenter toutes les chambres comme « non déclarées ».
+                const avantMigration = rEtages.length === 0 && rPlaces.some((p) => !!p.etage);
+                const orphelines = r.kind === "poste" || avantMigration ? [] : rPlaces.filter((p) => !p.etage || !valeursEtages.has(p.etage));
                 return (
                   <div key={r.value}>
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-3 gap-2">
                       <h3 className="text-sm font-bold text-blue-800 flex items-center gap-2 min-w-0">
                         {r.kind === "poste" ? <Briefcase className="w-4 h-4 text-amber-600 shrink-0" /> : <DoorClosed className="w-4 h-4 text-blue-600 shrink-0" />}
                         <span className="truncate">{r.label}</span>
                         <span className="text-xs font-normal text-gray-400 shrink-0">· {rPlaces.length}</span>
                       </h3>
-                      {r.is_active && (
+                      {r.is_active && (r.kind === "poste" ? (
                         <button onClick={() => openCreate(r.value, r.kind)} className="shrink-0 flex items-center gap-1 bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-800 cursor-pointer whitespace-nowrap">
-                          <Plus className="w-4 h-4" /> Ajouter
+                          <Plus className="w-4 h-4" /> Ajouter un poste
                         </button>
-                      )}
+                      ) : (
+                        <button onClick={() => setEtageForm({ ...EMPTY_ETAGE_FORM, open: true, residence: r.value })} className="shrink-0 flex items-center gap-1 bg-gray-800 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-black cursor-pointer whitespace-nowrap">
+                          <Plus className="w-4 h-4" /> Ajouter un étage
+                        </button>
+                      ))}
                     </div>
-                    {rPlaces.length === 0 ? (
-                      <p className="text-sm text-gray-400 italic">Aucune {r.kind === "poste" ? "place" : "chambre"} pour le moment.</p>
+
+                    {r.kind === "poste" ? (
+                      rPlaces.length === 0 ? (
+                        <p className="text-sm text-gray-400 italic">Aucun poste pour le moment.</p>
+                      ) : (
+                        <PlaceGroups mode="structure" places={rPlaces} isPoste {...rowActions} />
+                      )
                     ) : (
-                      <PlaceGroups mode="structure" places={rPlaces} isPoste={r.kind === "poste"} {...rowActions} />
+                      <div className="space-y-3">
+                        {avantMigration && (
+                          <>
+                            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                              Étages pas encore déclarés en base — exécutez <b>supabase/etages-dynamiques.sql</b> pour pouvoir les gérer ici.
+                            </p>
+                            <PlaceGroups mode="structure" places={rPlaces} isPoste={false} {...rowActions} />
+                          </>
+                        )}
+                        {!avantMigration && rEtages.length === 0 && orphelines.length === 0 && (
+                          <p className="text-sm text-gray-400 italic">Aucun étage pour le moment — commencez par en ajouter un.</p>
+                        )}
+                        {rEtages.map((e, i, arr) => {
+                          const ePlaces = rPlaces.filter((p) => p.etage === e.value);
+                          return (
+                            <div key={e.id} className="rounded-xl border border-gray-100 p-3">
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <p className="text-xs font-bold uppercase tracking-wide text-gray-500 truncate">
+                                  {e.label} <span className="font-normal text-gray-400 normal-case">· {ePlaces.length} chambre{ePlaces.length > 1 ? "s" : ""}</span>
+                                </p>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button onClick={() => moveEtage(e, -1)} disabled={i === 0} className="p-1.5 rounded-full text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default cursor-pointer" title="Monter">
+                                    <ArrowUp className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => moveEtage(e, 1)} disabled={i === arr.length - 1} className="p-1.5 rounded-full text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default cursor-pointer" title="Descendre">
+                                    <ArrowDown className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => setEtageForm({ open: true, editing: e, residence: e.residence, label: e.label })} className="p-1.5 rounded-full text-gray-500 hover:bg-gray-100 cursor-pointer" title="Renommer l&apos;étage">
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => removeEtage(e)} className="p-1.5 rounded-full text-red-600 hover:bg-red-50 cursor-pointer" title="Supprimer l&apos;étage">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                  <button onClick={() => openCreate(r.value, "chambre", e.value)} className="ml-1 flex items-center gap-1 bg-blue-600 text-white rounded-lg px-2.5 py-1 text-xs font-medium hover:bg-blue-800 cursor-pointer whitespace-nowrap">
+                                    <Plus className="w-3.5 h-3.5" /> Chambre
+                                  </button>
+                                </div>
+                              </div>
+                              {ePlaces.length === 0 ? (
+                                <p className="text-xs text-gray-400 italic">Étage vide — ajoutez-y une chambre.</p>
+                              ) : (
+                                <div className="grid gap-2">
+                                  {ePlaces.map((p) => (
+                                    <PlaceRow key={p.id} p={p} mode="structure" {...rowActions} />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {orphelines.length > 0 && (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3">
+                            <p className="text-xs font-bold uppercase tracking-wide text-amber-700 mb-2">
+                              Étage non déclaré <span className="font-normal normal-case text-amber-600">· {orphelines.length} — à rattacher à un étage</span>
+                            </p>
+                            <div className="grid gap-2">
+                              {orphelines.map((p) => (
+                                <PlaceRow key={p.id} p={p} mode="structure" {...rowActions} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 );
@@ -679,7 +835,8 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
       )}
 
       {blocForm.open && <BlocModal form={blocForm} setForm={setBlocForm} onSave={saveBloc} saving={savingBloc} />}
-      {form.open && <PlaceModal form={form} blocs={blocsAffiches} setForm={setForm} onSave={save} saving={saving} />}
+      {etageForm.open && <EtageModal form={etageForm} blocs={blocsAffiches} setForm={setEtageForm} onSave={saveEtage} saving={savingEtage} />}
+      {form.open && <PlaceModal form={form} blocs={blocsAffiches} etages={etages} setForm={setForm} onSave={save} saving={saving} />}
       {inviteFor && (
         <InviteModal
           place={inviteFor}
@@ -741,18 +898,19 @@ type RowActions = {
 
 // --- Groupement par étage (chambres) ou liste plate (postes) ---
 function PlaceGroups({ places, isPoste, mode, ...actions }: { places: PlaceWithStatus[]; isPoste: boolean; mode: "people" | "structure" } & RowActions) {
+  const { labelEtage } = useResidences();
   const groups = useMemo(() => {
     if (isPoste) return [{ label: null as string | null, items: places }];
     // Clé = étage normalisé (« Étage 4 ») → fusionne r12_etage4, etage_4, 4…
     const byEtage = new Map<string, PlaceWithStatus[]>();
     for (const p of places) {
       // Sans étage renseigné, pas d'intertitre inventé : la clé vide regroupe ces places.
-      const key = formatEtage(p.etage) ?? "";
+      const key = labelEtage(p.etage) ?? "";
       if (!byEtage.has(key)) byEtage.set(key, []);
       byEtage.get(key)!.push(p);
     }
     return [...byEtage.entries()].sort((a, b) => a[0].localeCompare(b[0], "fr", { numeric: true })).map(([label, items]) => ({ label: label || null, items }));
-  }, [places, isPoste]);
+  }, [places, isPoste, labelEtage]);
 
   return (
     <div className="space-y-4">
@@ -1059,8 +1217,18 @@ function BlocModal({ form, setForm, onSave, saving }: { form: BlocForm; setForm:
           <Building2 className="w-5 h-5" /> {form.editing ? "Modifier le bloc" : "Ajouter un bloc"}
         </h3>
         <p className="text-xs text-gray-400 mb-4">
-          Le bloc apparaîtra avec son propre encadré dans la comptabilité des repas, les présences, l&apos;organisation des services,
-          le ciblage des événements et les intercalaires de l&apos;accueil.
+          {form.kind === "poste" ? (
+            <>
+              Le bloc apparaîtra avec son propre encadré dans la <b>comptabilité des repas</b>, les <b>présences au foyer</b> et le{" "}
+              <b>ciblage des événements</b>. N&apos;étant pas un lieu physique, il n&apos;aura <b>pas d&apos;intercalaire sur l&apos;accueil</b>,
+              pas d&apos;encadré dans l&apos;organisation des services et ne pourra pas porter d&apos;option de repas.
+            </>
+          ) : (
+            <>
+              Le bloc apparaîtra avec son propre encadré dans la <b>comptabilité des repas</b>, les <b>présences au foyer</b>,
+              l&apos;<b>organisation des services</b>, le <b>ciblage des événements</b> et les <b>intercalaires de l&apos;accueil</b>.
+            </>
+          )}
         </p>
         <div className="space-y-4">
           <div>
@@ -1083,7 +1251,7 @@ function BlocModal({ form, setForm, onSave, saving }: { form: BlocForm; setForm:
               className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none disabled:bg-gray-100 cursor-pointer"
             >
               <option value="chambre">Des chambres, réparties par étage (une résidence)</option>
-              <option value="poste">Des postes, sans étage (une intendance, comme Corail)</option>
+              <option value="poste">Des postes, sans étage (une intendance)</option>
             </select>
             {typeFige && <p className="text-xs text-gray-400 mt-1">Ce bloc contient déjà {form.editing!.nb_places} place(s) : son contenu ne peut plus changer.</p>}
           </div>
@@ -1113,9 +1281,46 @@ function BlocModal({ form, setForm, onSave, saving }: { form: BlocForm; setForm:
   );
 }
 
+// --- Modale création / renommage d'un étage ---
+// Le renommage ne touche que le libellé : la clé technique de l'étage reste la même,
+// sinon les chambres et les ciblages d'événements déjà enregistrés la perdraient.
+function EtageModal({ form, blocs, setForm, onSave, saving }: { form: EtageForm; blocs: { value: string; label: string }[]; setForm: (f: EtageForm) => void; onSave: () => void; saving: boolean }) {
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <h3 className="text-lg font-semibold text-blue-800 mb-1">
+          {form.editing ? "Renommer l'étage" : "Ajouter un étage"} — {blocs.find((b) => b.value === form.residence)?.label ?? labelResidenceDefaut(form.residence)}
+        </h3>
+        <p className="text-xs text-gray-400 mb-4">
+          Un étage peut exister <b>sans aucune chambre</b> : on dessine d&apos;abord la structure, on la remplit ensuite.
+        </p>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l&apos;étage</label>
+        <input
+          autoFocus
+          value={form.label}
+          onChange={(e) => setForm({ ...form, label: e.target.value })}
+          onKeyDown={(e) => e.key === "Enter" && !saving && onSave()}
+          placeholder="Ex : Étage 3, Rez-de-chaussée…"
+          className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none"
+        />
+        {form.editing && form.editing.nb_places > 0 && (
+          <p className="text-xs text-gray-400 mt-1">{form.editing.nb_places} chambre(s) y sont rangées : elles suivent le nouveau nom.</p>
+        )}
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={() => setForm({ ...form, open: false })} className="px-4 py-2 rounded-lg border border-gray-400 text-gray-600 hover:bg-gray-100 cursor-pointer">Annuler</button>
+          <button onClick={onSave} disabled={saving} className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-800 disabled:opacity-50 cursor-pointer">
+            <Save className="w-4 h-4" /> {saving ? "Enregistrement…" : "Enregistrer"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Modale création / édition d'une place ---
-function PlaceModal({ form, blocs, setForm, onSave, saving }: { form: Form; blocs: { value: string; label: string }[]; setForm: (f: Form) => void; onSave: () => void; saving: boolean }) {
+function PlaceModal({ form, blocs, etages, setForm, onSave, saving }: { form: Form; blocs: { value: string; label: string }[]; etages: EtageWithCount[]; setForm: (f: Form) => void; onSave: () => void; saving: boolean }) {
   const isPoste = form.kind === "poste";
+  const etagesDuBloc = etages.filter((e) => e.residence === form.residence);
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
@@ -1126,12 +1331,24 @@ function PlaceModal({ form, blocs, setForm, onSave, saving }: { form: Form; bloc
           {!isPoste && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Étage</label>
-              <input
-                value={form.etage}
-                onChange={(e) => setForm({ ...form, etage: e.target.value })}
-                placeholder="Ex : 2"
-                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none"
-              />
+              {/* On choisit parmi les étages déclarés du bloc : plus de saisie libre, qui
+                  créait un nouvel étage à la moindre variation d'orthographe. */}
+              {etagesDuBloc.length === 0 ? (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                  Ce bloc n&apos;a encore aucun étage. Fermez cette fenêtre et cliquez sur « Ajouter un étage ».
+                </p>
+              ) : (
+                <select
+                  value={form.etage}
+                  onChange={(e) => setForm({ ...form, etage: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none cursor-pointer"
+                >
+                  <option value="">— Choisir un étage —</option>
+                  {etagesDuBloc.map((e) => (
+                    <option key={e.id} value={e.value}>{e.label}</option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
           <div>
@@ -1192,8 +1409,12 @@ function RightsPanel({ user, onClose, onSave }: { user: { userId: string; name: 
                   ))}
                 </select>
               </div>
-              {/* « Aucun » ne retire jamais la vue de résidente : on l'explicite ici. */}
-              <p className="text-[11px] leading-snug text-gray-400 mt-0.5">{SECTION_AIDE[s]}</p>
+              {/* Deux aides : ce que vaut le niveau CHOISI, puis le détail des quatre pour
+                  cette section. « Masquée » ne retire jamais la vue d'habitante ailleurs. */}
+              <p className="text-[11px] leading-snug text-blue-700 mt-0.5">
+                {NIVEAU_AIDE[draft.is_super_admin ? 3 : asNiveauSection(draft[s])]}
+              </p>
+              <p className="text-[11px] leading-snug text-gray-400">{SECTION_AIDE[s]}</p>
             </div>
           ))}
         </div>

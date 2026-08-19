@@ -44,7 +44,7 @@ export default function AdminRepasPage() {
   //   l'on sert un repas : il n'y a rien à y préparer, donc pas d'encadré.
   // - COMPTABILITÉ : le bloc de rattachement de **chaque personne**, Corail compris —
   //   sinon les comptes qui y sont rattachés disparaîtraient du décompte (voir blocsCompta).
-  const { residences } = useResidences();
+  const { residences, labelEtage } = useResidences();
   const blocsLieux = useMemo(() => residences.filter((r) => r.kind === "chambre"), [residences]);
   const [allPeople, setAllPeople] = useState<PersonneAdmin[]>([]);
   const [presences, setPresences] = useState<Presence[]>([]);
@@ -596,7 +596,7 @@ export default function AdminRepasPage() {
                       let last: string | null = null;
                       rows.forEach((row) => {
                         // Bloc de postes (intendance) : aucun étage, donc aucun intertitre.
-                        const et = formatEtage(row.person.etage);
+                        const et = labelEtage(row.person.etage);
                         if (!et) last = null;
                         else if (et !== last) { items.push({ header: et }); last = et; }
                         items.push({ row });

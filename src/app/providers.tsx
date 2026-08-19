@@ -6,6 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { rightsFromRow, RIGHTS_COLUMNS, EMPTY_RIGHTS, type Rights } from '@/lib/roles';
 import { toResidences } from '@/lib/residences';
 import type { Residence } from '@/types/Residence';
+import type { Etage } from '@/types/Etage';
 
 type SupabaseContextType = {
   supabase: SupabaseClient;
@@ -18,6 +19,9 @@ const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined
 // liste est minuscule. Voir src/lib/residences.ts.
 type ResidencesContextType = {
   residences: Residence[]; // blocs actifs, dans l'ordre d'affichage
+  // Étages déclarés, tous blocs confondus : sert à afficher le NOM d'un étage
+  // (« Rez-de-chaussée ») là où la base ne stocke que sa clé (« 12_rez_de_chaussee »).
+  etages: Etage[];
   loading: boolean;
   reload: () => Promise<void>;
 };
@@ -51,13 +55,20 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [groupes, setGroupes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [residences, setResidences] = useState<Residence[]>([]);
+  const [etages, setEtages] = useState<Etage[]>([]);
   const [residencesLoading, setResidencesLoading] = useState(true);
 
   // `select("*")` et non la liste des colonnes : tant que supabase/blocs-dynamiques.sql
   // n'est pas passé, kind/ordre/couleur/is_active n'existent pas — toResidences les déduit.
   const reloadResidences = useCallback(async () => {
-    const { data } = await supabase.from('residences').select('*').order('value');
+    // Tolérant : tant que les SQL blocs/étages ne sont pas passés, ces lectures
+    // renvoient vide ou partiel et l'appli retombe sur ses valeurs déduites.
+    const [{ data }, { data: etagesData }] = await Promise.all([
+      supabase.from('residences').select('*').order('value'),
+      supabase.from('etages').select('*').order('ordre'),
+    ]);
     setResidences(toResidences(data as Record<string, unknown>[] | null).filter((r) => r.is_active));
+    setEtages((etagesData ?? []) as Etage[]);
     setResidencesLoading(false);
   }, [supabase]);
 
@@ -106,7 +117,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SupabaseContext.Provider value={{ supabase }}>
       <RightsContext.Provider value={{ rights, groupes, loading, reload }}>
-        <ResidencesContext.Provider value={{ residences, loading: residencesLoading, reload: reloadResidences }}>
+        <ResidencesContext.Provider value={{ residences, etages, loading: residencesLoading, reload: reloadResidences }}>
           {children}
         </ResidencesContext.Provider>
       </RightsContext.Provider>

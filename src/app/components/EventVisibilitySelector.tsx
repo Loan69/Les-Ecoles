@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSupabase } from "../providers";
-import { sortAdminPeople, formatEtage, PersonneDetail } from "@/lib/adminPeople";
+import { sortAdminPeople, PersonneDetail } from "@/lib/adminPeople";
 import { useResidences } from "@/lib/useResidences";
 import type { Cible } from "@/lib/visibilite";
 
@@ -20,7 +20,7 @@ type Resid = { user_id: string; nom: string; prenom: string; residence: string; 
 export default function EventVisibilitySelector({ value, onChange, disabled = false }: Props) {
   const { supabase } = useSupabase();
   // Blocs du foyer : leur ordre et leur nom d'affichage viennent de l'Administration.
-  const { residences: blocs, label: labelBloc } = useResidences();
+  const { residences: blocs, etages: etagesDeclares, label: labelBloc, labelEtage } = useResidences();
 
   // Valeurs de bloc réellement représentées dans les places (source de vérité de la structure).
   const [residenceValues, setResidenceValues] = useState<string[]>([]);
@@ -60,12 +60,10 @@ export default function EventVisibilitySelector({ value, onChange, disabled = fa
           const key = `${residence}::${p.etage}`;
           if (!etageSeen.has(key)) {
             etageSeen.add(key);
-            etageOpts.push({ value: p.etage, label: formatEtage(p.etage) ?? p.etage, parent_value: residence });
+            etageOpts.push({ value: p.etage, label: p.etage, parent_value: residence });
           }
         }
       });
-      etageOpts.sort((a, b) => a.label.localeCompare(b.label, "fr", { numeric: true }));
-
       // Groupes : la composition ne se lit pas en direct (RLS), elle passe par l'API.
       // Tolérant : tant que supabase/groupes.sql n'est pas passé, on affiche simplement
       // le ciblage sans la partie groupes.
@@ -95,15 +93,25 @@ export default function EventVisibilitySelector({ value, onChange, disabled = fa
     return [...ordonnees, ...restantes];
   }, [blocs, residenceValues]);
 
+  // Étages groupés par bloc, dans l'ordre réglé en Administration (à défaut, alphabétique
+  // sur le nom affiché).
   const etagesByResidence = useMemo(() => {
+    const rang = new Map(etagesDeclares.map((e, i) => [`${e.residence}::${e.value}`, e.ordre * 1000 + i]));
     const map: Record<string, Opt[]> = {};
     etages.forEach((e) => {
       const parent = e.parent_value != null ? String(e.parent_value) : "";
       if (!map[parent]) map[parent] = [];
       map[parent].push(e);
     });
+    Object.entries(map).forEach(([parent, list]) =>
+      list.sort(
+        (a, b) =>
+          (rang.get(`${parent}::${a.value}`) ?? 1e9) - (rang.get(`${parent}::${b.value}`) ?? 1e9) ||
+          (labelEtage(a.value) ?? a.value).localeCompare(labelEtage(b.value) ?? b.value, "fr", { numeric: true })
+      )
+    );
     return map;
-  }, [etages]);
+  }, [etages, etagesDeclares, labelEtage]);
 
   // --- Initialisation depuis value (une seule fois, après chargement) ---
   useEffect(() => {
@@ -232,7 +240,7 @@ export default function EventVisibilitySelector({ value, onChange, disabled = fa
                   {ets.map((e) => (
                     <label key={e.value} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
                       <input type="checkbox" checked={checkedEtages.has(e.value)} onChange={() => toggleEtage(e.value)} className="w-4 h-4 accent-blue-600" />
-                      {e.label}
+                      {labelEtage(e.value) ?? e.value}
                     </label>
                   ))}
                 </div>
@@ -278,7 +286,7 @@ export default function EventVisibilitySelector({ value, onChange, disabled = fa
                     <input type="checkbox" checked={included} onChange={() => toggleResidente(r.id)} className="w-4 h-4 accent-blue-600" />
                     <span className={`text-sm ${included ? "text-gray-800" : "text-gray-400 line-through"}`}>{r.nom} {r.prenom}</span>
                   </span>
-                  <span className="text-[10px] text-gray-400">{formatEtage(r.etage) ?? ""}</span>
+                  <span className="text-[10px] text-gray-400">{labelEtage(r.etage) ?? ""}</span>
                 </label>
               );
             })}
