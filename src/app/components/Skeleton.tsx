@@ -7,6 +7,13 @@
 // Règle d'usage : la forme doit ressembler au contenu réel (mêmes hauteurs, mêmes
 // arrondis, même nombre approximatif de blocs). Un squelette qui ne ressemble à rien
 // est pire qu'un spinner.
+//
+// Règle mobile : les largeurs sont écrites « téléphone d'abord », les valeurs de
+// bureau étant rétablies en `sm:` / `md:`. Une largeur fixe (w-56, w-44…) posée sans
+// préfixe se retrouve écrasée sur un écran de 390 px : les blocs se collent les uns
+// aux autres et le squelette ne ressemble plus à rien. Les lignes qui, dans l'écran
+// réel, passent en colonne sur téléphone (`flex-col … sm:flex-row`) doivent faire
+// de même ici, sinon l'arrivée des données produit un saut de mise en page.
 
 export function Skeleton({ className = "" }: { className?: string }) {
   return <div aria-hidden className={`animate-pulse rounded bg-gray-200 ${className}`} />;
@@ -75,7 +82,7 @@ export function InfoSectionsSkeleton({ count = 3 }: { count?: number }) {
     <SkeletonScreen>
       <div className="max-w-2xl mx-auto space-y-5">
         <div className="flex items-center justify-between mb-6">
-          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-7 w-32 sm:w-40" />
           <div className="flex items-center gap-2">
             <Skeleton className="h-9 w-9 rounded-full" />
             <Skeleton className="h-9 w-9 rounded-full" />
@@ -156,26 +163,28 @@ export function AdminDaysSkeleton({
         <div className="max-w-5xl mx-auto">
           <TopBarSkeleton />
           {withNav && (
-            <div className="flex justify-center gap-2 mb-6">
-              <Skeleton className="h-9 w-28 rounded-full" />
-              <Skeleton className="h-9 w-28 rounded-full" />
-              <Skeleton className="h-9 w-28 rounded-full" />
+            <div className="flex flex-wrap justify-center gap-2 mb-6">
+              <Skeleton className="h-9 w-24 sm:w-28 rounded-full" />
+              <Skeleton className="h-9 w-24 sm:w-28 rounded-full" />
+              <Skeleton className="h-9 w-24 sm:w-28 rounded-full" />
             </div>
           )}
           <div className="flex flex-col items-center gap-2 mb-8">
-            <Skeleton className="h-8 w-72" />
-            <Skeleton className="h-4 w-96 max-w-full" />
+            <Skeleton className="h-8 w-56 sm:w-72" />
+            <Skeleton className="h-4 w-64 sm:w-96 max-w-full" />
           </div>
 
           {withLockCard && <Skeleton className="h-24 w-full rounded-2xl mb-8" />}
 
           {/* Plage de dates + actions */}
           <div className="flex flex-col md:flex-row items-center justify-center gap-3 mb-8">
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-6 w-6 rounded" />
-              <Skeleton className="h-8 w-36 rounded-lg" />
-              <Skeleton className="h-4 w-4" />
-              <Skeleton className="h-8 w-36 rounded-lg" />
+            {/* Les deux champs de date sont raccourcis sur téléphone : à 2 × 9 rem ils
+                se retrouvaient écrasés l'un contre l'autre, sans espace entre eux. */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Skeleton className="h-6 w-6 shrink-0 rounded" />
+              <Skeleton className="h-8 w-28 sm:w-36 rounded-lg" />
+              <Skeleton className="h-4 w-4 shrink-0" />
+              <Skeleton className="h-8 w-28 sm:w-36 rounded-lg" />
             </div>
             <Skeleton className="h-10 w-36 rounded-lg" />
           </div>
@@ -190,7 +199,7 @@ export function AdminDaysSkeleton({
           <div className="space-y-3">
             {Array.from({ length: days }).map((_, i) => (
               <div key={i} className="rounded-2xl border-2 border-gray-100 bg-white shadow-sm p-4">
-                <Skeleton className="h-4 w-56 mb-3" />
+                <Skeleton className="h-4 w-44 sm:w-56 mb-3" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[0, 1].map((j) => (
                     <div key={j} className="border border-gray-100 rounded-xl p-3">
@@ -217,17 +226,17 @@ export function RepasOptionsSkeleton({ options = 5, days = 3 }: { options?: numb
     <SkeletonScreen>
       <div className="space-y-12">
         <section>
-          <div className="flex items-center justify-between mb-4">
-            <Skeleton className="h-6 w-56" />
-            <Skeleton className="h-10 w-44 rounded-lg" />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+            <Skeleton className="h-6 w-48 sm:w-56" />
+            <Skeleton className="h-10 w-full sm:w-44 rounded-lg" />
           </div>
           <Skeleton className="h-3 w-full mb-2" />
           <Skeleton className="h-3 w-4/5 mb-4" />
           <ul className="space-y-2">
             {Array.from({ length: options }).map((_, i) => (
-              <li key={i} className="flex items-center justify-between border border-gray-200 bg-white rounded-xl px-4 py-3 shadow-sm">
-                <Skeleton className="h-4 w-48" />
-                <div className="flex items-center gap-2">
+              <li key={i} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border border-gray-200 bg-white rounded-xl px-4 py-3 shadow-sm">
+                <Skeleton className="h-4 w-40 sm:w-48" />
+                <div className="flex items-center gap-2 self-end sm:self-auto">
                   <Skeleton className="h-6 w-11 rounded-full" />
                   <Skeleton className="h-8 w-8 rounded-full" />
                   <Skeleton className="h-8 w-8 rounded-full" />
@@ -238,9 +247,9 @@ export function RepasOptionsSkeleton({ options = 5, days = 3 }: { options?: numb
         </section>
 
         <section>
-          <div className="flex items-center justify-between mb-4">
-            <Skeleton className="h-6 w-56" />
-            <Skeleton className="h-10 w-52 rounded-lg" />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+            <Skeleton className="h-6 w-48 sm:w-56" />
+            <Skeleton className="h-10 w-full sm:w-52 rounded-lg" />
           </div>
           <div className="flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 mb-4">
             <Skeleton className="h-9 w-9 rounded-xl" />
@@ -287,12 +296,12 @@ export function PlacesSkeleton({ sections = 2, rows = 4 }: { sections?: number; 
             </div>
             <div className="space-y-2">
               {Array.from({ length: rows }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between rounded-xl border border-gray-100 px-4 py-3">
+                <div key={i} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-gray-100 px-4 py-3">
                   <div className="min-w-0 space-y-2">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-3 w-52" />
+                    <Skeleton className="h-4 w-32 sm:w-40" />
+                    <Skeleton className="h-3 w-44 sm:w-52" />
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
                     <Skeleton className="h-8 w-8 rounded-full" />
                     <Skeleton className="h-8 w-8 rounded-full" />
                     <Skeleton className="h-8 w-8 rounded-full" />

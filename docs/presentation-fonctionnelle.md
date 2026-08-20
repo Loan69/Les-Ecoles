@@ -53,6 +53,7 @@ L'inscription se fait en deux temps :
 ### Connexion et mot de passe
 - Connexion par **email + mot de passe**.
 - Fonction **« mot de passe oublié »** avec réinitialisation par email.
+- La **session reste ouverte** d'une visite à l'autre : rouvrir l'appli (téléphone ou ordinateur) ramène **directement à l'accueil**, sans ressaisir le mot de passe. Seule la **déconnexion** ferme la session.
 
 ---
 

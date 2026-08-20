@@ -1,7 +1,7 @@
 # Mode opératoire — Résidentes & invitées
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour les **habitantes** (résidentes et invitées). À mettre à jour à chaque évolution de l'appli.
-> Version 1.8 — 2026-08-18.
+> Version 1.9 — 2026-08-20.
 
 Cette application sert à gérer, au quotidien, **ta présence au foyer la nuit** et **tes repas** (midi et soir), à consulter les **événements** du foyer et les **informations pratiques**. Elle est pensée pour le **téléphone** (mais marche aussi sur ordinateur).
 
@@ -24,6 +24,8 @@ Tu **ne t'inscris pas toi-même** : l'intendance t'ouvre une place et t'envoie u
 3. Valide : tu reçois un **email de confirmation**. Clique sur le lien, puis reconnecte-toi.
 
 > En cas d'oubli de mot de passe : sur l'écran de connexion, clique **« Mot de passe oublié »** et suis les instructions reçues par email.
+
+> **Tu restes connectée.** Une fois ton mot de passe saisi la première fois, tu n'as plus à le retaper : rouvrir l'appli te ramène directement à l'accueil. Tu ne reverras l'écran de connexion que si tu utilises le bouton **Déconnexion** (en haut à droite).
 
 ---
 

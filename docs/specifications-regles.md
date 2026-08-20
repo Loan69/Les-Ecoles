@@ -1,7 +1,7 @@
 # Les Écoles — Note de spécification (règles métier)
 
 > **Document vivant** — toute nouvelle règle, modification ou suppression de règle doit être reportée ici.
-> Dernière mise à jour : 19 août 2026 · Version 1.39
+> Dernière mise à jour : 20 août 2026 · Version 1.40
 
 ## Comment lire ce document
 
@@ -61,6 +61,7 @@ Cet identifiant ne change jamais : on peut donc s'y référer dans les discussio
 | **R-INSC-07** | À la création définitive, une résidente a toujours le statut admin **désactivé** par défaut. |
 | **R-INSC-08** | La connexion se fait par **email + mot de passe**. Une procédure de **réinitialisation du mot de passe** par email est disponible. |
 | **R-INSC-09** | Le type d'invitée peut être « Étudiante » ou « Autre ». |
+| **R-INSC-10** | *(Ajout 2026-08-20.)* La session **reste ouverte d'une visite à l'autre**, sur téléphone comme sur ordinateur. Rouvrir l'appli mène **directement à l'accueil** : le formulaire de connexion n'est présenté qu'à une personne réellement déconnectée. Seule la **déconnexion** (bouton en haut à droite) ferme la session. |
 
 ---
 
@@ -283,6 +284,7 @@ Liste vivante des points restant à trancher. À mettre à jour (déplacer en r�
 
 | Date | Version | Modification |
 |---|---|---|
+| 2026-08-20 | 1.40 | **[INSC] Fin des reconnexions permanentes.** La session était bien conservée, mais l'**adresse de lancement de l'appli** renvoyait systématiquement au formulaire de connexion : une utilisatrice déjà connectée devait ressaisir son mot de passe à chaque ouverture. L'adresse de lancement et l'écran de connexion mènent désormais **directement à l'accueil** quand la session est valide — ajout `R-INSC-10`. **[TECHNIQUE]** Les **squelettes de chargement** (silhouettes grises affichées le temps que les données arrivent) sont adaptés au **téléphone** : sur les écrans d'intendance (présences, repas, options de repas, comptes), leurs blocs se retrouvaient **collés les uns aux autres** faute de largeurs adaptées aux petits écrans. Affichage sur ordinateur **inchangé**. Aucune règle métier modifiée, aucun SQL. |
 | 2026-08-17 | 1.33 | **[VIS]** Retours d'usage sur les groupes. Chaque groupe reçoit une **couleur propre** (stable et identique sur tous les écrans) ; les groupes d'une personne s'affichent **à côté de son nom** dans l'écran Administration ; la composition d'un groupe se fait avec un **champ de recherche**. La **visibilité d'une rubrique** Administratif se règle **dès sa création**, en même temps que le titre et le type. L'onglet **Profil** remplace la ligne « Statut » (Administratrice / Résidente), qui ne reflétait qu'un attribut technique, par la liste des **groupes** de l'utilisatrice. Ajout `R-VIS-05`. Aucun SQL. |
 | 2026-08-17 | 1.32 | **[VIS][EVT][OPT][ROLE]** **Suppression des restrictions « réservé aux administratrices » et « réservé au staff »**, remplacées par le ciblage sur **groupes** (`R-VIS-01/02`). Disparaissent : la case *Réservée aux admins* d'une option de repas (et son badge « admin » dans le catalogue), la case *Réservé aux administratrices* d'une rubrique Administratif (et son badge 🔒), et le sélecteur *Événement réservé au staff* (aucun / staff 12 / staff 36 / tout le staff). Ces trois réglages reposaient sur un attribut « admin » global — *au moins la Lecture sur n'importe quelle section* —, plus permissif qu'il n'y paraissait. Ajout `R-VIS-04`, `R-EVT-07` **supprimée**, MàJ `R-ROLE-05`, `R-NIV-10`, `R-OPT-03/09`. ⚠️ **Un contenu sans ciblage est visible par toutes** : les contenus jusqu'ici réservés doivent être reciblés sur un groupe. SQL `supabase/retrait-admin-only.sql` (à passer **après** le déploiement du code). |
 | 2026-08-17 | 1.31 | **[VIS][EVT][OPT][ADM]** **Groupes de personnes.** L'intendance peut créer des groupes nommés (« Staff 12 », « Intendance ») depuis ⚙️ Administration → **Groupes**, y affecter des comptes, et s'en servir pour **cibler la visibilité** d'un **événement**, d'une **option de repas** ou d'une **rubrique Administratif** — ces trois contenus partagent désormais le **même sélecteur** (résidences / étages / groupes, moins les exclusions nominatives, combinés en **union**). Les rubriques de l'onglet Administratif, qui n'avaient qu'une case « réservé aux administratrices », reçoivent ce ciblage complet. Un groupe **ne donne aucun droit** : les droits restent réglés par section. Ajout section `[VIS]` (`R-VIS-01..04`), MàJ `R-EVT-06`, `R-OPT-03`. **Durcissement au passage** : le ciblage est désormais vérifié **côté serveur** — une rubrique hors périmètre n'est plus transmise au navigateur, et s'inscrire (ou inscrire un invité) à une option non proposée est refusé ; seule la case « réservé aux admins » l'était jusqu'ici. SQL `supabase/groupes.sql`. |
