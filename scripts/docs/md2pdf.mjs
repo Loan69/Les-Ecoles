@@ -15,36 +15,40 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { marked } from "marked";
+import { COULEURS, TAILLES, ESPACES, INTERLIGNE, PAGE, POLICES, FILETS, RETRAITS } from "./style-docs.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
+// La charte est partagée avec la version Word (style-docs.mjs) : on la traduit ici en CSS.
+const c = COULEURS;
 const CSS = `
-  @page { size: A4; margin: 18mm 16mm; }
-  body { font-family: "Helvetica Neue", -apple-system, system-ui, sans-serif;
-         font-size: 10.5pt; line-height: 1.55; color: #1f2937; }
-  h1 { font-size: 20pt; margin: 0 0 4pt; color: #1e3a8a; }
-  h2 { font-size: 14pt; margin: 20pt 0 6pt; padding-bottom: 3pt;
-       border-bottom: 1px solid #dbeafe; color: #1e40af; page-break-after: avoid; }
-  h3 { font-size: 11.5pt; margin: 14pt 0 4pt; color: #1e40af; page-break-after: avoid; }
-  h4 { font-size: 10.5pt; margin: 12pt 0 3pt; page-break-after: avoid; }
+  @page { size: A4; margin: ${PAGE.margeMm.vertical}mm ${PAGE.margeMm.horizontal}mm; }
+  body { font-family: ${POLICES.texteCss};
+         font-size: ${TAILLES.corps}pt; line-height: ${INTERLIGNE}; color: #${c.texte}; }
+  h1 { font-size: ${TAILLES.h1}pt; margin: ${ESPACES.h1[0]}pt 0 ${ESPACES.h1[1]}pt; color: #${c.titre1}; }
+  h2 { font-size: ${TAILLES.h2}pt; margin: ${ESPACES.h2[0]}pt 0 ${ESPACES.h2[1]}pt; padding-bottom: 3pt;
+       border-bottom: ${FILETS.fin}pt solid #${c.filetTitre2}; color: #${c.titre2}; page-break-after: avoid; }
+  h3 { font-size: ${TAILLES.h3}pt; margin: ${ESPACES.h3[0]}pt 0 ${ESPACES.h3[1]}pt; color: #${c.titre2}; page-break-after: avoid; }
+  h4 { font-size: ${TAILLES.h4}pt; margin: ${ESPACES.h4[0]}pt 0 ${ESPACES.h4[1]}pt; page-break-after: avoid; }
   p, li { orphans: 2; widows: 2; }
-  ul, ol { padding-left: 18pt; }
-  li { margin: 2pt 0; }
-  blockquote { margin: 8pt 0; padding: 6pt 10pt; border-left: 3px solid #93c5fd;
-               background: #f8fafc; color: #334155; }
+  ul, ol { padding-left: ${RETRAITS.liste}pt; }
+  li { margin: ${ESPACES.liste[1]}pt 0; }
+  blockquote { margin: ${ESPACES.citation[0]}pt 0; padding: 6pt ${RETRAITS.citation}pt;
+               border-left: ${FILETS.citation}pt solid #${c.citationFilet};
+               background: #${c.citationFond}; color: #${c.citationTexte}; }
   blockquote p { margin: 0; }
-  table { width: 100%; border-collapse: collapse; margin: 8pt 0; font-size: 9pt; }
-  th, td { border: 1px solid #cbd5e1; padding: 4pt 6pt; text-align: left;
-           vertical-align: top; }
-  th { background: #eff6ff; color: #1e3a8a; }
+  table { width: 100%; border-collapse: collapse; margin: ${ESPACES.tableau[0]}pt 0; font-size: ${TAILLES.tableau}pt; }
+  th, td { border: ${FILETS.fin}pt solid #${c.tableauBordure};
+           padding: ${RETRAITS.celluleV}pt ${RETRAITS.celluleH}pt; text-align: left; vertical-align: top; }
+  th { background: #${c.tableauFondEntete}; color: #${c.tableauTexteEntete}; }
   tr { page-break-inside: avoid; }
-  code { font-family: Menlo, monospace; font-size: 9pt; background: #f1f5f9;
+  code { font-family: ${POLICES.codeCss}; font-size: ${TAILLES.code}pt; background: #${c.codeFond};
          padding: 0 3px; border-radius: 3px; }
-  pre { background: #f1f5f9; padding: 8pt; border-radius: 4px; overflow-x: auto; }
+  pre { background: #${c.codeFond}; padding: 8pt; border-radius: 4px; overflow-x: auto; }
   pre code { background: none; padding: 0; }
-  hr { border: none; border-top: 1px solid #e2e8f0; margin: 14pt 0; }
-  a { color: #1d4ed8; text-decoration: none; }
+  hr { border: none; border-top: ${FILETS.fin}pt solid #${c.filet}; margin: ${ESPACES.filet[0]}pt 0; }
+  a { color: #${c.lien}; text-decoration: none; }
 `;
 
 const demandes = process.argv.slice(2).map((a) => basename(a, ".md"));
