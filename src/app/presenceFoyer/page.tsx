@@ -16,6 +16,11 @@ import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import { CardListSkeleton } from "../components/Skeleton";
 import AbsenceModal from "../components/AbsenceModal";
+import {
+  HEURE_VERROU_FOYER_DEFAUT,
+  joursVerrouillesImpactes,
+  estJourVerrouille,
+} from "@/lib/foyerLock";
 
 const MONTH_NAMES = [
   "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -64,6 +69,9 @@ export default function PresenceFoyerPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Absence | null>(null);
 
+  // Heure limite de modification de la présence (R-LOCK-09), réglée par l'intendance.
+  const [heureVerrou, setHeureVerrou] = useState(HEURE_VERROU_FOYER_DEFAUT);
+
   // ============================================================
   // AUTH + PROFIL
   // ============================================================
@@ -106,6 +114,17 @@ export default function PresenceFoyerPage() {
     fetchAbsences();
   }, [fetchAbsences]);
 
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "verrouillage_foyer")
+        .maybeSingle();
+      if (data?.value) setHeureVerrou(data.value);
+    })();
+  }, [supabase]);
+
   const handleSave = async (payload: AbsencePayload) => {
     const isEdit = !!editing;
     const res = await fetch("/api/absences", {
@@ -122,6 +141,11 @@ export default function PresenceFoyerPage() {
     setEditing(null);
     await fetchAbsences();
   };
+
+  // Supprimer un séjour rend présents tous ses jours : si l'un d'eux est verrouillé,
+  // l'action est refusée côté serveur — autant ne pas la proposer (R-LOCK-09/10).
+  const suppressionVerrouillee = (a: Absence) =>
+    joursVerrouillesImpactes(a, null, heureVerrou).length > 0;
 
   const handleDelete = (absence: Absence) => {
     toast("Supprimer cette absence ?", {
@@ -169,6 +193,7 @@ export default function PresenceFoyerPage() {
   ];
   const todayKey = formatDateKeyLocal(new Date());
   const absentDayKeys = getAbsentDayKeys(absences);
+  const aujourdhuiVerrouille = estJourVerrouille(todayKey, heureVerrou);
 
   const prevMonth = () => setCurrentMonth(new Date(year, monthIndex - 1, 1));
   const nextMonth = () => setCurrentMonth(new Date(year, monthIndex + 1, 1));
@@ -246,14 +271,31 @@ export default function PresenceFoyerPage() {
                     : "text-slate-700"}`}
               >
                 {day}
+                {isToday && aujourdhuiVerrouille && (
+                  <span
+                    className="absolute -bottom-0.5 text-[9px] leading-none"
+                    title={`Présence du jour verrouillée depuis ${heureVerrou}`}
+                  >
+                    🔒
+                  </span>
+                )}
               </div>
             );
           })}
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-gray-500 mb-6">
-          <span className="inline-block w-3 h-3 rounded-full bg-pink-500" />
-          Jours d&apos;absence
+        <div className="flex flex-col items-center gap-1 text-xs text-gray-500 mb-6">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-3 h-3 rounded-full bg-pink-500" />
+            Jours d&apos;absence
+          </div>
+          <p className="text-center text-gray-400">
+            {aujourdhuiVerrouille ? (
+              <>🔒 La présence de cette nuit est <strong>verrouillée</strong> depuis {heureVerrou}.</>
+            ) : (
+              <>Modifiable jusqu&apos;à <strong>{heureVerrou}</strong> le jour même ; ensuite la nuit est comptée.</>
+            )}
+          </p>
         </div>
 
         {/* Mes absences */}
@@ -292,8 +334,13 @@ export default function PresenceFoyerPage() {
                     </button>
                     <button
                       onClick={() => handleDelete(a)}
-                      className="text-red-600 hover:bg-red-50 rounded-full p-2 transition cursor-pointer"
-                      title="Supprimer"
+                      disabled={suppressionVerrouillee(a)}
+                      className="text-red-600 hover:bg-red-50 rounded-full p-2 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                      title={
+                        suppressionVerrouillee(a)
+                          ? `Absence verrouillée : elle couvre un jour déjà passé ou verrouillé (${heureVerrou}).`
+                          : "Supprimer"
+                      }
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -322,6 +369,7 @@ export default function PresenceFoyerPage() {
           setEditing(null);
         }}
         onSave={handleSave}
+        heureVerrou={heureVerrou}
         initial={
           editing
             ? { date_debut: editing.date_debut, date_fin: editing.date_fin, repas_non: editing.repas_non }

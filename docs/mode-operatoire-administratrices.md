@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.24 — 2026-08-19.
+> Version 1.26 — 2026-08-21.
 
 Une administratrice est une résidente qui a **au moins un droit d'intendance sur une section**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), des outils d'intendance correspondant à ses droits.
 
@@ -41,9 +41,9 @@ Les **5 sections** :
 | Section | Écrans concernés |
 |---|---|
 | **Repas** | Visu des repas (compta + organisation), paramétrage & options de repas, verrouillage, édition des inscriptions. *La comptabilité déduisant les repas des absences, cette section permet de voir **les dates** des séjours d'absence ; consulter et modifier les absences relève de la section **Absences**.* |
-| **Événements** | **Aucun** : voir les événements et les rappels, confirmer sa participation. **Lecture** : voir en plus **qui s'est inscrit** à un événement (« Voir les inscrits »). **Édition** : créer / modifier / supprimer des événements. |
+| **Événements** | **Habitante** : voir les événements et les rappels, confirmer sa participation. **Admin · consulter** : voir en plus **qui s'est inscrit** à un événement (« Voir les inscrits »). **Admin · gérer** : créer / modifier / supprimer des événements. |
 | **Absences** | Vue « Présence foyer » (staff) + marquage des absences. |
-| **Comptes** | Comptes, chambres/places, invitations, paramètres généraux. **Lecture** : voir qui occupe quelle chambre et avec quels droits, **sans aucune action possible** (pas d'invitation, pas de déplacement, pas de désactivation). **Édition** : inviter, relancer/annuler une invitation, déplacer une résidente, libérer une place. Régler les **droits** d'une personne et gérer la **structure physique** (chambres, étages, postes) restent réservés au **super-admin**. |
+| **Comptes** | Comptes, chambres/places, invitations, paramètres généraux. **Admin · consulter** : voir qui occupe quelle chambre et avec quels droits, **sans aucune action possible** (pas d'invitation, pas de déplacement, pas de désactivation). **Admin · gérer** : inviter, relancer/annuler une invitation, déplacer une résidente, libérer une place. Régler les **droits** d'une personne et gérer la **structure physique** (chambres, étages, postes) restent réservés au **super-admin**. |
 | **Infos pratiques** | Rubriques de l'onglet Administratif. |
 
 S'ajoute un rôle **Super-admin** (global) : **tous les droits partout**, **plus** le réglage des **droits des autres** et la **suppression** de comptes.
@@ -85,7 +85,7 @@ Panneau ⚙️ **Administration**. L'écran affiche **directement** la gestion d
 
 **Comptes désactivés** : un panneau repliable en bas liste les anciens comptes (avec leurs droits en sommeil). Ils se réactivent via **« Inviter »** sur une chambre libre.
 
-**Supprimer définitivement un compte** : dans ce même panneau, le bouton 🗑 efface le compte pour de bon. Il n'est proposé que sur un compte **déjà désactivé** — pour supprimer quelqu'un d'actif, il faut donc d'abord le **libérer / désactiver**. Un niveau **Édition** sur Comptes suffit ; seul un super-admin peut supprimer un autre super-admin.
+**Supprimer définitivement un compte** : dans ce même panneau, le bouton 🗑 efface le compte pour de bon. Il n'est proposé que sur un compte **déjà désactivé** — pour supprimer quelqu'un d'actif, il faut donc d'abord le **libérer / désactiver**. Le niveau **Admin · gérer** sur Comptes suffit ; seul un super-admin peut supprimer un autre super-admin.
 
 > ⚠️ **À ne faire qu'après avoir facturé la période.** La *désactivation* conserve l'historique des repas ; la *suppression*, elle, retire la personne de la **comptabilité passée**. Une fois supprimée, on ne peut plus la retrouver ni la réactiver.
 
@@ -160,7 +160,7 @@ Ce ciblage est appliqué **côté serveur** : une rubrique qui ne concerne pas u
 Il n'y a plus d'onglet **Paramètres** séparé : les réglages sont désormais **au plus près de leur usage**.
 
 - **Verrouillage des repas** (heure limite du jour + option week-end) → dans **Paramétrer les repas** (§5).
-- **Verrouillage des présences** (heure limite pour modifier sa présence au foyer) → en haut de la **vue Présences** (§6).
+- **Verrouillage des présences** (heure limite pour qu'une habitante modifie sa présence au foyer) → en haut de la **vue Présences** (§6).
 
 ---
 
@@ -196,7 +196,15 @@ Via l'onglet 🧍 **Présence foyer** → **« Voir les présences »**. Elle in
 
 **Vue d'ensemble** : le bouton **« Voir le détail »** ouvre un **tableau** — en lignes les habitantes (classées **résidence → étage → chambre → nom**, invitées en fin de résidence), en colonnes les jours, chaque case indiquant **P** (au foyer) ou **A** (sortie). *Cette structure de tableau est réutilisée partout (présences, repas) pour ne pas se perdre.* Le bouton **« Exporter (CSV) »** y télécharge le tableau (comme pour les repas).
 
-**Modifier une présence (Absences — Édition)** : dans la liste ouverte au clic sur un compteur, chaque personne peut être basculée **Au foyer ↔ Sortie** pour ce jour, et on peut **ajouter** quelqu'un — sur le même principe que l'édition des inscriptions repas. Le réglage de l'**heure limite** pour modifier une présence se trouve **en haut de cette vue**.
+**Modifier une présence (Absences — Admin · gérer)** : dans la liste ouverte au clic sur un compteur, chaque personne peut être basculée **Au foyer ↔ Sortie** pour ce jour, et on peut **ajouter** quelqu'un — sur le même principe que l'édition des inscriptions repas.
+
+**Heure limite de modification (le verrouillage).** Le réglage se trouve **en haut de cette vue** (par défaut **23:00**). Il encadre **les habitantes, pas vous** :
+
+- passé cette heure, une habitante ne peut plus déclarer, modifier ni supprimer une absence **pour la nuit même**, ni revenir sur une nuit déjà passée ; les nuits suivantes restent libres ;
+- ce qui se verrouille est **la nuit, pas le séjour** : une habitante peut donc toujours **prolonger** vers l'avenir une absence commencée dans le passé, mais plus la supprimer ;
+- **vous passez outre à toute heure** : « Ajouter une absence » et l'édition dans la liste fonctionnent sur n'importe quelle date, verrouillée ou passée. C'est donc à vous que revient toute **régularisation** — une habitante qui vous appelle à 23:30 pour dire qu'elle ne rentre pas doit être saisie par vous.
+
+Choisissez cette heure au moment où vous comptez réellement les lits : trop tôt, les habitantes seront bloquées pour rien ; trop tard, le décompte du soir bougera encore après votre passage.
 
 > **Qui figure dans cette vue ?** Les **comptes activés** de chaque résidence (voir §3.1). Une personne partie n'y apparaît **que** les jours couverts par une absence qu'elle avait déclarée ; sa case est **vide (—)** les autres jours, et elle n'est jamais comptée « au foyer ».
 
@@ -218,9 +226,9 @@ Accès : **barre de navigation repas** → **Inscriptions & compta**. Deux ongle
 ### Onglet « Organisation » — repas à préparer
 Les jours sont **empilés** ; pour chaque jour et chaque résidence, les **options ouvertes** au midi et au soir, avec leur nombre d'inscrits. **Chaque option est cliquable** → la **liste des personnes comptées**. Les **invités** ne forment plus une tuile à part : chacun est compté **dans l'option** à laquelle il est rattaché et apparaît dans cette liste, annoté **« invité par Prénom Nom »**.
 
-> **Édition (niveau ≥ 3).** Dans cette liste, une admin **édition** peut corriger les inscriptions, même après l'heure de verrouillage : **changer l'option** de chaque inscrit (ou la passer à **« Non »**, ou **retirer sa réponse**), **ajouter une résidente** — seuls les **comptes activés** sont proposés (§3.1) — (déplacée automatiquement si elle était inscrite ailleurs pour ce service), et **ajouter / retirer un invité** — au choix **depuis le carnet** (champ de recherche parmi les invités déjà venus) ou **nouveau** (**le nom ou le prénom suffit**) — en indiquant la **résidente qui invite** (pour la comptabilité). Tout se reporte aussitôt sur le **détail** et la **compta**.
+> **Admin · gérer.** Dans cette liste, une admin ayant ce niveau peut corriger les inscriptions, même après l'heure de verrouillage : **changer l'option** de chaque inscrit (ou la passer à **« Non »**, ou **retirer sa réponse**), **ajouter une résidente** — seuls les **comptes activés** sont proposés (§3.1) — (déplacée automatiquement si elle était inscrite ailleurs pour ce service), et **ajouter / retirer un invité** — au choix **depuis le carnet** (champ de recherche parmi les invités déjà venus) ou **nouveau** (**le nom ou le prénom suffit**) — en indiquant la **résidente qui invite** (pour la comptabilité). Tout se reporte aussitôt sur le **détail** et la **compta**.
 
-> **Un invité mange ce que son invitante peut choisir.** La liste « Invité par » ne propose que les résidentes à qui **cette** option est ouverte, et l'option d'un invité déjà là ne peut basculer que vers celles ouvertes à **son** invitante. Autrement dit : pas de pique-nique pour l'invité de quelqu'un qui n'y a pas droit — le serveur refuse aussi, pas seulement l'écran. En **niveau 2**, la liste reste en **lecture seule**.
+> **Un invité mange ce que son invitante peut choisir.** La liste « Invité par » ne propose que les résidentes à qui **cette** option est ouverte, et l'option d'un invité déjà là ne peut basculer que vers celles ouvertes à **son** invitante. Autrement dit : pas de pique-nique pour l'invité de quelqu'un qui n'y a pas droit — le serveur refuse aussi, pas seulement l'écran. En **Admin · consulter**, la liste reste en **lecture seule**.
 
 **Le bouton « Voir le détail »** ouvre le **tableau** (habitantes × jours/service). Chaque case indique l'un de **quatre** états :
 
@@ -251,15 +259,15 @@ Cette section se lit à trois niveaux (voir §1) :
 
 | Droit Événements | Ce que la personne voit / fait |
 |---|---|
-| **Aucun** | Elle voit les **événements** et les **rappels** qui la concernent, et **confirme sa participation** — comme toute résidente. |
-| **Lecture** | En plus : le bouton **« Voir les inscrits »** sur les événements à confirmation (**qui** a répondu présent — une personne **désactivée depuis** son inscription y reste listée). |
-| **Édition** | En plus : **créer, modifier et supprimer** des événements. |
+| **Habitante** | Elle voit les **événements** et les **rappels** qui la concernent, et **confirme sa participation** — comme toute résidente. |
+| **Admin · consulter** | En plus : le bouton **« Voir les inscrits »** sur les événements à confirmation (**qui** a répondu présent — une personne **désactivée depuis** son inscription y reste listée). |
+| **Admin · gérer** | En plus : **créer, modifier et supprimer** des événements. |
 
 > **« Voir les inscrits » dépend de la section Événements** (≥ Admin · consulter) et non du simple fait d'être admin. Une administratrice qui n'a de droits que sur **Repas** n'y a donc pas accès : si elle en a besoin, passe-la à **Événements — Admin · consulter**.
 >
 > Un **événement d'intendance** ne se marque plus « réservé au staff » : cible-le sur un **groupe** (ex. « Staff 12 »).
 
-Avec le droit **Édition**, on renseigne pour un événement :
+Avec le droit **Admin · gérer**, on renseigne pour un événement :
 - titre, dates (une ou plusieurs), horaires, lieu (résidence·s), couleur ;
 - **visibilité** : coche des **résidences / étages** et/ou des **groupes** (§3.2) ; la liste des **résidentes concernées** — les **comptes activés** (§3.1) — s'affiche dessous, pré-cochée, et l'on peut **décocher** individuellement pour exclure quelqu'un. Voir §3.3. Le ciblage par résidence/étage est **dynamique** (les futures arrivantes correspondant au filtre sont incluses automatiquement) ; un **groupe**, lui, se tient à jour à la main ;
 - **rappel** (nombre de jours avant) ;

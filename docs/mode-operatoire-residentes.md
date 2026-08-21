@@ -1,7 +1,7 @@
 # Mode opératoire — Résidentes & invitées
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour les **habitantes** (résidentes et invitées). À mettre à jour à chaque évolution de l'appli.
-> Version 1.9 — 2026-08-20.
+> Version 1.10 — 2026-08-21.
 
 Cette application sert à gérer, au quotidien, **ta présence au foyer la nuit** et **tes repas** (midi et soir), à consulter les **événements** du foyer et les **informations pratiques**. Elle est pensée pour le **téléphone** (mais marche aussi sur ordinateur).
 
@@ -61,6 +61,18 @@ Par défaut, **tu es considérée présente** chaque nuit. Tu n'as à déclarer 
 
 - Pour **modifier** une absence : icône ✏️.
 - Pour **supprimer** une absence : icône 🗑️ (une confirmation est demandée).
+
+### Jusqu'à quand peux-tu changer d'avis ?
+
+Tu peux déclarer ou annuler une absence **jusqu'à une heure limite fixée par l'intendance** — **23:00** en principe. Passé cette heure, l'intendance a compté les lits : **la nuit du jour même n'est plus modifiable**, et les nuits déjà passées non plus. Le calendrier affiche alors un 🔒 sur le jour, et le bouton 🗑️ est grisé sur les absences concernées.
+
+Ce qui est verrouillé, c'est **la nuit, pas l'absence entière**. Concrètement :
+
+- tu es partie hier et tu prolonges jusqu'à dimanche → **possible**, tu n'ajoutes que des nuits à venir ;
+- tu veux **supprimer** cette absence commencée hier → **impossible**, cela changerait une nuit déjà comptée ;
+- il est 23:30 et tu veux déclarer que tu ne dors pas là **ce soir** → **trop tard**, mais tu peux toujours déclarer **demain** et les jours suivants.
+
+Si tu as vraiment besoin d'un changement de dernière minute, **préviens l'intendance** : elle peut corriger à tout moment.
 
 ### Effet sur les repas
 Dans la fenêtre d'absence, une case **« Me noter Non aux repas pendant mon absence »** est **cochée par défaut**. Quand elle est cochée, tes repas des **jours intérieurs** sont automatiquement marqués **« Non »** (non modifiables) ; le **premier jour** (départ) et le **dernier jour** (retour) restent à ton **libre choix** (on considère que tu pars **après le dîner** et reviens **avant le déjeuner**). Un séjour d'**un seul jour** compte comme absente à tous les repas.

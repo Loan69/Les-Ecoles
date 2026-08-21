@@ -5,13 +5,14 @@ import { useSupabase } from "@/app/providers";
 import { toast } from "sonner";
 import { Save, Clock } from "lucide-react";
 import { useMyRights } from "@/lib/useMyRights";
+import { HEURE_VERROU_FOYER_DEFAUT } from "@/lib/foyerLock";
 
 // Réglage de l'heure limite pour modifier la présence au foyer.
 // Regroupé ici (vue Présence) plutôt que dans un onglet Paramètres séparé.
 export default function FoyerLockSettings() {
   const { supabase } = useSupabase();
   const canEdit = useMyRights().canEdit("absences");
-  const [lockTime, setLockTime] = useState("21:00");
+  const [lockTime, setLockTime] = useState(HEURE_VERROU_FOYER_DEFAUT);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -51,7 +52,11 @@ export default function FoyerLockSettings() {
             onChange={(e) => setLockTime(e.target.value)}
             className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none disabled:opacity-50 disabled:bg-gray-50"
           />
-          <p className="text-xs text-gray-400 mt-1">Passé cette heure, les résidentes ne peuvent plus modifier leur présence du jour.</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Passé cette heure, une résidente ne peut plus déclarer, modifier ni supprimer une absence
+            <strong> pour la nuit même</strong> — les jours suivants restent libres. L&apos;intendance,
+            elle, garde la main via « Ajouter une absence ».
+          </p>
         </div>
         {canEdit && (
           <button

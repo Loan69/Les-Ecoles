@@ -4,6 +4,13 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { AbsencePayload } from "@/types/Absence";
+import {
+  HEURE_VERROU_FOYER_DEFAUT,
+  estJourVerrouille,
+  joursVerrouillesImpactes,
+  messageVerrouFoyer,
+} from "@/lib/foyerLock";
+import { formatDateKeyLocal } from "@/lib/utilDate";
 
 interface AbsenceModalProps {
   isOpen: boolean;
@@ -11,6 +18,19 @@ interface AbsenceModalProps {
   onSave: (payload: AbsencePayload) => Promise<void> | void;
   // Valeurs initiales pour l'édition (sinon création)
   initial?: AbsencePayload | null;
+  // Heure limite de modification de la présence (R-LOCK-09).
+  heureVerrou?: string;
+}
+
+// Premier jour encore modifiable : aujourd'hui, ou demain si l'heure limite est passée.
+function premierJourLibre(heureVerrou: string): string {
+  const aujourdhui = new Date();
+  if (!estJourVerrouille(formatDateKeyLocal(aujourdhui), heureVerrou)) {
+    return formatDateKeyLocal(aujourdhui);
+  }
+  const demain = new Date(aujourdhui);
+  demain.setDate(demain.getDate() + 1);
+  return formatDateKeyLocal(demain);
 }
 
 export default function AbsenceModal({
@@ -18,6 +38,7 @@ export default function AbsenceModal({
   onClose,
   onSave,
   initial = null,
+  heureVerrou = HEURE_VERROU_FOYER_DEFAUT,
 }: AbsenceModalProps) {
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
@@ -40,6 +61,18 @@ export default function AbsenceModal({
     }
     if (dateFin < dateDebut) {
       toast.error("La date de fin doit être après la date de début.");
+      return;
+    }
+
+    // Verrou de la présence au foyer : on prévient ici plutôt que de laisser le serveur
+    // refuser après coup — il refuse de toute façon (R-LOCK-09/10).
+    const bloques = joursVerrouillesImpactes(
+      initial ? { date_debut: initial.date_debut, date_fin: initial.date_fin, repas_non: initial.repas_non } : null,
+      { date_debut: dateDebut, date_fin: dateFin, repas_non: repasNon },
+      heureVerrou
+    );
+    if (bloques.length > 0) {
+      toast.error(messageVerrouFoyer(bloques, heureVerrou)!);
       return;
     }
 
@@ -83,6 +116,7 @@ export default function AbsenceModal({
                 <input
                   type="date"
                   value={dateDebut}
+                  min={initial ? undefined : premierJourLibre(heureVerrou)}
                   onChange={(e) => setDateDebut(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg p-2 text-gray-700 focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 />
@@ -95,7 +129,7 @@ export default function AbsenceModal({
                 <input
                   type="date"
                   value={dateFin}
-                  min={dateDebut || undefined}
+                  min={dateDebut || (initial ? undefined : premierJourLibre(heureVerrou))}
                   onChange={(e) => setDateFin(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg p-2 text-gray-700 focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 />
@@ -108,6 +142,10 @@ export default function AbsenceModal({
                   <span className="block text-xs text-gray-500 mt-0.5">Les jours intérieurs sont automatiquement « Non ». Les jours de départ et de retour restent à ton choix.</span>
                 </span>
               </label>
+
+              <p className="text-xs text-gray-400">
+                Une nuit se déclare jusqu&apos;à <strong>{heureVerrou}</strong> le jour même ; après cette heure, l&apos;intendance a compté les lits et la journée n&apos;est plus modifiable.
+              </p>
             </div>
 
             <div className="flex justify-end gap-2 mt-6">
