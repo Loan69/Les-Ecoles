@@ -5,7 +5,9 @@
 //   node scripts/docs/md2pdf.mjs specifications-regles mode-operatoire-residentes
 //
 // Les PDF sont les exemplaires envoyés au foyer : garder le même style d'un document à
-// l'autre. La copie in-app des modes d'emploi se régénère à part (md2tiptap.mjs).
+// l'autre. Le foyer reçoit AUSSI une version Word (md2docx.mjs) : régénérer les deux
+// ensemble, sinon le client compare deux états différents. La copie in-app des modes
+// d'emploi se régénère à part (md2tiptap.mjs).
 
 import { readFileSync, writeFileSync, readdirSync, mkdtempSync, rmSync } from "node:fs";
 import { resolve, dirname, join, basename } from "node:path";
