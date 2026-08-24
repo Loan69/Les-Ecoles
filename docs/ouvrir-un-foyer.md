@@ -233,7 +233,10 @@ Se connecter avec le compte technique, puis **Administration → Identité du fo
 2. Elle reçoit un email, définit son mot de passe, et arrive avec tous les droits.
    **Aucun logement ne lui est demandé** : au démarrage, aucune chambre n'existe.
 
-À partir de là, elle est autonome. Ce qu'elle fait, dans cet ordre :
+À partir de là, elle est autonome. **Envoyez-lui `docs/installer-son-foyer.md`**
+(ou son PDF) : c'est le même parcours, raconté de son point de vue, sans technique.
+
+En résumé, ce qu'elle fait, dans cet ordre :
 
 | | Où |
 |---|---|
