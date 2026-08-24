@@ -14,15 +14,17 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
 
   // On n'utilise PAS le logo comme icône : un logo est transparent (rendu sur fond
   // noir par iOS et Android) et large (illisible une fois comprimé en carré).
-  // `foyer_icone_url` est un réglage distinct ; à défaut, icônes statiques neutres.
+  // `foyer_icone_url` est un réglage distinct ; à défaut, une icône VRAIMENT neutre —
+  // une porte blanche sur fond bleu, sans marque. Les fichiers de repli précédents
+  // étaient ceux du premier foyer : un foyer sans icône héritait de son logo.
   const icones = foyer.iconeUrl
     ? [
         { src: foyer.iconeUrl, sizes: "192x192", type: "image/png" as const },
         { src: foyer.iconeUrl, sizes: "512x512", type: "image/png" as const },
       ]
     : [
-        { src: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" as const },
-        { src: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" as const },
+        { src: "/icons/defaut-192.png", sizes: "192x192", type: "image/png" as const },
+        { src: "/icons/defaut-512.png", sizes: "512x512", type: "image/png" as const },
       ];
 
   return {
