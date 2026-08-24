@@ -65,6 +65,13 @@ Puis les deux images, qui sont **différentes** :
   fond opaque** — une image transparente s'affiche sur fond noir, et un logo tout en
   largeur devient illisible une fois réduit.
 
+> **Pour l'icône, préférez un PNG carré.** Le JPEG et le WebP fonctionnent, mais le
+> PNG est le format que tous les téléphones acceptent sans discuter.
+
+**Après avoir changé l'icône, comptez un délai.** Le navigateur et le téléphone la
+gardent en mémoire longtemps. Sur un téléphone, **supprimez le raccourci puis
+recréez-le** : sinon l'ancienne icône reste, quoi qu'on fasse.
+
 Sans logo, c'est le nom du foyer qui s'affiche en toutes lettres : c'est propre, vous
 pouvez très bien commencer ainsi et y revenir plus tard.
 

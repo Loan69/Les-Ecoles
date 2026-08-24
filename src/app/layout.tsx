@@ -24,6 +24,11 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: {
       // Même raison que le manifeste : l'icône n'est pas le logo. Le repli est une
       // icône neutre (porte blanche sur fond bleu), jamais celle d'un foyer particulier.
+      //
+      // ⚠️ Ne PAS remettre de `favicon.ico` dans src/app/ : c'est une convention de
+      // fichier Next, et elle PRIME sur ce qui est déclaré ici. Tant qu'elle existait,
+      // l'onglet du navigateur affichait l'icône par défaut quoi qu'un foyer configure.
+      // Le repli vit donc dans public/favicon.ico, servi à la même adresse.
       icon: foyer.iconeUrl ?? '/favicon.ico',
       apple: foyer.iconeUrl ?? '/apple-touch-icon.png',
     },
