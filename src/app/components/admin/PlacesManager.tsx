@@ -117,7 +117,6 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
   const [archived, setArchived] = useState<ArchivedAccount[]>([]);
   const [rightsMap, setRightsMap] = useState<Record<string, UserRights>>({});
   const [canManageRoles, setCanManageRoles] = useState(false);
-  const [isTechnique, setIsTechnique] = useState(false);
   const [assignFor, setAssignFor] = useState<{ uid: string; name: string } | null>(null);
   const [editingRights, setEditingRights] = useState<{ userId: string; name: string; rights: Rights } | null>(null);
   const [structureOpen, setStructureOpen] = useState(false);
@@ -149,7 +148,6 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
       }
       setRightsMap(map);
       setCanManageRoles(uj.canManageRoles ?? false);
-      setIsTechnique(uj.isTechnique ?? false);
     }
     // Tolérant : tant que supabase/groupes.sql n'est pas passé, l'écran fonctionne sans groupes.
     if (groupesRes.ok) setGroupes(((await groupesRes.json()).groupes ?? []) as Groupe[]);
@@ -593,9 +591,13 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
         );
       })}
 
-      {/* Résidentes actives sans chambre — outil de MAINTENANCE, visible du seul compte technique.
-          Situation anormale (erreur technique) : ne pas exposer aux administratrices courantes. */}
-      {isTechnique && unplaced.length > 0 && (
+      {/* Comptes actifs sans chambre. Longtemps réservé au compte technique, au motif
+          qu'un compte sans chambre signalait une anomalie. Ce n'est plus vrai : une
+          super-administratrice est désormais invitée SANS place — au démarrage d'un
+          foyer, aucune chambre n'existe encore. La cacher aux administratrices rendait
+          justement impossible de lui en attribuer une ensuite. Visible de qui gère les
+          comptes (canEdit). */}
+      {canEdit && unplaced.length > 0 && (
         <section className="bg-white rounded-2xl shadow-sm border border-amber-200 p-4 sm:p-5">
           <h2 className="text-base font-bold text-amber-700 flex items-center gap-2 mb-1">
             <UserCheck className="w-5 h-5 shrink-0" /> Sans chambre attribuée <span className="text-xs font-normal text-gray-400">· {unplaced.length}</span>

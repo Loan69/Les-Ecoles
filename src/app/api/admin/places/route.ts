@@ -147,13 +147,40 @@ export async function DELETE(req: NextRequest) {
   const { id } = (await req.json()) as { id?: string };
   if (!id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
 
-  const { count: resCount } = await supabase.from("residentes").select("id", { count: "exact", head: true }).eq("place_id", id);
-  if (resCount && resCount > 0)
-    return NextResponse.json({ error: "Place déjà utilisée (occupant ou historique). Désactivez-la plutôt que de la supprimer." }, { status: 409 });
+  // Une place libérée doit pouvoir être supprimée. Avant, le contrôle comptait TOUTES
+  // les résidentes rattachées, archivées comprises : une chambre ayant été occupée une
+  // fois ne pouvait plus jamais être supprimée, seulement désactivée. Ce n'est pas ce
+  // qu'attend l'intendance quand elle vient de libérer la chambre.
+  //
+  // On distingue donc ce qui bloque vraiment de ce qui n'est qu'une trace.
 
-  const { count: invCount } = await supabase.from("invitations").select("id", { count: "exact", head: true }).eq("place_id", id);
-  if (invCount && invCount > 0)
-    return NextResponse.json({ error: "Une invitation est rattachée à cette place. Désactivez-la plutôt." }, { status: 409 });
+  // Occupante ACTIVE : la place n'est pas libre. Blocage.
+  const { count: actives } = await supabase
+    .from("residentes").select("id", { count: "exact", head: true })
+    .eq("place_id", id).eq("statut", "active");
+  if (actives && actives > 0)
+    return NextResponse.json({ error: "Cette place est occupée. Libérez-la d'abord (le compte sera désactivé)." }, { status: 409 });
+
+  // Invitation EN ATTENTE : quelqu'un est sur le point d'arriver. Blocage.
+  const { count: enAttente } = await supabase
+    .from("invitations").select("id", { count: "exact", head: true })
+    .eq("place_id", id).eq("statut", "envoyee");
+  if (enAttente && enAttente > 0)
+    return NextResponse.json({ error: "Une invitation est en attente pour cette place. Annulez-la d'abord." }, { status: 409 });
+
+  // Résidentes ARCHIVÉES : leur historique de chambre est conservé dans les colonnes
+  // texte residence/etage/chambre, indépendantes de place_id. On détache donc la
+  // référence — rien n'est perdu, et la clé étrangère cesse de bloquer.
+  const { error: detachErr } = await supabase
+    .from("residentes").update({ place_id: null }).eq("place_id", id).eq("statut", "archivee");
+  if (detachErr) return NextResponse.json({ error: detachErr.message }, { status: 500 });
+
+  // Invitations closes (acceptées, annulées, expirées) : simple trace du geste
+  // d'invitation, dont le résultat vit déjà dans la ligne residentes. La contrainte
+  // invitations_place_role_chk interdit de les détacher — on les supprime.
+  const { error: invErr } = await supabase
+    .from("invitations").delete().eq("place_id", id).neq("statut", "envoyee");
+  if (invErr) return NextResponse.json({ error: invErr.message }, { status: 500 });
 
   const { error: dbError } = await supabase.from("places").delete().eq("id", id);
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
