@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { useIdentite } from "@/app/providers";
 import { AbsencePayload } from "@/types/Absence";
 import {
   HEURE_VERROU_FOYER_DEFAUT,
@@ -23,9 +24,9 @@ interface AbsenceModalProps {
 }
 
 // Premier jour encore modifiable : aujourd'hui, ou demain si l'heure limite est passée.
-function premierJourLibre(heureVerrou: string): string {
+function premierJourLibre(heureVerrou: string, fuseau: string): string {
   const aujourdhui = new Date();
-  if (!estJourVerrouille(formatDateKeyLocal(aujourdhui), heureVerrou)) {
+  if (!estJourVerrouille(formatDateKeyLocal(aujourdhui), heureVerrou, new Date(), fuseau)) {
     return formatDateKeyLocal(aujourdhui);
   }
   const demain = new Date(aujourdhui);
@@ -40,6 +41,7 @@ export default function AbsenceModal({
   initial = null,
   heureVerrou = HEURE_VERROU_FOYER_DEFAUT,
 }: AbsenceModalProps) {
+  const foyer = useIdentite();
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [repasNon, setRepasNon] = useState(true);
@@ -69,10 +71,12 @@ export default function AbsenceModal({
     const bloques = joursVerrouillesImpactes(
       initial ? { date_debut: initial.date_debut, date_fin: initial.date_fin, repas_non: initial.repas_non } : null,
       { date_debut: dateDebut, date_fin: dateFin, repas_non: repasNon },
-      heureVerrou
+      heureVerrou,
+      new Date(),
+      foyer.fuseau
     );
     if (bloques.length > 0) {
-      toast.error(messageVerrouFoyer(bloques, heureVerrou)!);
+      toast.error(messageVerrouFoyer(bloques, heureVerrou, foyer.locale)!);
       return;
     }
 
@@ -116,7 +120,7 @@ export default function AbsenceModal({
                 <input
                   type="date"
                   value={dateDebut}
-                  min={initial ? undefined : premierJourLibre(heureVerrou)}
+                  min={initial ? undefined : premierJourLibre(heureVerrou, foyer.fuseau)}
                   onChange={(e) => setDateDebut(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg p-2 text-gray-700 focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 />
@@ -129,7 +133,7 @@ export default function AbsenceModal({
                 <input
                   type="date"
                   value={dateFin}
-                  min={dateDebut || (initial ? undefined : premierJourLibre(heureVerrou))}
+                  min={dateDebut || (initial ? undefined : premierJourLibre(heureVerrou, foyer.fuseau))}
                   onChange={(e) => setDateFin(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg p-2 text-gray-700 focus:ring-2 focus:ring-blue-600 focus:outline-none"
                 />

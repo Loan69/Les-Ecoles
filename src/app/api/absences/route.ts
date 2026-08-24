@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabaseServer";
+import { identiteFoyer } from "@/lib/foyerServeur";
 import { requireSectionAccess } from "@/lib/apiAuth";
 import {
   HEURE_VERROU_FOYER_DEFAUT,
@@ -38,9 +39,10 @@ async function refusSiVerrouille(
   apres: Sejour | null
 ): Promise<NextResponse | null> {
   const heure = await heureVerrouFoyer(supabase);
-  const jours = joursVerrouillesImpactes(avant, apres, heure);
+  const foyer = await identiteFoyer();
+  const jours = joursVerrouillesImpactes(avant, apres, heure, new Date(), foyer.fuseau);
   if (jours.length === 0) return null;
-  return NextResponse.json({ error: messageVerrouFoyer(jours, heure) }, { status: 409 });
+  return NextResponse.json({ error: messageVerrouFoyer(jours, heure, foyer.locale) }, { status: 409 });
 }
 
 // Le séjour tel qu'il est en base, pour savoir ce que la modification change réellement.

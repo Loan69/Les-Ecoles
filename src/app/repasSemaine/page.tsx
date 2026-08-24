@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Lock, Moon, UserPlus, Trash2, Pencil } from "lucide-react";
-import { useSupabase } from "../providers";
+import { useSupabase, useIdentite } from "../providers";
 import { User } from "@supabase/supabase-js";
 import { ServiceOption, MealOptionCatalog, Presence, Service } from "@/types/MealOption";
 import { Absence } from "@/types/Absence";
@@ -63,6 +63,7 @@ type InviteRow = { id: number; id_invite: number | null; nom: string; prenom: st
 export default function SemaineRepas() {
   const router = useRouter();
   const { supabase } = useSupabase();
+  const foyer = useIdentite();
 
   const [user, setUser] = useState<User | null>(null);
   const [profil, setProfil] = useState<Profil | null>(null);
@@ -149,11 +150,11 @@ export default function SemaineRepas() {
   }, [currentMonday]);
 
   // --- Helpers ---
-  const dayLocked = (dateKey: string) => computeLockState(parseDateKeyLocal(dateKey), settings).locked;
+  const dayLocked = (dateKey: string) => computeLockState(parseDateKeyLocal(dateKey), settings, foyer.fuseau).locked;
   const orderable = (dateKey: string, opt: MealOptionCatalog) => {
     const cutoff = parseDateKeyLocal(dateKey);
     cutoff.setDate(cutoff.getDate() - (opt.delai_commande || 0));
-    return !computeLockState(cutoff, settings).locked;
+    return !computeLockState(cutoff, settings, foyer.fuseau).locked;
   };
   // Valeur du sélecteur : "" = à renseigner · "non" = Non explicite · sinon l'id de l'option.
   const selectionFor = (dateKey: string, service: Service) => {

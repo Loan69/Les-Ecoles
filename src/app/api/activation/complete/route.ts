@@ -14,38 +14,58 @@ export async function POST(req: NextRequest) {
   const { nom, prenom, datenaissance } = (await req.json()) as { nom?: string; prenom?: string; datenaissance?: string };
   if (!nom?.trim() || !prenom?.trim()) return NextResponse.json({ error: "Nom et prénom requis." }, { status: 400 });
 
-  const admin = createSupabaseAdmin();
+  const admin = await createSupabaseAdmin();
 
   const { data: inv } = await admin
     .from("invitations")
-    .select("id, place_id")
+    .select("id, place_id, role")
     .eq("auth_user_id", user.id)
     .eq("statut", "envoyee")
     .maybeSingle();
   if (!inv) return NextResponse.json({ error: "Invitation introuvable ou déjà utilisée. Contactez l'intendance." }, { status: 400 });
 
-  const { data: place } = await admin.from("places").select("*").eq("id", inv.place_id).maybeSingle();
-  if (!place) return NextResponse.json({ error: "Place introuvable." }, { status: 400 });
-
-  const { count: occ } = await admin
-    .from("residentes")
-    .select("id", { count: "exact", head: true })
-    .eq("place_id", place.id)
-    .eq("statut", "active");
-  if (occ && occ > 0) return NextResponse.json({ error: "Cette place a déjà été attribuée. Contactez l'intendance." }, { status: 409 });
-
-  const row = {
+  // Identité commune aux deux cas.
+  const base = {
     email: user.email,
-    is_admin: false,
     nom: nom.trim(),
     prenom: prenom.trim(),
     date_naissance: datenaissance || null,
-    residence: place.residence,
-    etage: place.kind === "chambre" ? place.etage : null,
-    chambre: place.kind === "chambre" ? place.code : null,
-    place_id: place.id,
     statut: "active",
   };
+
+  let row: Record<string, unknown>;
+
+  if (inv.place_id === null) {
+    // Invitation de super-administratrice (cf. supabase/p2c-super-admin-sans-place.sql) :
+    // aucune chambre, donc aucune place à réserver ni à vérifier. Ce compte n'entre
+    // pas dans la capacité du foyer, comme le compte technique.
+    row = {
+      ...base,
+      residence: null,
+      etage: null,
+      chambre: null,
+      place_id: null,
+      is_super_admin: true,
+    };
+  } else {
+    const { data: place } = await admin.from("places").select("*").eq("id", inv.place_id).maybeSingle();
+    if (!place) return NextResponse.json({ error: "Place introuvable." }, { status: 400 });
+
+    const { count: occ } = await admin
+      .from("residentes")
+      .select("id", { count: "exact", head: true })
+      .eq("place_id", place.id)
+      .eq("statut", "active");
+    if (occ && occ > 0) return NextResponse.json({ error: "Cette place a déjà été attribuée. Contactez l'intendance." }, { status: 409 });
+
+    row = {
+      ...base,
+      residence: place.residence,
+      etage: place.kind === "chambre" ? place.etage : null,
+      chambre: place.kind === "chambre" ? place.code : null,
+      place_id: place.id,
+    };
+  }
 
   const { data: existing } = await admin.from("residentes").select("id").eq("user_id", user.id).maybeSingle();
   if (existing) {

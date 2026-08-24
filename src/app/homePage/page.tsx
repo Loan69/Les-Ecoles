@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import LogoFoyer from "@/app/components/LogoFoyer";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
-import Image from "next/image";
 import { Bell, ChevronLeft, ChevronRight, Home, Moon, Calendar, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import InviteModal, { EditingInvite } from "../components/inviteModal";
@@ -349,7 +349,7 @@ export default function HomePage() {
 
         {/* Logo */}
         <div className="flex justify-center mb-3">
-          <Image src="/logo.png" alt="Logo" width={180} height={180} />
+          <LogoFoyer />
         </div>
 
         {/* Date + navigation par chevrons + accès calendrier */}

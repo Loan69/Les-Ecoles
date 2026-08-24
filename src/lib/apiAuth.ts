@@ -24,7 +24,7 @@ async function guard(predicate: (r: Rights) => boolean): Promise<GuardResult> {
   const { userId, rights } = await callerRights();
   if (!userId) return unauth();
   if (!predicate(rights)) return forbidden();
-  return { supabase: createSupabaseAdmin(), userId, rights, error: null };
+  return { supabase: await createSupabaseAdmin(), userId, rights, error: null };
 }
 
 // La section existe-t-elle pour l'appelante ? (niveau >= 1). Utilisé par les routes
@@ -49,6 +49,13 @@ export function requireSectionView(section: Section): Promise<GuardResult> {
 // Écriture d'une section : niveau >= 3 (ou super-admin / technique).
 export function requireSectionEdit(section: Section): Promise<GuardResult> {
   return guard((r) => canEditSection(r, section));
+}
+
+// Réservé au COMPTE TECHNIQUE seul — celui de la personne qui installe et maintient
+// l'application, distinct des super-admins clients. Sert à ce qu'un foyer ne puisse
+// pas se donner lui-même de nouveaux super-admins.
+export function requireTechnique(): Promise<GuardResult> {
+  return guard((r) => r.is_technique);
 }
 
 // Réservé au super-admin (attribution des droits, suppression de compte…) ou au compte technique.

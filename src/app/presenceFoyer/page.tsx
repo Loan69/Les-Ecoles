@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import LogoFoyer from "@/app/components/LogoFoyer";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { User } from "@supabase/supabase-js";
 import { Absence, AbsencePayload } from "@/types/Absence";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
-import { useSupabase } from "../providers";
+import { useSupabase, useIdentite } from "../providers";
 import { useMyRights } from "@/lib/useMyRights";
 import { useSectionGuard } from "@/lib/useSectionGuard";
 import LogoutButton from "../components/logoutButton";
@@ -52,6 +52,7 @@ function formatJour(dateKey: string): string {
 export default function PresenceFoyerPage() {
   const router = useRouter();
   const { supabase } = useSupabase();
+  const foyer = useIdentite();
   const accesSection = useSectionGuard("absences"); // niveau Aucun → redirigé vers l'accueil
   const canAbsences = useMyRights().canView("absences"); // accès à la vue staff des présences
 
@@ -145,7 +146,7 @@ export default function PresenceFoyerPage() {
   // Supprimer un séjour rend présents tous ses jours : si l'un d'eux est verrouillé,
   // l'action est refusée côté serveur — autant ne pas la proposer (R-LOCK-09/10).
   const suppressionVerrouillee = (a: Absence) =>
-    joursVerrouillesImpactes(a, null, heureVerrou).length > 0;
+    joursVerrouillesImpactes(a, null, heureVerrou, new Date(), foyer.fuseau).length > 0;
 
   const handleDelete = (absence: Absence) => {
     toast("Supprimer cette absence ?", {
@@ -193,7 +194,7 @@ export default function PresenceFoyerPage() {
   ];
   const todayKey = formatDateKeyLocal(new Date());
   const absentDayKeys = getAbsentDayKeys(absences);
-  const aujourdhuiVerrouille = estJourVerrouille(todayKey, heureVerrou);
+  const aujourdhuiVerrouille = estJourVerrouille(todayKey, heureVerrou, new Date(), foyer.fuseau);
 
   const prevMonth = () => setCurrentMonth(new Date(year, monthIndex - 1, 1));
   const nextMonth = () => setCurrentMonth(new Date(year, monthIndex + 1, 1));
@@ -229,7 +230,7 @@ export default function PresenceFoyerPage() {
       </div>
 
       <div className="w-full max-w-md flex flex-col items-center">
-        <Image src="/logo.png" alt="Logo" width={350} height={350} className="mb-3" />
+        <LogoFoyer className="mb-3" />
         <h1 className="text-xl font-semibold text-center text-blue-800 mb-4">
           Mes présences au foyer
         </h1>

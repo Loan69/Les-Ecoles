@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ exists: false });
     }
 
-    const supabase = createSupabaseAdmin();
+    const supabase = await createSupabaseAdmin();
 
     // Vérification dans les tables applicatives (pending_users inclus pour les inscriptions non confirmées)
     const [{ data: residente }, { data: invitee }, { data: pending }] = await Promise.all([

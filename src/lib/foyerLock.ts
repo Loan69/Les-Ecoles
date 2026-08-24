@@ -1,4 +1,5 @@
 import { formatDateKeyLocal, parseDateKeyLocal } from "./utilDate";
+import { IDENTITE_DEFAUT } from "./foyer";
 
 // Verrouillage de la présence au foyer (R-LOCK-09/10/11).
 //
@@ -41,12 +42,14 @@ export function joursDuSejour(debut: string, fin: string): string[] {
 export function estJourVerrouille(
   jour: string,
   heureLimite: string = HEURE_VERROU_FOYER_DEFAUT,
-  maintenant: Date = new Date()
+  maintenant: Date = new Date(),
+  fuseau: string = IDENTITE_DEFAUT.fuseau
 ): boolean {
-  // Même approche que le verrou des repas : on raisonne à l'heure de Paris, pas à
-  // celle du téléphone, sans quoi une résidente en voyage aurait un verrou décalé.
-  const parisNow = new Date(maintenant.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-  const aujourdhui = formatDateKeyLocal(parisNow);
+  // Même approche que le verrou des repas : on raisonne à l'heure du FOYER (réglage
+  // `foyer_fuseau`), pas à celle du téléphone, sans quoi une résidente en voyage
+  // aurait un verrou décalé.
+  const local = new Date(maintenant.toLocaleString("en-US", { timeZone: fuseau }));
+  const aujourdhui = formatDateKeyLocal(local);
 
   if (jour < aujourdhui) return true;
   if (jour > aujourdhui) return false;
@@ -54,7 +57,7 @@ export function estJourVerrouille(
   const [h, m] = (heureLimite || HEURE_VERROU_FOYER_DEFAUT).split(":").map(Number);
   const heure = Number.isFinite(h) ? h : 23;
   const minute = Number.isFinite(m) ? m : 0;
-  return parisNow.getHours() > heure || (parisNow.getHours() === heure && parisNow.getMinutes() >= minute);
+  return local.getHours() > heure || (local.getHours() === heure && local.getMinutes() >= minute);
 }
 
 /**
@@ -73,7 +76,8 @@ export function joursVerrouillesImpactes(
   avant: Sejour | null,
   apres: Sejour | null,
   heureLimite: string = HEURE_VERROU_FOYER_DEFAUT,
-  maintenant: Date = new Date()
+  maintenant: Date = new Date(),
+  fuseau: string = IDENTITE_DEFAUT.fuseau
 ): string[] {
   const joursAvant = avant ? new Set(joursDuSejour(avant.date_debut, avant.date_fin)) : new Set<string>();
   const joursApres = apres ? new Set(joursDuSejour(apres.date_debut, apres.date_fin)) : new Set<string>();
@@ -86,17 +90,18 @@ export function joursVerrouillesImpactes(
     avant != null && apres != null && (avant.repas_non ?? true) !== (apres.repas_non ?? true);
   if (repasNonChange) for (const j of joursAvant) impactes.add(j);
 
-  return [...impactes].filter((j) => estJourVerrouille(j, heureLimite, maintenant)).sort();
+  return [...impactes].filter((j) => estJourVerrouille(j, heureLimite, maintenant, fuseau)).sort();
 }
 
 /** Message d'explication destiné à l'utilisatrice, ou null si rien n'est verrouillé. */
 export function messageVerrouFoyer(
   joursVerrouilles: string[],
-  heureLimite: string = HEURE_VERROU_FOYER_DEFAUT
+  heureLimite: string = HEURE_VERROU_FOYER_DEFAUT,
+  locale: string = IDENTITE_DEFAUT.locale
 ): string | null {
   if (joursVerrouilles.length === 0) return null;
   const enFr = (j: string) =>
-    parseDateKeyLocal(j).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+    parseDateKeyLocal(j).toLocaleDateString(locale, { day: "numeric", month: "long" });
   const liste =
     joursVerrouilles.length === 1
       ? `du ${enFr(joursVerrouilles[0])}`

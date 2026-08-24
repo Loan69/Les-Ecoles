@@ -1,8 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { foyerParHost } from "@/lib/foyers";
 
 // Écrans d'entrée : la racine (c'est l'adresse de lancement de l'appli installée,
-// voir public/manifest.json) et le formulaire de connexion.
+// voir app/manifest.ts) et le formulaire de connexion.
 const ENTREES = ["/", "/signin"];
 
 /**
@@ -17,13 +18,20 @@ const ENTREES = ["/", "/signin"];
  *
  * Utilise la clé ANON (jamais le service role) : le middleware ne fait que
  * rafraîchir la session, aucune opération privilégiée.
+ *
+ * La base visée dépend du NOM D'HÔTE (P4) : `ecoles.exemple.fr` et
+ * `guerledan.exemple.fr` n'ont ni la même base, ni les mêmes sessions. Les cookies
+ * ne peuvent pas se mélanger — Supabase les nomme `sb-<ref-projet>-auth-token`, et
+ * les sous-domaines les cloisonnent déjà.
  */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  const foyer = foyerParHost(request.headers.get("host"));
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    foyer.url,
+    foyer.anon,
     {
       cookies: {
         getAll() {
@@ -68,7 +76,7 @@ function redirigerVers(chemin: string, request: NextRequest, response: NextRespo
 
 export const config = {
   matcher: [
-    // Tout sauf les assets statiques, images et le manifest.
-    "/((?!_next/static|_next/image|favicon.ico|manifest.json|icons/|apple-touch-icon|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff2?)$).*)",
+    // Tout sauf les assets statiques, images et le manifeste (engendré par app/manifest.ts).
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons/|apple-touch-icon|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|woff2?)$).*)",
   ],
 };

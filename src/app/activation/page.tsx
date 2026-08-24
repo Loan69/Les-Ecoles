@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
+import LogoFoyer from "@/app/components/LogoFoyer";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Eye, EyeOff, Lock, CheckCircle } from "lucide-react";
@@ -115,7 +115,7 @@ export default function ActivationPage() {
   if (invalid) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center px-6 bg-gray-50 text-center">
-        <Image src="/logo.png" alt="Logo" width={160} height={160} className="mb-4" />
+        <LogoFoyer className="mb-4" />
         <h1 className="text-xl font-bold text-blue-800 mb-2">Lien invalide ou expiré</h1>
         <p className="text-gray-500 max-w-sm">Ce lien d&apos;activation n&apos;est plus valide. Demandez à l&apos;intendance de vous renvoyer une invitation.</p>
       </main>
@@ -138,7 +138,7 @@ export default function ActivationPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center px-4 py-8 bg-gray-50">
-      <Image src="/logo.png" alt="Logo" width={150} height={150} className="mb-3" />
+      <LogoFoyer className="mb-3" />
       <div className="w-full max-w-sm bg-white shadow-md rounded-2xl p-6">
         <h1 className="text-xl font-bold text-blue-800 mb-1">Activer mon compte</h1>
         <p className="text-sm text-gray-500 mb-5">Bienvenue ! Complétez votre profil et choisissez un mot de passe.</p>

@@ -11,7 +11,7 @@ export async function DELETE(req: Request) {
   const { id } = (await req.json()) as { id?: number };
   if (!id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
 
-  const admin = createSupabaseAdmin();
+  const admin = await createSupabaseAdmin();
   const { error } = await admin.from("invites").update({ is_active: false }).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });

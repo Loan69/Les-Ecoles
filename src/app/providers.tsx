@@ -7,6 +7,7 @@ import { rightsFromRow, RIGHTS_COLUMNS, EMPTY_RIGHTS, type Rights } from '@/lib/
 import { toResidences } from '@/lib/residences';
 import type { Residence } from '@/types/Residence';
 import type { Etage } from '@/types/Etage';
+import { IDENTITE_DEFAUT, type IdentiteFoyer } from '@/lib/foyer';
 
 type SupabaseContextType = {
   supabase: SupabaseClient;
@@ -43,13 +44,26 @@ type RightsContextType = {
 
 const RightsContext = createContext<RightsContextType | undefined>(undefined);
 
-export function Providers({ children }: { children: React.ReactNode }) {
-  const [supabase] = useState(() =>
-    createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-  );
+// Identité du foyer (nom, logo, couleur, fuseau). Transmise par le layout serveur
+// plutôt que rechargée ici : l'écran de connexion doit afficher le bon logo dès
+// le premier rendu, sans attendre un aller-retour réseau. Voir src/lib/foyer.ts.
+const IdentiteContext = createContext<IdentiteFoyer>(IDENTITE_DEFAUT);
+
+// `supabaseUrl` et `supabaseAnonKey` viennent du layout serveur, pas de process.env :
+// NEXT_PUBLIC_* est figé dans le bundle au build, alors qu'un même déploiement sert
+// plusieurs foyers sur des bases différentes. Voir src/lib/foyers.ts.
+export function Providers({
+  children,
+  identite = IDENTITE_DEFAUT,
+  supabaseUrl,
+  supabaseAnonKey,
+}: {
+  children: React.ReactNode;
+  identite?: IdentiteFoyer;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+}) {
+  const [supabase] = useState(() => createBrowserClient(supabaseUrl, supabaseAnonKey));
 
   const [rights, setRights] = useState<Rights>(EMPTY_RIGHTS);
   const [groupes, setGroupes] = useState<string[]>([]);
@@ -115,6 +129,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, [supabase, reload, reloadResidences]);
 
   return (
+    <IdentiteContext.Provider value={identite}>
     <SupabaseContext.Provider value={{ supabase }}>
       <RightsContext.Provider value={{ rights, groupes, loading, reload }}>
         <ResidencesContext.Provider value={{ residences, etages, loading: residencesLoading, reload: reloadResidences }}>
@@ -122,8 +137,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         </ResidencesContext.Provider>
       </RightsContext.Provider>
     </SupabaseContext.Provider>
+    </IdentiteContext.Provider>
   );
 }
+
+export const useIdentite = () => useContext(IdentiteContext);
 
 export const useSupabase = () => {
   const context = useContext(SupabaseContext);

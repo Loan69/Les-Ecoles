@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import LogoFoyer from "./LogoFoyer";
 import { ChevronLeft, ChevronRight, Edit } from "lucide-react";
 import ModalAjoutEvenement from "./AjoutEventModal";
 import { CalendarEvent } from "@/types/CalendarEvent";
-import Image from "next/image";
 import ConfirmationToggle from "./ConfirmationToggle";
 import VisionConfirmation from "./VisionConfirmation";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
@@ -98,7 +98,7 @@ export default function CalendrierView({
     return (
         <div className="relative">
         <div className="flex flex-col items-center w-full min-h-screen bg-white text-slate-700 font-sans p-4">
-            <Image src="/logo.png" alt="Logo" width={400} height={400} className="mb-3" />
+            <LogoFoyer className="mb-3" />
             <hr className="w-full border-gray-300 mb-4" />
 
             {/* Entête calendrier */}

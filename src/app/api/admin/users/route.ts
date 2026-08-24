@@ -1,20 +1,19 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServer } from "@/lib/supabaseServer";
-import { rightsFromRow, isSuperAdmin, canViewSection, canEditSection } from "@/lib/roles";
+import { requireSectionView } from "@/lib/apiAuth";
+import { rightsFromRow, isSuperAdmin, canEditSection } from "@/lib/roles";
 
 // Liste des utilisatrices pour l'écran d'administration (section « Comptes »).
 // - Lecture réservée à Comptes >= 2 (ou super-admin / technique).
 // - Le compte technique caché est exclu de la liste.
 // - Le réglage des droits (côté UI) n'est proposé qu'au super-admin.
+//
+// Passe par requireSectionView plutôt que par un contrôle maison : la route lit les
+// lignes de TOUTES les utilisatrices et interroge `auth.admin`, deux choses que seul
+// le client service role peut faire. L'ancienne version s'appuyait sur le fait que
+// createSupabaseServer renvoyait ce client — ce qui n'est plus vrai.
 export async function GET() {
-  const supabase = await createSupabaseServer();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { data: me } = await supabase.from("residentes").select("*").eq("user_id", user.id).maybeSingle();
-  const myRights = rightsFromRow(me as Record<string, unknown> | null);
-  if (!canViewSection(myRights, "comptes")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { supabase, rights: myRights, error } = await requireSectionView("comptes");
+  if (error) return error;
 
   const isTechnique = myRights.is_technique;
 

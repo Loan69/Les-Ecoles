@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import LogoFoyer from "@/app/components/LogoFoyer";
 import { useState, useEffect } from "react";
 import { useSupabase } from "../providers";
 import { useRouter } from "next/navigation";
@@ -118,13 +118,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gray-50">
-      <Image
-        src="/logo.png"
-        alt="Logo"
-        width={400}
-        height={400}
-        className="mb-3"
-      />
+      <LogoFoyer className="mb-3" />
 
       <div className="w-full max-w-sm bg-white shadow-md rounded-2xl p-6">
         <h1 className="text-2xl text-black font-bold text-blue-800">

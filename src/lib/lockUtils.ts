@@ -1,4 +1,5 @@
 import { formatDateKeyLocal } from "./utilDate";
+import { IDENTITE_DEFAUT } from "./foyer";
 
 export interface LockState {
   locked: boolean;
@@ -18,10 +19,14 @@ export interface LockState {
  */
 export function computeLockState(
   selectedDate: Date,
-  settings: { verrouillage_repas?: string; verrouillage_weekend?: string }
+  settings: { verrouillage_repas?: string; verrouillage_weekend?: string },
+  // Fuseau du foyer (réglage `foyer_fuseau`) : l'heure de verrouillage est celle
+  // du foyer, pas celle du téléphone — sinon une résidente en voyage aurait un
+  // verrou décalé. Le défaut couvre les foyers de métropole.
+  fuseau: string = IDENTITE_DEFAUT.fuseau
 ): LockState {
   const now = new Date();
-  const parisNow = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const parisNow = new Date(now.toLocaleString("en-US", { timeZone: fuseau }));
   const [lockHour, lockMinute] = (settings.verrouillage_repas || "21:00").split(":").map(Number);
 
   const afterLock =

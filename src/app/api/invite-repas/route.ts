@@ -87,7 +87,7 @@ export async function PUT(req: Request) {
   const g = await resolveGuest(supabase, body.guestId, (body.nom ?? "").trim(), (body.prenom ?? "").trim());
   if (g.error || !g.id) return NextResponse.json({ error: g.error ?? "Invité introuvable." }, { status: 500 });
 
-  const admin = createSupabaseAdmin();
+  const admin = await createSupabaseAdmin();
   const { error } = await admin
     .from("invites_repas")
     .update({
@@ -113,7 +113,7 @@ export async function DELETE(req: Request) {
   const { id } = (await req.json()) as { id?: number };
   if (!id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
 
-  const admin = createSupabaseAdmin();
+  const admin = await createSupabaseAdmin();
   const { error } = await admin.from("invites_repas").delete().eq("id", id).eq("invite_par", user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
