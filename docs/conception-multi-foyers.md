@@ -298,10 +298,35 @@ La troisième comble un trou : la policy précédente ne regardait que le **nive
 
 C'est le piège annoncé en §7.3 pour P4, rencontré plus tôt que prévu.
 
-### 5.7. Reste à faire
+### 5.7. P2c — Amorcer un foyer côté client
 
-- Le gabarit d'email d'invitation est un réglage **du projet Supabase**, pas du dépôt : chaque foyer configure le sien dans *Authentication → Email Templates*. `supabase/email-invitation.html` sert de modèle et dit encore « Foyer des Écoles » — à neutraliser.
-- Les dates affichées dans les écrans utilisent encore `"fr-FR"` en dur (9 fichiers). Sans effet tant que tous les foyers sont francophones ; à reprendre avec `foyer_locale` au premier foyer qui ne l'est pas.
+Au démarrage d'un foyer, ni bloc, ni étage, ni chambre : la voie d'invitation ordinaire, qui exige une place libre, ne peut pas servir. C'est pourtant le moment où il faut passer la main, pour que l'installation ne dépende plus du compte technique.
+
+`invitations.place_id` devient facultatif. **Une invitation sans place vaut invitation de super-administratrice** : elle n'occupe aucune chambre et n'entre pas dans la capacité, comme le compte technique. Deux contraintes garantissent la cohérence — `super_admin` n'a jamais de place, `residente` en a toujours une.
+
+Le panneau d'invitation est **réservé au compte technique** (`requireTechnique`) : nommer une super-administratrice relève de l'installation, pas de l'administration courante. Un foyer ne se donne pas lui-même de nouveaux détenteurs des pleins droits.
+
+**Se loger ensuite.** Une super-administratrice sans chambre voit en tête de l'écran Administration un encadré « Choisir ma chambre », limité à son propre compte et qui disparaît dès qu'elle est logée. Un premier essai avait ouvert le panneau de maintenance « Sans chambre attribuée » à toute la gestion des comptes : mauvaise porte, ce panneau signale des anomalies techniques et reste réservé au compte technique.
+
+### 5.8. P2d — L'icône n'est pas le logo
+
+Le manifeste réutilisait `foyer_logo_url` comme icône d'écran d'accueil. Deux défauts, constatés sur téléphone :
+
+- un logo d'en-tête est presque toujours **transparent** ; iOS et Android composent la transparence sur du **noir** ;
+- un logo est **large** — celui des Écoles fait 2,6:1 — et son texte devient illisible comprimé dans un carré de 180 px.
+
+D'où un réglage distinct `foyer_icone_url`, son propre emplacement de téléversement, et un manifeste qui ne retombe plus sur le logo mais sur une icône neutre. Pour Les Écoles, l'icône a été réduite à la marque (les quatre livres) sur fond blanc opaque : 25 Ko contre 977 Ko pour le logo d'origine, lui-même ramené à 39 Ko.
+
+### 5.9. P2e — Retrait du réglage de couleur
+
+`foyer_couleur` n'alimentait que le `theme_color` du manifeste : barre du navigateur sur Android, écran de démarrage de l'application installée. Boutons, titres et bandeaux sont des classes Tailwind écrites en dur dans une centaine d'endroits — passer le réglage en rouge laissait l'application bleue.
+
+Un réglage qui promet un thème sans en livrer un déroute plus qu'il n'aide : il est retiré, la teinte devient la constante `COULEUR_APPLI`. Elle redeviendra un réglage le jour où l'interface passera à des variables CSS — chantier non planifié.
+
+### 5.10. Reste à faire
+
+- Les dates affichées utilisent encore `"fr-FR"` en dur (9 fichiers). Sans effet tant que tous les foyers sont francophones ; à reprendre avec `foyer_locale` au premier foyer qui ne l'est pas.
+- Thématiser l'interface (variables CSS) si la couleur doit un jour piloter autre chose que la barre du navigateur.
 
 ---
 
@@ -396,6 +421,22 @@ Résolution éprouvée hors application (registre transpilé, exécuté sur des 
 
 ---
 
+### 7.7. Deux fuites du câblage, trouvées à l'usage
+
+Le passage au multi-foyer consistait à remplacer chaque lecture de `process.env` par une résolution d'après le nom d'hôte. Deux endroits y ont échappé, et aucun n'appelait `createSupabaseServer` ni `createSupabaseAdmin` — c'est ce qui les a rendus invisibles à l'audit des sites d'appel.
+
+**`src/app/auth/confirm/route.ts`** construisait son propre client : elle n'a pas encore de session à lire quand elle vérifie un jeton d'email. Conséquence : tout jeton émis par un autre foyer que celui par défaut était vérifié contre la mauvaise base, et l'invitée lisait « Lien invalide ou expiré » alors que son lien était parfaitement valide. Corrigé, et les échecs journalisent désormais l'hôte, le type et le motif — un « lien expiré » sans trace était indiagnosticable.
+
+**Leçon de méthode** : auditer les appelants d'une fonction ne suffit pas quand le motif à traquer est l'usage d'une *variable d'environnement*. Le contrôle juste est `grep -rn "NEXT_PUBLIC_SUPABASE" src`, qui ne doit plus laisser que `src/lib/foyers.ts` (le repli mono-foyer, intentionnel).
+
+### 7.8. Le gabarit d'email, piège adjacent
+
+Le symptôme « lien expiré » avait une **seconde** cause, indépendante du code : le gabarit d'email **par défaut** de Supabase pointe vers son propre `/auth/v1/verify`. Supabase vérifie le jeton lui-même, le **consomme**, puis redirige avec un code que l'application ne sait pas traiter. L'invitée voit « lien expiré », et le jeton est brûlé.
+
+L'application attend `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/activation`. Le gabarit étant un réglage **du projet Supabase**, un foyer neuf part toujours sur le défaut : voir `supabase/GABARITS-EMAIL.md`, qui donne aussi le tableau symptôme → cause et les règles de partage d'un même SMTP entre foyers (le `Sender name` doit être propre à chaque foyer).
+
+---
+
 ## 8. P5 — Exploitation
 
 ### 8.1. Rejouer les migrations sur N bases
@@ -420,11 +461,11 @@ Prévoir un mode `--dry-run` et **s'arrêter à la première erreur** : une base
 
 | Phase | Contenu | Bloquant pour | Charge |
 |---|---|---|---|
-| **P0** | RLS + clé anon dans `createSupabaseServer` | tout | forte — audit de 15 sites d'appel + 24 tables |
-| **P1** | Socle `supabase/migrations/` + `seed.sql` + amorçage | P4 | moyenne |
-| **P2** | Dé-branding, `app_settings` d'identité | — | faible |
-| **P3** | `select_options_residence`, types figés, fuseau | — | moyenne |
-| **P4** | Résolution du foyer par hôte | — | moyenne |
-| **P5** | Migrations multi-bases, recette | — | faible |
+| **P0** | RLS + clé anon dans `createSupabaseServer` | ✅ fait |
+| **P1** | Socle `supabase/migrations/` + `seed.sql` + amorçage | ✅ fait |
+| **P2** | Dé-branding, identité réglable en application (P2b→P2e) | ✅ fait |
+| **P3** | `select_options_residence`, types figés, locale des dates | **reste** |
+| **P4** | Résolution du foyer par hôte | ✅ fait |
+| **P5** | Migrations multi-bases, recette | partiel — `verif-rls.mjs` et `verif-foyers.mjs` livrés |
 
 P2 et P3 sont indépendantes et peuvent s'intercaler. **P0 d'abord, P1 ensuite** : sans socle reproductible, la RLS du second foyer serait re-saisie à la main, donc différente.
