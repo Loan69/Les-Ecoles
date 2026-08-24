@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback, type ReactNode } from "react";
+import { localeDate } from "@/lib/dateLocale";
 import { useSupabase } from "@/app/providers";
 import { CalendarDays, Table2, Scale, Soup, Moon as MoonIcon, CalendarCheck, Download } from "lucide-react";
 import { toast } from "sonner";
@@ -8,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AdminDaysSkeleton } from "@/app/components/Skeleton";
 import { labelResidenceDefaut } from "@/lib/residences";
 import { Presence, MealOptionCatalog, Service, type OptionVisibilite } from "@/types/MealOption";
-import { PersonneDetail, PersonneAdmin, sortAdminPeople, estCompteActive } from "@/lib/adminPeople";
+import { PersonneDetail, PersonneAdmin, sortAdminPeople, estCompteActive, formatChambre } from "@/lib/adminPeople";
 import { isAwayForMeal, type AbsenceCompta } from "@/lib/mealCompta";
 import { optionVisibleFor } from "@/lib/optionVisibility";
 import { nomInvite } from "@/lib/invites";
@@ -24,10 +25,10 @@ import TopBar from "@/app/components/TopBar";
 import RepasNav from "@/app/components/admin/RepasNav";
 
 function formatJourLong(dateKey: string): string {
-  return parseDateKeyLocal(dateKey).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }).replace(/^./, (c) => c.toUpperCase());
+  return parseDateKeyLocal(dateKey).toLocaleDateString(localeDate(), { weekday: "long", day: "numeric", month: "long" }).replace(/^./, (c) => c.toUpperCase());
 }
 function formatColDay(dateKey: string): string {
-  return parseDateKeyLocal(dateKey).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }).replace(/^./, (c) => c.toUpperCase());
+  return parseDateKeyLocal(dateKey).toLocaleDateString(localeDate(), { weekday: "short", day: "numeric" }).replace(/^./, (c) => c.toUpperCase());
 }
 
 type InviteMeal = { id: number; invite_par: string; nom: string; prenom: string; date_repas: string; type_repas: "dejeuner" | "diner"; option_id: string | null };
@@ -74,7 +75,7 @@ export default function AdminRepasPage() {
     if (!startDate || !endDate) return;
     setLoading(true);
 
-    const [{ data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: optsRes }, { data: invitesData }, { data: placesData }] =
+    const [{ data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: invitesData }, { data: placesData }] =
       await Promise.all([
         // Tous les comptes sont chargés (archivés compris) : ceux qui ne sont pas activés
         // sortent des listes via `horsSuivi`, mais restent visibles là où ils ont des repas
@@ -84,7 +85,6 @@ export default function AdminRepasPage() {
         supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id, statut, niveau_repas").eq("is_technique", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
         supabase.from("meal_options").select("*"),
-        supabase.from("select_options_residence").select("value, label"),
         supabase.from("invites_repas").select("id, invite_par, nom, prenom, date_repas, type_repas, option_id").gte("date_repas", startDate).lte("date_repas", endDate),
         supabase.from("places").select("id, label, residence, etage"),
       ]);
@@ -104,8 +104,6 @@ export default function AdminRepasPage() {
         .filter(Boolean) as OpenServiceOption[]
     );
 
-    const optionLabels: Record<string, string> = {};
-    (optsRes || []).forEach((o) => { if (o.value) optionLabels[o.value] = o.label; });
     // Libellé de chambre propre depuis `places` (source de vérité), via place_id :
     // residentes.chambre peut contenir un code brut legacy (« r36_etage6_la_rochelle »).
     const placeLabels: Record<string, string> = {};
@@ -125,7 +123,7 @@ export default function AdminRepasPage() {
         id: r.user_id, nom: r.nom, prenom: r.prenom,
         residence: (r.place_id && placeById[r.place_id]?.residence) || (r.residence != null ? String(r.residence) : undefined),
         etage: (r.place_id && placeById[r.place_id]?.etage) || r.etage,
-        chambre: (r.place_id && placeLabels[r.place_id]) || (r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre), isInvite: false,
+        chambre: (r.place_id && placeLabels[r.place_id]) || formatChambre(r.chambre), isInvite: false,
         // Hors des listes si le compte n'est pas activé (R-ADM-02) ou si Repas = Aucun,
         // auquel cas la personne ne mange pas au foyer (R-NIV-11).
         horsSuivi: !estCompteActive(r) || Number(r.niveau_repas ?? 1) === 0,

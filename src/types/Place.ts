@@ -6,7 +6,7 @@ export type PlaceKind = "chambre" | "poste";
 
 export interface Place {
   id: string;
-  residence: string; // valeur d'un bloc de `residences` ("12", "36", "corail"…)
+  residence: string; // valeur d'un bloc de `residences`
   kind: PlaceKind;
   etage: string | null; // renseigné pour les chambres, null pour les postes
   code: string; // code chambre (ex. grand_palais) ou libellé de poste (ex. Cuisine)

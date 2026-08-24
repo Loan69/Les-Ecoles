@@ -8,6 +8,7 @@ import { toResidences } from '@/lib/residences';
 import type { Residence } from '@/types/Residence';
 import type { Etage } from '@/types/Etage';
 import { IDENTITE_DEFAUT, type IdentiteFoyer } from '@/lib/foyer';
+import { definirLocale } from '@/lib/dateLocale';
 
 type SupabaseContextType = {
   supabase: SupabaseClient;
@@ -64,6 +65,10 @@ export function Providers({
   supabaseAnonKey: string;
 }) {
   const [supabase] = useState(() => createBrowserClient(supabaseUrl, supabaseAnonKey));
+
+  // Format des dates du foyer, posé avant tout rendu : les écrans formatent dans des
+  // fonctions hors composant, qui ne peuvent pas lire un contexte. Voir src/lib/dateLocale.ts.
+  definirLocale(identite.locale);
 
   const [rights, setRights] = useState<Rights>(EMPTY_RIGHTS);
   const [groupes, setGroupes] = useState<string[]>([]);

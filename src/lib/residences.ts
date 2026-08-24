@@ -53,21 +53,20 @@ export function labelResidenceCourt(value: string): string {
   return /^\d+$/.test(value) ? `Rés. ${value}` : labelResidenceDefaut(value);
 }
 
-// Couleur par défaut d'un bloc tant que la colonne n'existe pas en base
-// (avant l'exécution de supabase/blocs-dynamiques.sql).
-function couleurDefaut(value: string, index: number): CouleurResidence {
-  if (value === "12") return "amber";
-  if (value === "36") return "pink";
-  if (value === "corail") return "teal";
+// Couleur attribuée par rotation quand la ligne n'en porte pas.
+// Les couleurs figées pour « 12 », « 36 » et « corail » ont disparu ici : elles
+// dataient d'avant supabase/blocs-dynamiques.sql, et faisaient entrer dans le code
+// générique le nom des blocs d'un foyer particulier.
+function couleurParRang(index: number): CouleurResidence {
   return COULEURS_RESIDENCE[index % COULEURS_RESIDENCE.length];
 }
 
-// Lecture tolérante d'une ligne `residences` : tant que supabase/blocs-dynamiques.sql
-// n'est pas passé, les colonnes kind/ordre/couleur/is_active sont absentes et on les
-// déduit — l'application continue de fonctionner sur les trois blocs historiques.
+// Lecture d'une ligne `residences`, tolérante aux colonnes absentes : elles sont
+// toutes NOT NULL depuis le socle, mais une lecture partielle (`select` restreint)
+// reste possible, et l'objet doit rester utilisable.
 export function toResidence(row: Record<string, unknown>, index = 0): Residence {
   const value = String(row.value ?? "");
-  const kind: ResidenceKind = row.kind === "poste" || (row.kind == null && value === "corail") ? "poste" : "chambre";
+  const kind: ResidenceKind = row.kind === "poste" ? "poste" : "chambre";
   return {
     value,
     label: typeof row.label === "string" && row.label.trim() ? row.label : labelResidenceDefaut(value),
@@ -75,7 +74,7 @@ export function toResidence(row: Record<string, unknown>, index = 0): Residence 
     ordre: typeof row.ordre === "number" ? row.ordre : index + 1,
     couleur: (typeof row.couleur === "string" && (COULEURS_RESIDENCE as string[]).includes(row.couleur)
       ? row.couleur
-      : couleurDefaut(value, index)) as CouleurResidence,
+      : couleurParRang(index)) as CouleurResidence,
     is_active: row.is_active !== false,
   };
 }

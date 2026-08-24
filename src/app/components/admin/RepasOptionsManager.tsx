@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { localeDate } from "@/lib/dateLocale";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Copy, Clock } from "lucide-react";
@@ -36,14 +37,14 @@ function weekDays(monday: Date): string[] {
 }
 function dayLabel(key: string): string {
   return parseDateKeyLocal(key)
-    .toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
+    .toLocaleDateString(localeDate(), { weekday: "long", day: "numeric", month: "long" })
     .replace(/^./, (c) => c.toUpperCase());
 }
 function weekLabel(monday: Date): string {
   const end = new Date(monday);
   end.setDate(monday.getDate() + 6);
-  const from = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-  const to = end.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+  const from = monday.toLocaleDateString(localeDate(), { day: "numeric", month: "short" });
+  const to = end.toLocaleDateString(localeDate(), { day: "numeric", month: "short", year: "numeric" });
   return `${from} – ${to}`;
 }
 

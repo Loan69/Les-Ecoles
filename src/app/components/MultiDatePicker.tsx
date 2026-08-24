@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { localeDate } from "@/lib/dateLocale";
 import DatePicker from "react-multi-date-picker";
 import DateObject from "react-date-object";
 import { CalendarDays, X } from "lucide-react";
@@ -34,7 +35,7 @@ export default function MultiDatePicker({ value, onChange }: MultiDatePickerProp
 
   const formatFr = (iso: string) => {
     try {
-      return new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
+      return new Intl.DateTimeFormat(localeDate(), { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
     } catch {
       return iso;
     }

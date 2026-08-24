@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { localeDate } from "@/lib/dateLocale";
 import LogoFoyer from "@/app/components/LogoFoyer";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Plus, Pencil, Trash2, Eye } from "lucide-react";
@@ -42,7 +43,7 @@ function getAbsentDayKeys(absences: Absence[]): Set<string> {
 }
 
 function formatJour(dateKey: string): string {
-  return parseDateKeyLocal(dateKey).toLocaleDateString("fr-FR", {
+  return parseDateKeyLocal(dateKey).toLocaleDateString(localeDate(), {
     day: "numeric",
     month: "long",
     year: "numeric",

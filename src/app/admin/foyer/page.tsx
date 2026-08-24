@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { localeDate } from "@/lib/dateLocale";
 import { useSupabase } from "@/app/providers";
 import { CalendarDays, Home, Moon, Plus, Table2, Download } from "lucide-react";
 import { toast } from "sonner";
@@ -9,7 +10,7 @@ import { labelResidenceDefaut } from "@/lib/residences";
 import { Absence } from "@/types/Absence";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
-import { PersonneAdmin, sortAdminPeople, estCompteActive } from "@/lib/adminPeople";
+import { PersonneAdmin, sortAdminPeople, estCompteActive, formatChambre } from "@/lib/adminPeople";
 import { downloadCSV } from "@/lib/csvExport";
 import AbsenceAdminModal, { MarquagePayload } from "@/app/components/admin/AbsenceAdminModal";
 import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
@@ -22,13 +23,13 @@ import TopBar from "@/app/components/TopBar";
 
 function formatJourLong(dateKey: string): string {
   return parseDateKeyLocal(dateKey)
-    .toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
+    .toLocaleDateString(localeDate(), { weekday: "long", day: "numeric", month: "long" })
     .replace(/^./, (c) => c.toUpperCase());
 }
 
 function formatColDay(dateKey: string): string {
   return parseDateKeyLocal(dateKey)
-    .toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })
+    .toLocaleDateString(localeDate(), { weekday: "short", day: "numeric" })
     .replace(/^./, (c) => c.toUpperCase());
 }
 
@@ -70,22 +71,16 @@ export default function AdminFoyerView() {
     if (!startDate || !endDate) return;
     setLoading(true);
 
-    const [{ data: residentesData }, { data: inviteesData }, { data: optionsData }, { data: placesData }] =
+    const [{ data: residentesData }, { data: inviteesData }, { data: placesData }] =
       await Promise.all([
         // Tous les comptes (archivés compris, hors compte technique jamais listé) : ceux qui
         // ne sont pas activés sortent des listes via `horsSuivi`, mais restent visibles les
         // jours où ils ont une absence déclarée — l'historique n'est pas réécrit (R-ADM-02).
         supabase.from("residentes").select("user_id, nom, prenom, residence, etage, chambre, place_id, statut, niveau_absences").eq("is_technique", false),
         supabase.from("invitees").select("user_id, nom, prenom, residence"),
-        supabase.from("select_options_residence").select("value, label"),
         supabase.from("places").select("id, label, residence, etage"),
       ]);
 
-    // Code chambre/étage → libellé lisible (ex. "grand_palais" → "Grand Palais")
-    const optionLabels: Record<string, string> = {};
-    (optionsData || []).forEach((o) => {
-      if (o.value) optionLabels[o.value] = o.label;
-    });
     // Libellé de chambre propre depuis `places` (source de vérité), via place_id :
     // residentes.chambre peut contenir un code brut legacy (« r36_etage6_la_rochelle »).
     const placeLabels: Record<string, string> = {};
@@ -106,7 +101,8 @@ export default function AdminFoyerView() {
         prenom: r.prenom,
         residence: (r.place_id && placeById[r.place_id]?.residence) || (r.residence != null ? String(r.residence) : undefined),
         etage: (r.place_id && placeById[r.place_id]?.etage) || r.etage,
-        chambre: (r.place_id && placeLabels[r.place_id]) || (r.chambre ? optionLabels[r.chambre] ?? r.chambre : r.chambre),
+        // `places` fait foi ; à défaut, on met simplement le code en forme.
+        chambre: (r.place_id && placeLabels[r.place_id]) || formatChambre(r.chambre),
         isInvite: false,
         // Hors du suivi si le compte n'est pas activé (R-ADM-02) ou si Absences = Masquée
         // (R-NIV-11). La règle des blocs d'intendance s'ajoute au rendu, où la liste des

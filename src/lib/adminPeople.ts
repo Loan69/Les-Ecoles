@@ -8,7 +8,7 @@ export interface PersonneDetail {
   id: string; // identifiant unique (user_id, ou "invite-XX" pour un invité repas)
   nom: string;
   prenom: string;
-  residence?: string; // bloc d'appartenance (valeur de `residences` : "12", "36", "corail"…)
+  residence?: string; // bloc d'appartenance (valeur de `residences`)
   etage?: string | null;
   chambre?: string | null;
   isInvite: boolean; // true = invitée / invité (placée après les résidentes)

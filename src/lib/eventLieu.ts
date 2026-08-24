@@ -2,7 +2,7 @@ import { labelResidence } from "@/lib/residences";
 import type { Residence } from "@/types/Residence";
 
 // Libellé lisible du lieu d'un événement (les blocs du foyer).
-// Ex. ["12","36"] -> "Résidence 12, Résidence 36" ; [] -> null.
+// Ex. deux blocs -> « Résidence A, Résidence B » ; [] -> null.
 // `blocs` vient de useResidences() : le nom affiché est celui réglé en Administration
 // (un bloc renommé ou créé se lit correctement partout). Sans liste, on retombe sur
 // l'heuristique de labelResidenceDefaut.

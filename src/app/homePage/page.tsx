@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { localeDate } from "@/lib/dateLocale";
 import LogoFoyer from "@/app/components/LogoFoyer";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
@@ -70,7 +71,7 @@ export default function HomePage() {
   // ============================================================
 
   const formatDate = (date: Date) => {
-    const formatted = date.toLocaleDateString("fr-FR", {
+    const formatted = date.toLocaleDateString(localeDate(), {
       weekday: "long",
       day: "numeric",
       month: "long",

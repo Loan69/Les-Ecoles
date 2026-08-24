@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { localeDate } from "@/lib/dateLocale";
 import { useSupabase } from "../providers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
@@ -16,7 +17,7 @@ function formatDateNaissance(d?: string | null): string | null {
   if (!d) return null;
   const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return d;
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString("fr-FR", {
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString(localeDate(), {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -69,17 +70,6 @@ export default function ProfilPage() {
             if (place) {
                 chambreLabel = place.label || formatChambre(place.code);
                 etageLabel = place.etage ?? null;
-            }
-        }
-
-        // Ancien modèle : résolution via la table d'options.
-        if (!chambreLabel && !etageLabel) {
-            const { data: options } = await supabase
-                .from("select_options_residence")
-                .select("value, label");
-            if (options) {
-                etageLabel = options.find((opt) => opt.value === data.etage)?.label || null;
-                chambreLabel = options.find((opt) => opt.value === data.chambre)?.label || null;
             }
         }
 
