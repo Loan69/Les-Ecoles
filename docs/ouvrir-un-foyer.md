@@ -72,25 +72,38 @@ fichier à la fois :
 
 | # | Fichier | Contenu |
 |---|---|---|
-| 1 | `supabase/migrations/20260824000000_socle.sql` | 24 tables, 50 policies, RLS partout, fonctions et index |
-| 2 | `supabase/p2-identite-foyer.sql` | réglages d'identité + lecture publique des clés `foyer_*` |
-| 3 | `supabase/p2b-identite-admin.sql` | `est_super_admin()`, bucket `branding` |
-| 4 | `supabase/p2c-super-admin-sans-place.sql` | invitation de super-admin sans chambre |
-| 5 | `supabase/p2d-icone-foyer.sql` | icône d'application distincte du logo |
-| 6 | `supabase/p2e-retrait-couleur.sql` | retire un réglage sans effet |
-| 7 | `supabase/p3-nettoyage.sql` | supprime les tables héritées |
-| 8 | `supabase/seed.sql` | contenu d'un foyer vierge |
+| 1 | `supabase/migrations/<date>_socle.sql` | 24 tables, policies, RLS partout, fonctions et index |
+| 2 | `supabase/storage-branding.sql` | dépôt du logo et de l'icône |
+| 3 | `supabase/seed.sql` | contenu d'un foyer vierge |
 
-> **Maintenance.** Cette liste s'allonge à chaque évolution du schéma. Quand elle
-> devient pénible, régénérer le socle depuis un foyer à jour :
+Prendre le socle **le plus récent** de `supabase/migrations/`. S'il date d'avant une
+migration listée dans `supabase/` (fichiers `p2*`, `p3*`…), passer aussi celles-là,
+dans l'ordre alphabétique, **entre le socle et le seed**.
+
+> **Pourquoi trois fichiers et pas un.** `pg_dump --schema=public` ne capture que le
+> schéma applicatif : ni le bucket de fichiers, qui vit dans le schéma `storage`, ni
+> les données. Un socle régénéré ne contiendra donc **jamais** le dépôt d'images — et
+> son absence ne se signale par aucune erreur, seulement par un téléversement de logo
+> qui échoue.
+
+> **Maintenance : régénérer le socle.** Quand la liste des migrations postérieures
+> s'allonge, repartir d'un foyer à jour :
 > ```
 > pg_dump --schema-only --schema=public --no-owner "$PGURL" > supabase/migrations/<date>_socle.sql
 > ```
-> Puis retirer les méta-commandes `\restrict` / `\unrestrict`, passer
-> `CREATE SCHEMA public` en `IF NOT EXISTS`, et supprimer le bloc
-> `ALTER DEFAULT PRIVILEGES` de fin — l'éditeur SQL de Supabase le refuse.
-> Il faut des outils client PostgreSQL **au moins aussi récents que le serveur**
-> (`brew install libpq`).
+> `$PGURL` est la chaîne **Session pooler (port 5432)** de *Settings → Database →
+> Connection string → URI* — pas le port 6543, que `pg_dump` ne supporte pas.
+> Trois retouches obligatoires sur la sortie :
+> 1. retirer les méta-commandes `\restrict` / `\unrestrict` (pg_dump 18) ;
+> 2. passer `CREATE SCHEMA public` en `CREATE SCHEMA IF NOT EXISTS public` ;
+> 3. **supprimer le bloc `ALTER DEFAULT PRIVILEGES` de fin** — l'éditeur SQL de
+>    Supabase le refuse (`permission denied to change default privileges`), et ces
+>    lignes sont de toute façon redondantes sur un projet neuf.
+>
+> Il faut des outils client PostgreSQL **au moins aussi récents que le serveur** :
+> `brew install libpq`, puis `/opt/homebrew/opt/libpq/bin/pg_dump`.
+> Une fois le nouveau socle en place, déplacer les migrations qu'il absorbe dans
+> `supabase/migrations/archive/`.
 
 **Vérifier** — coller `supabase/verif-socle.sql`. Attendu :
 
@@ -259,7 +272,7 @@ de jeton et le motif exact d'un refus ; le registre y signale tout hôte inconnu
 
 - [ ] Projet Supabase créé, mot de passe conservé
 - [ ] `.env.<slug>` rempli, hors du dépôt
-- [ ] 8 fichiers SQL passés dans l'ordre, `verif-socle.sql` conforme
+- [ ] socle + `storage-branding.sql` + `seed.sql` passés dans l'ordre, `verif-socle.sql` conforme
 - [ ] Compte technique créé, mot de passe noté
 - [ ] SMTP réglé, **`Sender name` propre au foyer**
 - [ ] Gabarit d'invitation collé
