@@ -218,7 +218,28 @@ Deux retouches sur la sortie brute :
 
 **`supabase/migrations/archive/`** — les 23 patchs, plus un `LISEZ-MOI.md`. Ils gardent leur valeur documentaire : leurs commentaires expliquent le *pourquoi* de chaque décision de modèle, ce qu'un dump ne dit pas. Deux d'entre eux (`lot3-migrate-residentes.sql`, `lot3-seed-chambres.sql`) sont des migrations de données à sens unique propres au Foyer des Écoles — à ne jamais rejouer ailleurs.
 
-### 4.2. Recette de P1 — reste à faire
+### 4.2. Socle régénéré le 2026-08-24
+
+Le tableau ci-dessus décrit le **premier** socle, extrait avant P2. Une fois P2 et P3
+passés sur les deux foyers, il a été régénéré depuis la base des Écoles et absorbe
+désormais toutes les migrations `p2*` / `p3*` :
+
+| | premier socle | socle courant |
+|---|---|---|
+| fichier | `20260824000000_socle.sql` | `20260824120000_socle.sql` |
+| tables | 24 | **22** (deux tables héritées supprimées par P3) |
+| policies | 50 | **49** |
+| fonctions | 3 | **4** (`est_super_admin` ajoutée par P2b) |
+
+Monter un foyer neuf demande donc **trois** fichiers, et non plus huit :
+socle · `storage-branding.sql` · `seed.sql`.
+
+Le bucket a son propre fichier pour une raison de fond : il vit dans le schéma
+`storage`, que `pg_dump --schema=public` ne capture pas. Une régénération ne le
+contiendra donc jamais, et son absence ne lève aucune erreur — seulement un
+téléversement de logo qui échoue, des semaines plus tard.
+
+### 4.3. Recette de P1 — faite
 
 Partir d'un **projet Supabase vide**, puis :
 

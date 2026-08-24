@@ -72,13 +72,14 @@ fichier à la fois :
 
 | # | Fichier | Contenu |
 |---|---|---|
-| 1 | `supabase/migrations/<date>_socle.sql` | 24 tables, policies, RLS partout, fonctions et index |
+| 1 | `supabase/migrations/20260824120000_socle.sql` | 22 tables, 49 policies, RLS partout, 4 fonctions, index |
 | 2 | `supabase/storage-branding.sql` | dépôt du logo et de l'icône |
 | 3 | `supabase/seed.sql` | contenu d'un foyer vierge |
 
-Prendre le socle **le plus récent** de `supabase/migrations/`. S'il date d'avant une
-migration listée dans `supabase/` (fichiers `p2*`, `p3*`…), passer aussi celles-là,
-dans l'ordre alphabétique, **entre le socle et le seed**.
+Au 2026-08-24 ces trois fichiers suffisent : le socle absorbe toutes les migrations
+antérieures. Si de nouveaux fichiers apparaissent un jour à la racine de
+`supabase/`, les passer dans l'ordre alphabétique **entre le socle et le seed**,
+jusqu'à ce qu'une régénération les absorbe à son tour.
 
 > **Pourquoi trois fichiers et pas un.** `pg_dump --schema=public` ne capture que le
 > schéma applicatif : ni le bucket de fichiers, qui vit dans le schéma `storage`, ni
@@ -108,7 +109,7 @@ dans l'ordre alphabétique, **entre le socle et le seed**.
 **Vérifier** — coller `supabase/verif-socle.sql`. Attendu :
 
 ```
-tables 24 · policies 50+ · tables_rls 24 · fonctions 3+ · triggers 1
+tables 22 · policies 49 · tables_rls 22 · fonctions 4 · triggers 1
 reglages_seed 10 · rubriques_seed 4
 ```
 

@@ -1,5 +1,6 @@
 -- Vérifie qu'un projet neuf a bien reçu le socle. Lecture seule.
--- Attendu : 24 tables · 50 policies · 24 RLS · 3 fonctions · 1 trigger.
+-- Attendu après le socle seul : 22 tables · 49 policies · 22 RLS · 4 fonctions · 1 trigger.
+-- Après seed.sql : reglages_seed 10 · rubriques_seed 4.
 select
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relkind = 'r')                        as tables,
