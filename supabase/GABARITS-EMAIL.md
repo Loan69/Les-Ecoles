@@ -40,3 +40,35 @@ Le gabarit dit « Votre foyer » : chaque foyer peut y mettre son nom, les gabar
 | Le lien ouvre le mauvais foyer | `host` du registre `FOYERS` ne correspond pas au domaine |
 
 Les échecs sont journalisés par `auth/confirm` avec l'hôte, le type et le motif.
+
+## SMTP : pourquoi il est obligatoire, et ce qui se partage
+
+Supabase interdit de modifier les gabarits tant qu'aucun SMTP n'est configuré. Son
+service d'envoi intégré est destiné aux essais : gabarits figés, et une poignée
+d'emails par heure seulement. Un foyer réel a donc besoin de son propre SMTP.
+
+**Un même compte SMTP peut servir plusieurs foyers.** Les identifiants (hôte, port,
+utilisateur, mot de passe) sont réutilisables tels quels d'un projet Supabase à
+l'autre. Ce qui se partage alors :
+
+| Partagé | Conséquence |
+|---|---|
+| Le quota d'envoi | Brevo offre 300 emails/jour — pour **tous** les foyers réunis |
+| La réputation d'expéditeur | Des rebonds chez un foyer pèsent sur la délivrabilité des autres |
+| L'adresse d'expédition | À moins d'en valider une par foyer |
+
+**À différencier obligatoirement : le `Sender name`.** C'est le nom que voit
+l'invitée dans sa boîte. Laissé identique, une résidente de Guerlédan recevrait un
+email signé « Foyer des Écoles » — au mieux déroutant, au pire pris pour une
+tentative d'hameçonnage, donc ignoré.
+
+Dans *Project Settings → Authentication → SMTP Settings*, par foyer :
+
+- `Sender name` : **le nom du foyer** ;
+- `Sender email` : la même adresse validée, ou une adresse propre au foyer si elle
+  est validée chez le fournisseur ;
+- hôte, port, utilisateur, mot de passe : identiques.
+
+C'est le seul endroit où deux foyers partagent une infrastructure. Ce n'est pas un
+défaut de cloisonnement — aucune donnée d'un foyer ne transite par l'autre — mais
+c'est un point de contention à surveiller quand le nombre de foyers grandira.
