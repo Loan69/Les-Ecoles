@@ -35,8 +35,9 @@ export default function IdentiteFoyerSettings() {
   const [valeurs, setValeurs] = useState<Record<string, string>>({});
   const [chargement, setChargement] = useState(true);
   const [enregistrement, setEnregistrement] = useState(false);
-  const [envoiLogo, setEnvoiLogo] = useState(false);
-  const champFichier = useRef<HTMLInputElement>(null);
+  const [envoiLogo, setEnvoiLogo] = useState<"logo" | "icone" | null>(null);
+  const champLogo = useRef<HTMLInputElement>(null);
+  const champIcone = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!estSuperAdmin) { setChargement(false); return; }
@@ -66,21 +67,26 @@ export default function IdentiteFoyerSettings() {
     window.location.reload();
   };
 
-  const envoyerLogo = async (fichier: File) => {
-    setEnvoiLogo(true);
+  const envoyerImage = async (cible: "logo" | "icone", fichier: File) => {
+    setEnvoiLogo(cible);
     const form = new FormData();
-    form.append("logo", fichier);
+    form.append("cible", cible);
+    form.append("fichier", fichier);
     const r = await fetch("/api/admin/identite/logo", { method: "POST", body: form });
-    setEnvoiLogo(false);
+    setEnvoiLogo(null);
     if (!r.ok) return toast.error((await r.json()).error ?? "Téléversement impossible.");
-    toast.success("Logo enregistré.");
+    toast.success("Enregistré.");
     window.location.reload();
   };
 
-  const retirerLogo = async () => {
-    const r = await fetch("/api/admin/identite/logo", { method: "DELETE" });
+  const retirerImage = async (cible: "logo" | "icone") => {
+    const r = await fetch("/api/admin/identite/logo", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cible }),
+    });
     if (!r.ok) return toast.error((await r.json()).error ?? "Suppression impossible.");
-    toast.success("Logo retiré.");
+    toast.success("Retiré.");
     window.location.reload();
   };
 
@@ -134,45 +140,68 @@ export default function IdentiteFoyerSettings() {
         ))}
       </div>
 
-      {/* Logo ------------------------------------------------------------- */}
-      <div className="mt-5 pt-5 border-t border-gray-100">
-        <p className="block text-sm font-medium text-gray-600 mb-2">Logo</p>
-        <div className="flex flex-wrap items-center gap-4">
-          {identiteCourante.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={identiteCourante.logoUrl} alt="Logo actuel" className="h-16 w-auto object-contain rounded border border-gray-100 p-1" />
-          ) : (
-            <span className="text-sm text-gray-400 italic">
-              Aucun logo — l&apos;écran de connexion affiche le nom du foyer.
-            </span>
-          )}
+      {/* Images ---------------------------------------------------------- */}
+      {/* Deux images distinctes, et c'est volontaire : un logo d'en-tête est
+          transparent et large — parfait dans l'application, désastreux en icône,
+          où iOS et Android composent la transparence sur du NOIR et où un format
+          allongé devient illisible à 180 px. */}
+      <div className="mt-5 pt-5 border-t border-gray-100 grid gap-6 sm:grid-cols-2">
+        {([
+          {
+            cible: "logo" as const,
+            titre: "Logo",
+            url: identiteCourante.logoUrl,
+            champ: champLogo,
+            vide: "Aucun logo — les écrans affichent le nom du foyer.",
+            aide: "Affiché en tête des écrans. La transparence est bienvenue ici.",
+            fond: "",
+          },
+          {
+            cible: "icone" as const,
+            titre: "Icône de l'application",
+            url: identiteCourante.iconeUrl,
+            champ: champIcone,
+            vide: "Aucune icône — une icône neutre est utilisée.",
+            aide: "Écran d'accueil du téléphone. Carrée et sur fond OPAQUE : une image transparente s'affiche sur fond noir.",
+            fond: "bg-white",
+          },
+        ]).map(({ cible, titre, url, champ, vide, aide, fond }) => (
+          <div key={cible}>
+            <p className="block text-sm font-medium text-gray-600 mb-2">{titre}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              {url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={url} alt={titre} className={`h-16 w-auto max-w-[120px] object-contain rounded border border-gray-100 p-1 ${fond}`} />
+              ) : (
+                <span className="text-sm text-gray-400 italic">{vide}</span>
+              )}
 
-          <input
-            ref={champFichier}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) envoyerLogo(f); e.target.value = ""; }}
-          />
-          <button
-            onClick={() => champFichier.current?.click()}
-            disabled={envoiLogo}
-            className="flex items-center gap-1 bg-white border border-blue-200 text-blue-800 rounded-lg px-3 py-2 text-sm font-medium hover:bg-blue-50 disabled:opacity-50 cursor-pointer"
-          >
-            <Upload className="w-4 h-4" /> {envoiLogo ? "Envoi…" : identiteCourante.logoUrl ? "Remplacer" : "Choisir un logo"}
-          </button>
+              <input
+                ref={champ}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) envoyerImage(cible, f); e.target.value = ""; }}
+              />
+              <button
+                onClick={() => champ.current?.click()}
+                disabled={envoiLogo !== null}
+                className="flex items-center gap-1 bg-white border border-blue-200 text-blue-800 rounded-lg px-3 py-2 text-sm font-medium hover:bg-blue-50 disabled:opacity-50 cursor-pointer"
+              >
+                <Upload className="w-4 h-4" /> {envoiLogo === cible ? "Envoi…" : url ? "Remplacer" : "Choisir"}
+              </button>
 
-          {identiteCourante.logoUrl && (
-            <button
-              onClick={retirerLogo}
-              className="flex items-center gap-1 text-sm text-red-700 hover:underline cursor-pointer"
-            >
-              <Trash2 className="w-4 h-4" /> Retirer
-            </button>
-          )}
-        </div>
-        <p className="text-xs text-gray-400 mt-2">PNG, JPEG, WebP ou SVG, 2 Mo maximum. Sert aussi d&apos;icône quand l&apos;application est installée.</p>
+              {url && (
+                <button onClick={() => retirerImage(cible)} className="flex items-center gap-1 text-xs text-red-700 hover:underline cursor-pointer">
+                  <Trash2 className="w-4 h-4" /> Retirer
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-2">{aide}</p>
+          </div>
+        ))}
       </div>
+      <p className="text-xs text-gray-400 mt-2">PNG, JPEG, WebP ou SVG, 2 Mo maximum.</p>
 
       <div className="mt-5">
         <button

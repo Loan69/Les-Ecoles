@@ -42,6 +42,7 @@ from (values
   ('foyer_description', 'Espace des résidentes et des invitées', 'Phrase de présentation'),
   ('foyer_couleur',     '#004AAD', 'Couleur principale (barre du navigateur, écran d''accueil)'),
   ('foyer_logo_url',    '',        'Adresse du logo. Vide = le nom du foyer s''affiche en toutes lettres'),
+  ('foyer_icone_url',   '',        'Icône de l''application installée. Carrée et sur fond opaque, distincte du logo'),
   ('foyer_fuseau',      'Europe/Paris', 'Fuseau horaire de référence pour les heures de verrouillage'),
   ('foyer_locale',      'fr-FR',   'Format des dates et des heures')
 ) as v(key, value, label)

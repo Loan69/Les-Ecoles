@@ -11,12 +11,13 @@ export const dynamic = "force-dynamic";
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const foyer = await identiteFoyer();
 
-  // Un logo téléversé par le foyer sert aussi d'icône d'écran d'accueil. À défaut,
-  // on retombe sur les icônes statiques — neutres, mais à remplacer par chaque foyer.
-  const icones = foyer.logoUrl
+  // On n'utilise PAS le logo comme icône : un logo est transparent (rendu sur fond
+  // noir par iOS et Android) et large (illisible une fois comprimé en carré).
+  // `foyer_icone_url` est un réglage distinct ; à défaut, icônes statiques neutres.
+  const icones = foyer.iconeUrl
     ? [
-        { src: foyer.logoUrl, sizes: "192x192", type: "image/png" as const },
-        { src: foyer.logoUrl, sizes: "512x512", type: "image/png" as const },
+        { src: foyer.iconeUrl, sizes: "192x192", type: "image/png" as const },
+        { src: foyer.iconeUrl, sizes: "512x512", type: "image/png" as const },
       ]
     : [
         { src: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" as const },

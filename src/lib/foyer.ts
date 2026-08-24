@@ -11,7 +11,7 @@
 // sans elle, un appel direct pourrait écrire n'importe quelle ligne d'app_settings.
 export const CLES_IDENTITE = [
   'foyer_nom', 'foyer_nom_court', 'foyer_description',
-  'foyer_couleur', 'foyer_logo_url', 'foyer_fuseau', 'foyer_locale',
+  'foyer_couleur', 'foyer_logo_url', 'foyer_icone_url', 'foyer_fuseau', 'foyer_locale',
 ] as const;
 export type CleIdentite = (typeof CLES_IDENTITE)[number];
 
@@ -21,6 +21,9 @@ export type IdentiteFoyer = {
   description: string;
   couleur: string;
   logoUrl: string | null; // null = pas de logo, on affiche le nom en toutes lettres
+  // Icône de l'écran d'accueil : carrée et OPAQUE. Distincte du logo — un logo
+  // transparent s'affiche sur fond noir, un logo large devient illisible en carré.
+  iconeUrl: string | null;
   fuseau: string;
   locale: string;
 };
@@ -33,6 +36,7 @@ export const IDENTITE_DEFAUT: IdentiteFoyer = {
   description: "Espace des résidentes et des invitées",
   couleur: "#004AAD",
   logoUrl: null,
+  iconeUrl: null,
   fuseau: "Europe/Paris",
   locale: "fr-FR",
 };
@@ -47,12 +51,14 @@ export function identiteDepuisReglages(
     return v != null && v.trim() !== "" ? v.trim() : defaut;
   };
   const logo = (m.get("foyer_logo_url") ?? "").trim();
+  const icone = (m.get("foyer_icone_url") ?? "").trim();
   return {
     nom: lire("foyer_nom", IDENTITE_DEFAUT.nom),
     nomCourt: lire("foyer_nom_court", IDENTITE_DEFAUT.nomCourt),
     description: lire("foyer_description", IDENTITE_DEFAUT.description),
     couleur: lire("foyer_couleur", IDENTITE_DEFAUT.couleur),
     logoUrl: logo === "" ? null : logo,
+    iconeUrl: icone === "" ? null : icone,
     fuseau: lire("foyer_fuseau", IDENTITE_DEFAUT.fuseau),
     locale: lire("foyer_locale", IDENTITE_DEFAUT.locale),
   };

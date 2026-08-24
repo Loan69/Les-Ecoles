@@ -21,8 +21,9 @@ export async function generateMetadata(): Promise<Metadata> {
     title: foyer.nom,
     description: foyer.description,
     icons: {
-      icon: foyer.logoUrl ?? '/favicon.ico',
-      apple: foyer.logoUrl ?? '/apple-touch-icon.png',
+      // Même raison que le manifeste : l'icône n'est pas le logo.
+      icon: foyer.iconeUrl ?? '/favicon.ico',
+      apple: foyer.iconeUrl ?? '/apple-touch-icon.png',
     },
     manifest: '/manifest.webmanifest',
   }
