@@ -2,12 +2,8 @@
 
 import { useState } from "react";
 import { useSupabase } from "@/app/providers";
-import DynamicSelectGroup from "./DynamicSelectGroup";
-import { Option } from "@/types/Option";
-import DateNaissanceSelect from "./DateNaissanceSelect";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import { useResidences } from "@/lib/useResidences";
 
 type Role = "residente" | "invitee";
 
@@ -17,9 +13,6 @@ interface Props {
 
 export default function SignupForm({ role }: Props) {
   const { supabase } = useSupabase();
-  // Les blocs de postes (intendance) n'ont ni étage ni chambre à saisir : la règle suit
-  // le type du bloc, pas son nom — un nouveau bloc de postes est traité comme Corail.
-  const { residences: blocs } = useResidences();
   const [formData, setFormData] = useState({
     nom: "",
     prenom: "",
@@ -36,7 +29,6 @@ export default function SignupForm({ role }: Props) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const [selection, setSelection] = useState<{ [category: string]: Option }>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
@@ -66,15 +58,6 @@ export default function SignupForm({ role }: Props) {
     if (!formData.email.trim()) missingFields.push("email");
     if (!formData.password.trim() || !formData.confirmPassword.trim()) {
       missingFields.push("mot de passe");
-    }
-    if (role === "residente") {
-      if (!formData.datenaissance) missingFields.push("date de naissance");
-      if (!selection.residence?.value) missingFields.push("résidence");
-      const bloc = blocs.find((b) => b.value === selection.residence?.value);
-      if (bloc?.kind !== "poste") {
-        if (!selection.etage?.value) missingFields.push("étage");
-        if (!selection.chambre?.value) missingFields.push("chambre");
-      }
     }
     if (role === "invitee") {
       if (!formData.typeInvitee) missingFields.push("type d'invitée");
@@ -106,10 +89,12 @@ export default function SignupForm({ role }: Props) {
         role,
         nom: formData.nom,
         prenom: formData.prenom,
-        datenaissance: role === "residente" ? formData.datenaissance : null,
-        residence: role === "residente" ? selection.residence?.value || null : null,
-        etage: role === "residente" ? selection.etage?.value || null : null,
-        chambre: role === "residente" ? selection.chambre?.value || null : null,
+        // Logement et date de naissance restent nuls : ce formulaire ne sert plus qu'aux
+        // invitées, qui n'occupent aucune chambre. Les résidentes passent par invitation.
+        datenaissance: null,
+        residence: null,
+        etage: null,
+        chambre: null,
         typeInvitee: role === "invitee" ? formData.typeInvitee : null,
       };
 
@@ -171,18 +156,11 @@ export default function SignupForm({ role }: Props) {
         className="w-full mb-3 px-4 py-2 border border-blue-500 text-blue-800 focus:ring-2 focus:ring-blue-500"
       />
 
-      {role === "residente" && (
-        <>
-          <DateNaissanceSelect
-            value={formData.datenaissance}
-            onChange={(v) => setFormData({ ...formData, datenaissance: v })}
-          />
-          <DynamicSelectGroup
-            rootCategory="residence"
-            onChange={(selected) => setSelection(selected)}
-          />
-        </>
-      )}
+      {/* Le parcours « résidente » a disparu : depuis le Lot 3 les résidentes sont
+          créées par invitation, /api/sync-user le refuse explicitement, et
+          completionProfile redirige tout rôle autre qu'invitée. Le sélecteur
+          résidence/étage/chambre qui vivait ici lisait select_options_residence,
+          dernier doublon de places/etages. */}
 
       {role === "invitee" && (
         <div className="mb-4">

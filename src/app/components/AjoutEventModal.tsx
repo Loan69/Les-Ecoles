@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import DynamicSelectGroup from "./DynamicSelectGroup";
-import DynamicMultiSelectGroup from "./DynamicMultiSelectGroup";
 import EventVisibilitySelector from "./EventVisibilitySelector";
 import DateSelector from "./DatesSelector";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { toast } from "sonner";
+import { useResidences } from "@/lib/useResidences";
 
 type ModalProps = {
   open: boolean;
@@ -40,9 +40,8 @@ export default function ModalAjoutEvenement({
   });
 
   // État pour les valeurs initiales du multiselect lieu
-  const [lieuInitialValues, setLieuInitialValues] = useState<{ residence: string[] }>({ 
-    residence: [] 
-  });
+  // Blocs du foyer, source unique des lieux possibles.
+  const { residences: blocs } = useResidences();
 
   useEffect(() => {
     if (open) {
@@ -64,7 +63,6 @@ export default function ModalAjoutEvenement({
         });
 
         // Mettre à jour les valeurs initiales pour le multiselect
-        setLieuInitialValues({ residence: lieu });
       } else {
         setForm({
           titre: "",
@@ -81,7 +79,6 @@ export default function ModalAjoutEvenement({
         });
 
         // Réinitialiser les valeurs initiales
-        setLieuInitialValues({ residence: [] });
       }
     }
   }, [open, eventToEdit]);
@@ -204,19 +201,33 @@ export default function ModalAjoutEvenement({
               Lieu(x) de l&apos;évènement <span className="text-gray-400">(facultatif)</span>
             </label>
             <p className="text-xs text-gray-400 mb-1">Sans lieu, l&apos;événement s&apos;affiche en rappel « Aujourd&apos;hui » sur l&apos;accueil le jour J.</p>
-            <DynamicMultiSelectGroup
-              key={`lieu-${open}-${isEditing}`}
-              rootCategory="residence"
-              onChange={(selected) => {
-                const residenceValues = selected.residence?.map((opt) => opt.value) || [];
-                handleSelectChange("lieu", residenceValues);
-              }}
-              initialValues={lieuInitialValues}
-              onlyParent={true}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Sélectionnez une ou plusieurs résidences
-            </p>
+            {/* Les blocs viennent de la table `residences`, source de vérité unique.
+                Ils étaient lus dans `select_options_residence`, qui les décrivait une
+                seconde fois : un bloc créé depuis Administration n'y apparaissait pas,
+                et ne pouvait donc pas être choisi comme lieu. */}
+            <div className="flex flex-wrap gap-2">
+              {blocs.length === 0 && (
+                <p className="text-xs text-gray-400 italic">Aucun bloc n&apos;est encore créé.</p>
+              )}
+              {blocs.map((b) => {
+                const choisi = (form.lieu ?? []).includes(b.value);
+                return (
+                  <button
+                    key={b.value}
+                    type="button"
+                    onClick={() => {
+                      const actuels = form.lieu ?? [];
+                      handleSelectChange("lieu", choisi ? actuels.filter((v) => v !== b.value) : [...actuels, b.value]);
+                    }}
+                    className={`rounded-full border px-3 py-1.5 text-sm transition cursor-pointer ${
+                      choisi ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-blue-200 text-blue-800 hover:bg-blue-50"
+                    }`}
+                  >
+                    {b.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Section visibilité */}
