@@ -117,6 +117,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
   const [archived, setArchived] = useState<ArchivedAccount[]>([]);
   const [rightsMap, setRightsMap] = useState<Record<string, UserRights>>({});
   const [canManageRoles, setCanManageRoles] = useState(false);
+  const [isTechnique, setIsTechnique] = useState(false);
   const [assignFor, setAssignFor] = useState<{ uid: string; name: string } | null>(null);
   const [editingRights, setEditingRights] = useState<{ userId: string; name: string; rights: Rights } | null>(null);
   const [structureOpen, setStructureOpen] = useState(false);
@@ -148,6 +149,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
       }
       setRightsMap(map);
       setCanManageRoles(uj.canManageRoles ?? false);
+      setIsTechnique(uj.isTechnique ?? false);
     }
     // Tolérant : tant que supabase/groupes.sql n'est pas passé, l'écran fonctionne sans groupes.
     if (groupesRes.ok) setGroupes(((await groupesRes.json()).groupes ?? []) as Groupe[]);
@@ -528,6 +530,14 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
       .map(([uid, ur]) => ({ uid, rights: ur.rights, name: ur.name, email: ur.email }));
   }, [places, rightsMap, archived]);
 
+  // Mon propre compte, tant qu'il n'est rattaché à aucune chambre.
+  const moiSansChambre = useMemo(
+    () => unplaced.find((u) => u.uid === currentUserId) ?? null,
+    [unplaced, currentUserId]
+  );
+  const jeSuisSansChambre = moiSansChambre !== null;
+  const monNom = moiSansChambre?.name ?? "mon compte";
+
   const groupesByUser = useMemo(() => {
     const map: Record<string, { id: string; nom: string }[]> = {};
     groupes.forEach((g) => g.membres.forEach((uid) => {
@@ -573,6 +583,29 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
 
   return (
     <div className="space-y-6">
+      {/* Exception d'installation : une super-administratrice est invitée SANS place,
+          puisqu'au démarrage d'un foyer aucune chambre n'existe encore. Elle peut donc
+          se choisir la sienne — pour elle seule, et seulement tant qu'elle n'en a pas.
+          Dès qu'elle est logée, cet encadré disparaît et elle est gérée comme toutes
+          les autres. Le compte technique en est exclu : il n'occupe jamais de chambre. */}
+      {!isTechnique && myRights.isSuperAdmin && jeSuisSansChambre && (
+        <section className="bg-blue-50 rounded-2xl border border-blue-200 p-4 sm:p-5">
+          <h2 className="text-base font-bold text-blue-800 flex items-center gap-2 mb-1">
+            <DoorClosed className="w-5 h-5 shrink-0" /> Vous n&apos;occupez pas encore de chambre
+          </h2>
+          <p className="text-xs text-gray-500 mb-3">
+            Votre compte a été créé avant que les chambres n&apos;existent. Choisissez la vôtre
+            parmi les places libres — vous serez ensuite gérée comme les autres résidentes.
+          </p>
+          <button
+            onClick={() => setAssignFor({ uid: currentUserId, name: monNom })}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-800 cursor-pointer text-sm"
+          >
+            <DoorClosed className="w-4 h-4" /> Choisir ma chambre
+          </button>
+        </section>
+      )}
+
       {/* ================= Liste des utilisatrices (par bloc / étage / chambre) ================= */}
       {blocsAffiches.map((r) => {
         const rPlaces = places.filter((p) => p.residence === r.value && p.is_active);
@@ -591,13 +624,14 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
         );
       })}
 
-      {/* Comptes actifs sans chambre. Longtemps réservé au compte technique, au motif
-          qu'un compte sans chambre signalait une anomalie. Ce n'est plus vrai : une
-          super-administratrice est désormais invitée SANS place — au démarrage d'un
-          foyer, aucune chambre n'existe encore. La cacher aux administratrices rendait
-          justement impossible de lui en attribuer une ensuite. Visible de qui gère les
-          comptes (canEdit). */}
-      {canEdit && unplaced.length > 0 && (
+      {/* Résidentes actives sans chambre — outil de MAINTENANCE, visible du seul compte
+          technique. Situation anormale (erreur technique) : ne pas exposer aux
+          administratrices courantes.
+
+          Le cas légitime d'un compte sans chambre — une super-administratrice invitée
+          avant qu'aucune chambre n'existe — ne passe PAS par ici : elle se choisit
+          elle-même une chambre via l'encadré ci-dessus, et rentre alors dans le rang. */}
+      {isTechnique && unplaced.length > 0 && (
         <section className="bg-white rounded-2xl shadow-sm border border-amber-200 p-4 sm:p-5">
           <h2 className="text-base font-bold text-amber-700 flex items-center gap-2 mb-1">
             <UserCheck className="w-5 h-5 shrink-0" /> Sans chambre attribuée <span className="text-xs font-normal text-gray-400">· {unplaced.length}</span>
