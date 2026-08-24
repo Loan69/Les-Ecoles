@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { identiteFoyer } from "@/lib/foyerServeur";
+import { COULEUR_APPLI } from "@/lib/foyer";
 
 // Manifeste de l'application web, engendré à la demande depuis l'identité du foyer.
 // Remplace public/manifest.json, qui était figé sur « Foyer des Écoles ».
@@ -31,7 +32,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
-    theme_color: foyer.couleur,
+    theme_color: COULEUR_APPLI,
     icons: icones,
   };
 }

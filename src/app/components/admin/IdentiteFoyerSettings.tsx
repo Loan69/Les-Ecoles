@@ -26,7 +26,6 @@ const CHAMPS: { cle: CleIdentite; label: string; aide: string; type?: string }[]
   { cle: "foyer_nom", label: "Nom du foyer", aide: "Titre de l'onglet du navigateur, et nom utilisé dans les emails." },
   { cle: "foyer_nom_court", label: "Nom court", aide: "Sous l'icône, quand l'application est installée sur un téléphone. Deux mots maximum." },
   { cle: "foyer_description", label: "Description", aide: "Phrase reprise par les aperçus de lien et sous l’icône de l’application installée. Invisible dans l’application elle-même." },
-  { cle: "foyer_couleur", label: "Couleur de l’application", aide: "Barre du navigateur sur Android et écran de démarrage une fois l’application installée. Sans effet sur les couleurs des écrans.", type: "color" },
 ];
 
 export default function IdentiteFoyerSettings() {

@@ -4,6 +4,7 @@ import { Providers } from "./providers"
 import ClientLayout from "./ClientLayout"
 import { Toaster } from "sonner"
 import { identiteFoyer, foyerCourant } from "@/lib/foyerServeur"
+import { COULEUR_APPLI } from "@/lib/foyer"
 
 // Titre, description et couleur viennent de la base (clés `foyer_*` d'app_settings),
 // plus du code : c'est ce qui permet à un second foyer de s'appeler autrement sans
@@ -30,9 +31,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // `themeColor` ne vit plus dans `metadata` depuis Next 14 : il a son propre export.
-export async function generateViewport(): Promise<Viewport> {
-  const foyer = await identiteFoyer()
-  return { themeColor: foyer.couleur }
+// Constante : voir COULEUR_APPLI dans src/lib/foyer.ts.
+export function generateViewport(): Viewport {
+  return { themeColor: COULEUR_APPLI }
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

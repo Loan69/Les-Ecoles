@@ -11,15 +11,21 @@
 // sans elle, un appel direct pourrait écrire n'importe quelle ligne d'app_settings.
 export const CLES_IDENTITE = [
   'foyer_nom', 'foyer_nom_court', 'foyer_description',
-  'foyer_couleur', 'foyer_logo_url', 'foyer_icone_url', 'foyer_fuseau', 'foyer_locale',
+  'foyer_logo_url', 'foyer_icone_url', 'foyer_fuseau', 'foyer_locale',
 ] as const;
 export type CleIdentite = (typeof CLES_IDENTITE)[number];
+
+// Teinte de la barre du navigateur sur Android et de l'écran de démarrage de
+// l'application installée. **Constante, et non réglable** : elle ne pilote rien
+// dans l'interface — boutons, titres et bandeaux sont des classes Tailwind écrites
+// en dur. Un réglage aurait promis un thème qui n'existe pas. Le jour où l'interface
+// passera à des variables CSS, cette constante redeviendra un réglage.
+export const COULEUR_APPLI = "#004AAD";
 
 export type IdentiteFoyer = {
   nom: string;
   nomCourt: string;
   description: string;
-  couleur: string;
   logoUrl: string | null; // null = pas de logo, on affiche le nom en toutes lettres
   // Icône de l'écran d'accueil : carrée et OPAQUE. Distincte du logo — un logo
   // transparent s'affiche sur fond noir, un logo large devient illisible en carré.
@@ -34,7 +40,6 @@ export const IDENTITE_DEFAUT: IdentiteFoyer = {
   nom: "Foyer",
   nomCourt: "Foyer",
   description: "Espace des résidentes et des invitées",
-  couleur: "#004AAD",
   logoUrl: null,
   iconeUrl: null,
   fuseau: "Europe/Paris",
@@ -56,7 +61,6 @@ export function identiteDepuisReglages(
     nom: lire("foyer_nom", IDENTITE_DEFAUT.nom),
     nomCourt: lire("foyer_nom_court", IDENTITE_DEFAUT.nomCourt),
     description: lire("foyer_description", IDENTITE_DEFAUT.description),
-    couleur: lire("foyer_couleur", IDENTITE_DEFAUT.couleur),
     logoUrl: logo === "" ? null : logo,
     iconeUrl: icone === "" ? null : icone,
     fuseau: lire("foyer_fuseau", IDENTITE_DEFAUT.fuseau),

@@ -17,7 +17,6 @@ from (values
   ('foyer_nom',         'Foyer',  'Nom complet du foyer (titre de l''onglet, emails)'),
   ('foyer_nom_court',   'Foyer',  'Nom court (écran d''accueil du téléphone)'),
   ('foyer_description', 'Espace des résidentes et des invitées', 'Phrase de présentation'),
-  ('foyer_couleur',     '#004AAD', 'Couleur principale (barre du navigateur, écran d''accueil)'),
   ('foyer_logo_url',    '',        'Adresse du logo. Vide = le nom du foyer s''affiche en toutes lettres'),
   ('foyer_fuseau',      'Europe/Paris', 'Fuseau horaire de référence pour les heures de verrouillage'),
   ('foyer_locale',      'fr-FR',   'Format des dates et des heures')

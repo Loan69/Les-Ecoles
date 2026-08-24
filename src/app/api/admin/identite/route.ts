@@ -37,10 +37,6 @@ export async function PUT(req: NextRequest) {
   const nom = aEcrire.find((r) => r.key === "foyer_nom");
   if (nom && nom.value === "") return NextResponse.json({ error: "Le nom du foyer ne peut pas être vide." }, { status: 400 });
 
-  const couleur = aEcrire.find((r) => r.key === "foyer_couleur");
-  if (couleur && !/^#[0-9a-fA-F]{6}$/.test(couleur.value))
-    return NextResponse.json({ error: "Couleur invalide (format attendu : #1A2B3C)." }, { status: 400 });
-
   const fuseau = aEcrire.find((r) => r.key === "foyer_fuseau");
   if (fuseau) {
     // Un fuseau erroné ferait échouer tous les calculs de verrouillage, sans message
