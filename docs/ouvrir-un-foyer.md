@@ -73,13 +73,19 @@ fichier à la fois :
 | # | Fichier | Contenu |
 |---|---|---|
 | 1 | `supabase/migrations/20260824120000_socle.sql` | 22 tables, 49 policies, RLS partout, 4 fonctions, index |
-| 2 | `supabase/storage-branding.sql` | dépôt du logo et de l'icône |
-| 3 | `supabase/seed.sql` | contenu d'un foyer vierge |
+| 2 | `supabase/p4-options-evenement-en-code.sql` | retire deux tables devenues inutiles |
+| 3 | `supabase/storage-branding.sql` | dépôt du logo et de l'icône |
+| 4 | `supabase/seed.sql` | contenu d'un foyer vierge |
 
-Au 2026-08-24 ces trois fichiers suffisent : le socle absorbe toutes les migrations
-antérieures. Si de nouveaux fichiers apparaissent un jour à la racine de
-`supabase/`, les passer dans l'ordre alphabétique **entre le socle et le seed**,
-jusqu'à ce qu'une régénération les absorbe à son tour.
+**La règle générale** : prendre le socle le plus récent de `supabase/migrations/`,
+puis passer **tous** les fichiers `.sql` restés à la racine de `supabase/` dans
+l'ordre alphabétique, entre le socle et le seed — hors `audit-rls.sql`,
+`verif-socle.sql` et `sync-modes-emploi-inapp.sql`, qui sont des outils et non des
+migrations. Une régénération du socle les absorbe et vide cette liste.
+
+Un foyer neuf peut sauter `p4` sans dommage — il ne fait que supprimer deux tables
+inutilisées — mais le passer garde les foyers strictement identiques, ce qui est la
+condition pour qu'une régénération de socle fasse foi.
 
 > **Pourquoi trois fichiers et pas un.** `pg_dump --schema=public` ne capture que le
 > schéma applicatif : ni le bucket de fichiers, qui vit dans le schéma `storage`, ni
@@ -266,6 +272,7 @@ Enfin, importer les modes opératoires dans l'application :
 | Un écran est vide alors qu'il devrait être rempli | une migration manque : rejouer `verif-socle.sql` |
 | `permission denied to change default privileges` | bloc `ALTER DEFAULT PRIVILEGES` resté dans un socle régénéré (§2) |
 | Une chambre libérée refuse d'être supprimée | occupante encore active, ou invitation en attente — le message le dit |
+| Aucun **type d'événement** proposé, création impossible | déploiement antérieur au 2026-08-25. Les types et délais de rappel vivaient dans deux tables que le seed ne remplissait pas : un foyer neuf n'en avait aucun, et la catégorie étant obligatoire, aucun événement n'était créable. Ils sont désormais dans le code — **redéployer suffit** |
 
 **Les journaux Vercel** portent l'essentiel : `auth/confirm` y trace l'hôte, le type
 de jeton et le motif exact d'un refus ; le registre y signale tout hôte inconnu.
@@ -276,7 +283,7 @@ de jeton et le motif exact d'un refus ; le registre y signale tout hôte inconnu
 
 - [ ] Projet Supabase créé, mot de passe conservé
 - [ ] `.env.<slug>` rempli, hors du dépôt
-- [ ] socle + `storage-branding.sql` + `seed.sql` passés dans l'ordre, `verif-socle.sql` conforme
+- [ ] socle + migrations restantes + `storage-branding.sql` + `seed.sql`, dans l'ordre ; `verif-socle.sql` conforme
 - [ ] Compte technique créé, mot de passe noté
 - [ ] SMTP réglé, **`Sender name` propre au foyer**
 - [ ] Gabarit d'invitation collé

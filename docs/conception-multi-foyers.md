@@ -382,6 +382,25 @@ Priorité basse si les deux foyers sont en France : à traiter au premier foyer 
 
 ---
 
+### 6.5. Ce que P3 avait mal jugé — les listes d'options d'événement
+
+`p3-nettoyage.sql` conservait `select_options_evenement` et `select_options_rappel` au motif qu'elles étaient « des listes de configuration propres à chaque foyer, comme les options de repas ». **C'était faux**, et le second foyer l'a montré avant nous.
+
+Ces tables étaient remplies **à la main** sur le premier foyer, jamais par le seed. Un foyer neuf en héritait **vides** : aucun type d'événement à choisir, et comme la catégorie est obligatoire à la validation (`AjoutEventModal.tsx:107`), **aucun événement créable**. Trois symptômes rapportés par la cliente — plus de type, plus de rappel, création impossible — pour un seul défaut.
+
+L'erreur de raisonnement mérite d'être nommée : j'avais comparé ces tables aux options de repas **sans vérifier qu'un écran les édite**. Les options de repas en ont un ; celles-ci, non. Une table que personne ne peut modifier n'offre aucune souplesse — seulement une occasion de l'oublier au moment du seed.
+
+Deux raisons de plus de les ramener dans le code (`src/lib/evenementOptions.ts`) :
+
+- la valeur `intendance` **porte un comportement** : les confirmations d'un événement de cette catégorie se lisent « Fait » et non « Je participe » (`ConfirmationToggle.tsx`). Une liste librement modifiable pouvait casser cette fonction en silence ;
+- un délai de rappel n'a rien de propre à un foyer.
+
+Les `value` sont inchangées : l'historique de `evenements.category` reste lisible. `supabase/p4-options-evenement-en-code.sql` supprime les deux tables.
+
+**Le contrôle qui manquait**, et qui vaut pour la suite : après avoir monté un foyer neuf, ne pas se contenter de vérifier que les écrans s'affichent — **essayer d'y créer quelque chose**. Un formulaire dont une liste obligatoire est vide s'affiche parfaitement.
+
+---
+
 ## 7. P4 — Résolution du foyer à l'exécution ✅ fait le 2026-08-24
 
 Avant, l'URL et les clés Supabase venaient de `process.env`, et `NEXT_PUBLIC_SUPABASE_URL` était **figée dans le bundle au moment du build**. Un déploiement ne pouvait donc servir qu'un foyer.
