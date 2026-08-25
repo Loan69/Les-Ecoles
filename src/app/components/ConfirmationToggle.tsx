@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { CATEGORIE_INTENDANCE } from "@/lib/evenementOptions";
 import { toast } from "sonner"
 import { useSupabase } from "@/app/providers"
 import { User } from "@supabase/supabase-js"
@@ -45,7 +46,7 @@ export default function ResidentParticipationButton({ eventId }: ConfirmationTog
 
       const confirmations = (data?.confirmations as CalendarEvent["confirmations"]) || []
       setChecked(confirmations.includes(user.id))
-      setIsIntendance(data?.category === "intendance")
+      setIsIntendance(data?.category === CATEGORIE_INTENDANCE)
     }
 
     fetchEventData()

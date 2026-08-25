@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import DynamicSelectGroup from "./DynamicSelectGroup";
 import EventVisibilitySelector from "./EventVisibilitySelector";
 import DateSelector from "./DatesSelector";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { toast } from "sonner";
 import { useResidences } from "@/lib/useResidences";
+import { CATEGORIES_EVENEMENT, DELAIS_RAPPEL } from "@/lib/evenementOptions";
 
 type ModalProps = {
   open: boolean;
@@ -136,17 +136,16 @@ export default function ModalAjoutEvenement({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Type de l&apos;évènement
           </label>
-          <DynamicSelectGroup
-            key={`event-${open}`}
-            rootCategory="evenement"
-            onChange={(selected) => {
-              const catValue = Object.values(selected)[0]?.value || "";
-              handleSelectChange("category", catValue);
-            }}
-            initialValue={form.category}
-            islabel={false}
-          />
-
+          <select
+            value={form.category}
+            onChange={(e) => handleSelectChange("category", e.target.value)}
+            className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md bg-white mb-3"
+          >
+            <option value="">— Choisir —</option>
+            {CATEGORIES_EVENEMENT.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
           {/* Titre */}
           <input
             name="titre"
@@ -172,15 +171,15 @@ export default function ModalAjoutEvenement({
           />
 
           {/* Rappel */}
-          <DynamicSelectGroup
-            key={`rappel-${open}`}
-            rootCategory="rappel"
-            onChange={(selected) => {
-              const rappelValue = Object.values(selected)[0]?.value || "";
-              handleSelectChange("rappel_event", Number(rappelValue) || 0);
-            }}
-            initialValue={String(form.rappel_event)}
-          />
+          <select
+            value={String(form.rappel_event ?? 0)}
+            onChange={(e) => handleSelectChange("rappel_event", Number(e.target.value) || 0)}
+            className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md bg-white mb-3"
+          >
+            {DELAIS_RAPPEL.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
 
           {/* Description */}
           <label className="block text-sm font-medium text-gray-700 mb-1">
