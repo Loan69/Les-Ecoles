@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import LogoFoyer from "./LogoFoyer";
+import { formatLieu } from "@/lib/eventLieu";
+import { useResidences } from "@/lib/useResidences";
 import { ChevronLeft, ChevronRight, Edit } from "lucide-react";
 import ModalAjoutEvenement from "./AjoutEventModal";
 import { CalendarEvent } from "@/types/CalendarEvent";
@@ -28,6 +30,9 @@ export default function CalendrierView({
     canEdit = false,
     }: CalendrierViewProps) {
 
+    // Blocs du foyer : le lieu s'affiche avec le nom réglé en Administration,
+    // pas avec sa clé technique.
+    const { residences } = useResidences();
     const [currentDate, setCurrentDate] = useState(new Date());
     const today = new Date();
     const [selectedDay, setSelectedDay] = useState<number | null>(today.getDate());
@@ -205,7 +210,7 @@ export default function CalendrierView({
                     {e.heures && <p className="text-xs text-gray-600 mt-1 italic">{e.heures}</p>}
                     {e.lieu && e.lieu.length > 0 && (
                         <p className="text-xs text-gray-600 mt-1">
-                            📍 Résidence{e.lieu.length > 1 ? "s" : ""} : {e.lieu.join(", ")}
+                            📍 {formatLieu(e.lieu, residences)}
                         </p>
                         )}
                     {e.description && <p className="text-xs text-gray-500 mt-1">{e.description}</p>}
