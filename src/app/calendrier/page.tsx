@@ -9,6 +9,7 @@ import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
 import AdministrationButton from "../components/administrationButton";
 import { useMyRights } from "@/lib/useMyRights";
+import { evenementVisiblePour } from "@/lib/eventVisibility";
 import { useSectionGuard } from "@/lib/useSectionGuard";
 import { CardListSkeleton } from "../components/Skeleton";
 
@@ -20,6 +21,10 @@ export default function CalendrierPage() {
   const canEdit = myRights.canEdit("evenements");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  // Profil de l'utilisatrice : indispensable pour filtrer les événements sur leur
+  // ciblage. Le calendrier n'en tenait aucun compte — il affichait TOUS les
+  // événements du foyer à tout le monde, ciblage compris.
+  const [profil, setProfil] = useState<{ residence: string | null; etage: string | null; chambre: string | null } | null>(null);
 
   // Récupération de l'utilisateur
   useEffect(() => {
@@ -34,6 +39,18 @@ export default function CalendrierPage() {
     };
     fetchUser();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from("residentes")
+        .select("residence, etage, chambre")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setProfil(data ?? null);
+    })();
+  }, [user, supabase]);
 
   // Charger les événements depuis Supabase
   const fetchEvents = async () => {
@@ -122,6 +139,24 @@ export default function CalendrierPage() {
     }
   };
 
+  // Événements réellement montrés.
+  //
+  // L'intendance (Événements >= Admin · consulter) voit tout : elle doit pouvoir
+  // gérer ce qu'elle a créé pour d'autres. Une habitante ne voit que ce qui la
+  // cible — même règle qu'à l'accueil et dans la semaine des repas.
+  const eventsVisibles = myRights.canView("evenements")
+    ? events
+    : events.filter((e) =>
+        evenementVisiblePour(e, {
+          residence: profil?.residence,
+          etage: profil?.etage,
+          chambre: profil?.chambre,
+          user_id: user?.id,
+          groupes: myRights.groupes,
+          estResidente: profil != null,
+        })
+      );
+
   // Modifier un événement
   const handleEditEvent = async (id: number, updates: Partial<CalendarEvent>) => {
     const { data, error } = await supabase
@@ -152,7 +187,7 @@ export default function CalendrierPage() {
 
       <div className="w-full max-w-md">
         <CalendrierView
-          events={events}
+          events={eventsVisibles}
           onAddEvent={handleAddEvent}
           onEditEvent={handleEditEvent}
           onDeleteEvent={handleDeleteEvent}

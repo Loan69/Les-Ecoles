@@ -13,7 +13,7 @@ import { CalendarEvent } from "@/types/CalendarEvent";
 import { computeLockState } from "@/lib/lockUtils";
 import { isAwayForMeal } from "@/lib/mealCompta";
 import { CHOIX_NON } from "@/lib/presenceStatut";
-import { eventVisibleFor } from "@/lib/eventVisibility";
+import { evenementVisiblePour, evenementConcerneLeLieu } from "@/lib/eventVisibility";
 import { optionVisibleFor } from "@/lib/optionVisibility";
 import { formatLieu } from "@/lib/eventLieu";
 import { nomInvite } from "@/lib/invites";
@@ -169,8 +169,15 @@ export default function SemaineRepas() {
       .map((so) => so.option as MealOptionCatalog)
       .filter((o) => o.is_active && optionVisibleFor(o, { residence: profil?.residence, etage: profil?.etage, user_id: user?.id, groupes: myRights.groupes }));
 
-  const eventViewer = { residence: profil?.residence, etage: profil?.etage, chambre: profil?.chambre, user_id: user?.id, groupes: myRights.groupes };
-  const eventsForDay = (dateKey: string) => weekEvents.filter((e) => e.dates_event?.includes(dateKey) && eventVisibleFor(e, eventViewer));
+  const eventViewer = { residence: profil?.residence, etage: profil?.etage, chambre: profil?.chambre, user_id: user?.id, groupes: myRights.groupes, estResidente: profil != null };
+  // Droit de voir, ET rattachement au lieu de vie : deux questions distinctes.
+  const eventsForDay = (dateKey: string) =>
+    weekEvents.filter(
+      (e) =>
+        e.dates_event?.includes(dateKey) &&
+        evenementVisiblePour(e, eventViewer) &&
+        evenementConcerneLeLieu(e, profil?.residence)
+    );
 
   const invitesForDay = (dateKey: string) => myInvites.filter((i) => i.date_repas === dateKey);
   const optionLabelById = (id: string | null): string | null => {

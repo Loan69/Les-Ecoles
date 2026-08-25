@@ -21,7 +21,7 @@ import { statutRepas } from "@/lib/presenceStatut";
 import { nomInvite } from "@/lib/invites";
 import { useMyRights } from "@/lib/useMyRights";
 import { useResidences } from "@/lib/useResidences";
-import { cibleEstVide, dansCible, estExclue } from "@/lib/visibilite";
+import { evenementVisiblePour } from "@/lib/eventVisibility";
 import VisionConfirmation from "../components/VisionConfirmation";
 import ConfirmationToggle from "../components/ConfirmationToggle";
 
@@ -300,19 +300,15 @@ export default function HomePage() {
     chambre: profil?.chambre,
     user_id: user?.id,
     groupes: myRights.groupes,
+    // `profil` est la ligne `residentes` : une invitée n'en a pas. Ce n'est PAS la
+    // même chose que « sans chambre » — une super-administratrice en a une, sans place.
+    estResidente: profil != null,
   };
 
   const filteredEvents = selectedResidenceValue
-    ? events.filter((event) => {
-        const lieux = event.lieu || [];
-        if (!lieux.includes(selectedResidenceValue)) return false;
-
-        if (!profil?.residence) return event.visible_invites === true;
-
-        // Ciblage dynamique (résidence / étage / groupe), moins les exclusions nommées.
-        if (estExclue(event.visibilite, cibleViewer)) return false;
-        return dansCible(event.visibilite, cibleViewer);
-      })
+    ? events.filter(
+        (event) => (event.lieu || []).includes(selectedResidenceValue) && evenementVisiblePour(event, cibleViewer)
+      )
     : [];
 
   // Couleur de l'intercalaire sélectionné : celle du bloc, réglée en Administration.
@@ -322,16 +318,15 @@ export default function HomePage() {
   // Événements du jour rattachés à AUCUN bloc du foyer : ils ne rentrent dans la carte
   // « Événements » d'aucun intercalaire → on les montre comme rappels « Aujourd'hui ».
   const blocsValues = blocsLieux.map((r) => r.value);
-  const todayOffsiteEvents = events.filter((event) => {
-    const lieux = event.lieu || [];
-    if (lieux.some((l) => blocsValues.includes(l))) return false; // événement rattaché à un bloc → carte normale
+  const todayOffsiteEvents = events.filter(
+    (event) =>
+      // rattaché à un bloc → il a sa place dans la carte de ce bloc, pas ici
+      !(event.lieu || []).some((l) => blocsValues.includes(l)) && evenementVisiblePour(event, cibleViewer)
+  );
 
-    if (estExclue(event.visibilite, cibleViewer)) return false;
-    if (!profil?.residence) return event.visible_invites === true;
-
-    if (cibleEstVide(event.visibilite)) return true; // aucun ciblage → visible pour tous
-    return dansCible(event.visibilite, cibleViewer);
-  });
+  // Les rappels n'étaient filtrés par RIEN : chacune voyait le titre d'événements qui
+  // ne la ciblaient pas. Ils passent par la même règle que le reste.
+  const remindersVisibles = reminders.filter((evt) => evenementVisiblePour(evt, cibleViewer));
 
   // ============================================================
   // RENDU
@@ -382,7 +377,7 @@ export default function HomePage() {
         </div>
 
         {/* Rappels du jour (compacts) — directement sous la date */}
-        {accesEvenements && (reminders.length > 0 || todayOffsiteEvents.length > 0) && (
+        {accesEvenements && (remindersVisibles.length > 0 || todayOffsiteEvents.length > 0) && (
           <div className="mb-4 space-y-1.5">
             {/* Événements du jour sans lieu résidence → rappel « Aujourd'hui » */}
             {todayOffsiteEvents.map((evt) => (
@@ -397,7 +392,7 @@ export default function HomePage() {
                 {formatLieu(evt.lieu, residences) && <span className="text-yellow-700/80 truncate">· 📍 {formatLieu(evt.lieu, residences)}</span>}
               </div>
             ))}
-            {reminders.map((evt) => {
+            {remindersVisibles.map((evt) => {
               if (!evt.nextReminderDate || typeof evt.joursRestants !== "number") return null;
               return (
                 <div
