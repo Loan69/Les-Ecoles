@@ -26,11 +26,21 @@ function getContacts(section: AdminSection): Contact[] {
 // ============================================================
 // VUE LECTURE D'UNE SECTION
 // ============================================================
-function SectionView({ section }: { section: AdminSection }) {
+function SectionView({ section, montrerCiblage = false }: { section: AdminSection; montrerCiblage?: boolean }) {
+  const ciblee = !cibleEstVide(section.visibilite);
   return (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
         <h2 className="text-lg font-bold text-blue-800">{section.title}</h2>
+        {/* L'intendance reçoit toutes les rubriques, y compris celles qui ne la ciblent
+            pas — sans quoi une administratrice pouvait s'exclure d'une rubrique et ne
+            plus jamais la retrouver, même en modification. Cette pastille lui dit
+            lesquelles ne sont pas vues par tout le monde. */}
+        {montrerCiblage && ciblee && (
+          <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">
+            Visibilité restreinte
+          </span>
+        )}
       </div>
       {section.type === "contacts" ? (
         <ContactsView contacts={getContacts(section)} />
@@ -339,7 +349,7 @@ export default function AdministratifPage() {
                 isLast={i === sections.length - 1}
               />
             ) : (
-              <SectionView key={section.id} section={section} />
+              <SectionView key={section.id} section={section} montrerCiblage={canEdit} />
             )
           )}
         </div>

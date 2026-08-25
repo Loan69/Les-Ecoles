@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabaseServer";
 import { requireSectionEdit } from "@/lib/apiAuth";
 import { cibleEstVide, dansCible, estExclue, type Cible } from "@/lib/visibilite";
+import { rightsFromRow, canEditSection, RIGHTS_COLUMNS } from "@/lib/roles";
 
 // --- Lecture : sections visibles pour l'utilisatrice connectée ---
 // Une rubrique n'est transmise qu'aux personnes visées par son ciblage (R-VIS-02/03).
@@ -13,7 +14,7 @@ export async function GET() {
   }
 
   const [{ data: profil }, { data: mesGroupes }] = await Promise.all([
-    supabase.from("residentes").select("residence, etage, chambre").eq("user_id", user.id).maybeSingle(),
+    supabase.from("residentes").select(RIGHTS_COLUMNS).eq("user_id", user.id).maybeSingle(),
     supabase.from("groupe_membres").select("groupe_id").eq("user_id", user.id),
   ]);
 
@@ -23,13 +24,27 @@ export async function GET() {
     .order("position", { ascending: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Qui peut MODIFIER la section « Infos pratiques » (Admin · gérer) reçoit TOUTES
+  // les rubriques, ciblage compris.
+  //
+  // Sans cela, une administratrice qui donnait à une rubrique un ciblage l'excluant
+  // elle-même la voyait disparaître — y compris du mode « Modifier », qui travaille sur
+  // cette même liste. La rubrique devenait irrécupérable depuis l'interface : il fallait
+  // passer par la base. Le ciblage ne décide donc plus que de ce que voient les
+  // habitantes. Réservé au niveau « gérer » : c'est le seul qui puisse tomber dans le
+  // piège, et le seul qui ait besoin d'en sortir.
+  const rights = rightsFromRow(profil as Record<string, unknown> | null);
+  if (canEditSection(rights, "infos")) {
+    return NextResponse.json({ sections: data ?? [] });
+  }
+
   // Ciblage (résidences / étages / groupes) : une rubrique sans ciblage reste visible par
   // toutes. Le filtrage se fait ici, côté serveur : une rubrique hors périmètre n'est même
   // pas transmise au navigateur.
   const viewer = {
-    residence: profil?.residence,
-    etage: profil?.etage,
-    chambre: profil?.chambre,
+    residence: (profil as { residence?: string | null } | null)?.residence,
+    etage: (profil as { etage?: string | null } | null)?.etage,
+    chambre: (profil as { chambre?: string | null } | null)?.chambre,
     user_id: user.id,
     groupes: (mesGroupes ?? []).map((g) => g.groupe_id as string),
   };
