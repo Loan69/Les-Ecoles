@@ -41,7 +41,12 @@ export default function ModalAjoutEvenement({
 
   // État pour les valeurs initiales du multiselect lieu
   // Blocs du foyer, source unique des lieux possibles.
-  const { residences: blocs } = useResidences();
+  // Seuls les blocs de LIEU peuvent accueillir un événement. Un bloc d'équipe
+  // (intendance, bénévoles) n'est pas un endroit physique : il n'a pas d'intercalaire
+  // sur l'accueil, et un événement qu'on y rattacherait n'aurait nulle part où
+  // s'afficher. Il se cible par la visibilité, pas par le lieu.
+  const { residences } = useResidences();
+  const blocs = residences.filter((b) => b.kind === "chambre");
 
   useEffect(() => {
     if (open) {
@@ -206,7 +211,7 @@ export default function ModalAjoutEvenement({
                 et ne pouvait donc pas être choisi comme lieu. */}
             <div className="flex flex-wrap gap-2">
               {blocs.length === 0 && (
-                <p className="text-xs text-gray-400 italic">Aucun bloc n&apos;est encore créé.</p>
+                <p className="text-xs text-gray-400 italic">Aucun bloc de lieu n&apos;est encore créé.</p>
               )}
               {blocs.map((b) => {
                 const choisi = (form.lieu ?? []).includes(b.value);

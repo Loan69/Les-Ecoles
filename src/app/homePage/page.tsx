@@ -428,8 +428,11 @@ export default function HomePage() {
         </section>
         )}
 
-        {/* Intercalaires — un par bloc du foyer, dans sa couleur */}
-        <div className="flex justify-center flex-wrap mb-4">
+        {/* Intercalaires — un par bloc de lieu, dans sa couleur.
+            Une seule ligne, toujours : au-delà de trois blocs ils passaient à la ligne
+            sur téléphone. Ils se resserrent d'abord, puis défilent horizontalement —
+            un débordement se fait glisser, un retour à la ligne casse la lecture. */}
+        <div className="flex flex-nowrap justify-start sm:justify-center gap-1 mb-4 overflow-x-auto snap-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {blocsLieux.map((res) => {
             const active = selectedResidenceValue === res.value;
             // Onglet court : le numéro pour les résidences, le nom du bloc sinon (« Corail »).
@@ -438,9 +441,15 @@ export default function HomePage() {
               <button
                 key={res.value}
                 onClick={() => setSelectedResidenceValue(res.value)}
-                className={`cursor-pointer flex items-center justify-center min-w-20 px-3 h-12 text-lg font-bold border rounded-t-xl transition-colors ${
-                  active ? themeResidence(res.value).ongletActif : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"
-                }`}
+                className={`cursor-pointer snap-start shrink-0 flex items-center justify-center h-12 border rounded-t-xl transition-colors font-bold ${
+                  // Plus il y a de blocs, plus les onglets se resserrent.
+                  blocsLieux.length > 4
+                    ? "min-w-14 max-w-28 px-2 text-sm truncate"
+                    : blocsLieux.length > 2
+                      ? "min-w-16 max-w-36 px-2.5 text-base truncate"
+                      : "min-w-20 px-3 text-lg"
+                } ${active ? themeResidence(res.value).ongletActif : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"}`}
+                title={res.label}
               >
                 {court}
               </button>
@@ -469,7 +478,6 @@ export default function HomePage() {
                   </div>
                 </div>
                 {e.heures && <p className="text-xs text-gray-600 mt-1 italic">{e.heures}</p>}
-                {formatLieu(e.lieu, residences) && <p className="text-xs text-gray-500 mt-1">📍 {formatLieu(e.lieu, residences)}</p>}
               </div>
             ))
           )}

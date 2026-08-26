@@ -505,19 +505,23 @@ export default function AdminRepasPage() {
             <div className="space-y-3">
               {daysInRange.map((date) => {
                 const optDetail = getDayOptionDetail(date);
+                // Aucun bloc ouvert ce jour-là : on ne laisse pas un cadre de journée vide.
+                const blocsOuverts = blocsLieux.filter(
+                  (r) => optDetail[r.value].dejeuner.open || optDetail[r.value].diner.open
+                );
+                if (blocsOuverts.length === 0) return null;
                 return (
                   <div key={date} className="rounded-2xl border-2 border-gray-100 bg-white shadow-sm p-4">
                     <p className="text-sm font-bold text-orange-900 uppercase tracking-wide mb-3">{formatJourLong(date)}</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {blocsLieux.map((r) => {
+                      {/* Un bloc sans aucun service ouvert n'apparaît pas : encadrer
+                          « Service fermé » remplissait l'écran d'information sans usage. */}
+                      {blocsOuverts.map((r) => {
                         const det = optDetail[r.value];
-                        const anyContent = det.dejeuner.open || det.diner.open;
                         return (
                           <div key={r.value} className="border border-gray-100 rounded-xl p-3">
                             <p className="font-bold text-gray-700 text-sm uppercase mb-2">{r.label}</p>
-                            {!anyContent ? (
-                              <p className="text-xs text-gray-400 italic">Service fermé.</p>
-                            ) : (
+                            {(
                               <div className="space-y-3">
                                 {(["dejeuner", "diner"] as Service[]).map((svc) => {
                                   const sd = det[svc];
@@ -583,8 +587,21 @@ export default function AdminRepasPage() {
               </div>
             </div>
 
-            {/* Agrégat par personne, par résidence */}
-            {blocsCompta.map((r) => (
+            {/* Agrégat par personne, par bloc.
+                Un bloc sans aucune inscription ET sans aucun service ouvert sur la
+                période n'apparaît pas : un tableau vide sous un titre n'apprend rien.
+                S'il a un service ouvert mais personne d'inscrit, on le garde — l'absence
+                d'inscription est alors une information. */}
+            {blocsCompta
+              .filter(
+                (r) =>
+                  (comptaByResidence[r.value] ?? []).length > 0 ||
+                  daysInRange.some((date) => {
+                    const det = getDayOptionDetail(date)[r.value];
+                    return det ? det.dejeuner.open || det.diner.open : false;
+                  })
+              )
+              .map((r) => (
               <div key={r.value} className="bg-white shadow-sm border border-gray-200 rounded-xl p-6">
                 <h3 className="text-xl font-semibold text-amber-800 mb-4">Comptabilité — {r.label}</h3>
                 <table className="min-w-full border text-sm bg-white">
