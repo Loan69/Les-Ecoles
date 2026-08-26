@@ -91,12 +91,17 @@ Trois niveaux, à créer dans cet ordre :
 Chaque bloc a un nom et une couleur, qui le rendra reconnaissable partout dans
 l'application.
 
-Un bloc est soit **de chambres** (des logements), soit **de postes**. Un bloc de
-postes sert aux personnes qui travaillent au foyer sans y loger : elles ont un compte
-et des repas, mais pas de chambre. Ce choix est **définitif** une fois des places
-créées : prenez le temps d'y penser.
+Chaque bloc a un **type**, et c'est le choix le plus lourd de conséquences :
 
-**Les étages** — à l'intérieur d'un bloc de chambres. Donnez-leur le nom que les
+| Type | Ce que c'est | Ce qu'il permet |
+|---|---|---|
+| **Bloc Lieu** | une partie du foyer — un bâtiment, une aile, une maison | contient des étages et des chambres, apparaît comme **intercalaire sur l'accueil**, peut **accueillir un événement** et porter des **options de repas** |
+| **Bloc Équipe** | un groupe de personnes — intendance, bénévoles | contient des **postes** sans étage. Ses membres ont un compte et des repas, mais pas de chambre. N'étant pas un endroit, il n'a pas d'intercalaire et ne peut pas accueillir d'événement — on l'atteint par la **visibilité** |
+
+Ce choix devient **définitif** dès que le bloc contient des places : prenez le temps
+d'y penser.
+
+**Les étages** — à l'intérieur d'un bloc Lieu. Donnez-leur le nom que les
 résidentes emploient réellement (« Rez-de-chaussée », « 2ᵉ »), pas un code.
 
 **Les chambres et les postes** — une chambre = une place = un compte. C'est ce qui
@@ -220,7 +225,7 @@ logo, et refaire entièrement la structure des chambres.
 - [ ] Connectée, mot de passe choisi
 - [ ] Nom et nom court du foyer saisis
 - [ ] Logo et icône chargés *(facultatif)*
-- [ ] Blocs créés, avec le bon type (chambres ou postes)
+- [ ] Blocs créés, avec le bon type (Lieu ou Équipe)
 - [ ] Étages créés
 - [ ] Chambres et postes créés, nommés comme le foyer les nomme
 - [ ] Ma chambre choisie *(si je loge au foyer)*
