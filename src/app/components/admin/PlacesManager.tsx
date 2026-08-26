@@ -615,7 +615,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
             <h2 className="text-base sm:text-lg font-bold text-blue-800 flex items-center gap-2 min-w-0 mb-4">
               {r.kind === "poste" ? <Briefcase className="w-5 h-5 text-amber-600 shrink-0" /> : <DoorClosed className="w-5 h-5 text-blue-600 shrink-0" />}
               <span className="truncate">{r.label}</span>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${themeResidence(r.couleur).badge}`}>{r.kind === "poste" ? "Postes" : "Chambres"}</span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${themeResidence(r.couleur).badge}`}>{r.kind === "poste" ? "Équipe" : "Lieu"}</span>
               {!r.is_active && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 bg-red-50 text-red-700">Bloc désactivé</span>}
               <span className="text-xs sm:text-sm font-normal text-gray-400 shrink-0">· {rPlaces.length}</span>
             </h2>
@@ -1263,14 +1263,16 @@ function BlocModal({ form, setForm, onSave, saving }: { form: BlocForm; setForm:
         <p className="text-xs text-gray-400 mb-4">
           {form.kind === "poste" ? (
             <>
-              Le bloc apparaîtra avec son propre encadré dans la <b>comptabilité des repas</b>, les <b>présences au foyer</b> et le{" "}
-              <b>ciblage des événements</b>. N&apos;étant pas un lieu physique, il n&apos;aura <b>pas d&apos;intercalaire sur l&apos;accueil</b>,
-              pas d&apos;encadré dans l&apos;organisation des services et ne pourra pas porter d&apos;option de repas.
+              Un <b>bloc Équipe</b> rassemble des personnes, pas un endroit. Il apparaîtra dans la <b>comptabilité des repas</b>,
+              les <b>présences au foyer</b> et le <b>ciblage des événements</b>. N&apos;étant pas un lieu, il n&apos;aura{" "}
+              <b>pas d&apos;intercalaire sur l&apos;accueil</b>, pas d&apos;encadré dans l&apos;organisation des services,
+              ne pourra pas porter d&apos;option de repas ni accueillir un événement.
             </>
           ) : (
             <>
-              Le bloc apparaîtra avec son propre encadré dans la <b>comptabilité des repas</b>, les <b>présences au foyer</b>,
-              l&apos;<b>organisation des services</b>, le <b>ciblage des événements</b> et les <b>intercalaires de l&apos;accueil</b>.
+              Un <b>bloc Lieu</b> est une partie du foyer. Il apparaîtra dans la <b>comptabilité des repas</b>, les{" "}
+              <b>présences au foyer</b>, l&apos;<b>organisation des services</b>, le <b>ciblage des événements</b>,
+              les <b>intercalaires de l&apos;accueil</b>, et pourra accueillir un <b>événement</b>.
             </>
           )}
         </p>
@@ -1282,22 +1284,22 @@ function BlocModal({ form, setForm, onSave, saving }: { form: BlocForm; setForm:
               value={form.label}
               onChange={(e) => setForm({ ...form, label: e.target.value })}
               onKeyDown={(e) => e.key === "Enter" && !saving && onSave()}
-              placeholder="Ex : Résidence 48, Corail, La Basse-Frette…"
+              placeholder="Ex : Le Foyer, Le Centre, Intendance…"
               className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contenu</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Type de bloc</label>
             <select
               value={form.kind}
               disabled={typeFige}
               onChange={(e) => setForm({ ...form, kind: e.target.value as PlaceKind })}
               className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none disabled:bg-gray-100 cursor-pointer"
             >
-              <option value="chambre">Des chambres, réparties par étage (une résidence)</option>
-              <option value="poste">Des postes, sans étage (une intendance)</option>
+              <option value="chambre">Bloc Lieu — lieu d&apos;événement, partie du foyer…</option>
+              <option value="poste">Bloc Équipe — équipe intendance, bénévoles…</option>
             </select>
-            {typeFige && <p className="text-xs text-gray-400 mt-1">Ce bloc contient déjà {form.editing!.nb_places} place(s) : son contenu ne peut plus changer.</p>}
+            {typeFige && <p className="text-xs text-gray-400 mt-1">Ce bloc contient déjà {form.editing!.nb_places} place(s) : son type ne peut plus changer.</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Couleur</label>
