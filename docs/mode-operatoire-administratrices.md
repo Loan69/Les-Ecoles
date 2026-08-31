@@ -159,7 +159,7 @@ Ce ciblage est appliqué **côté serveur** : une rubrique qui ne concerne pas u
 
 Il n'y a plus d'onglet **Paramètres** séparé : les réglages sont désormais **au plus près de leur usage**.
 
-- **Verrouillage des repas** (heure limite du jour + option week-end) → dans **Paramétrer les repas** (§5).
+- **Verrouillage des repas** (heure limite du jour + jours fermés d'avance) → dans **Paramétrer les repas** (§5).
 - **Verrouillage des présences** (heure limite pour qu'une habitante modifie sa présence au foyer) → en haut de la **vue Présences** (§6).
 
 ---
@@ -183,6 +183,27 @@ C'est ici qu'on décide, **jour par jour et par service** (déjeuner / dîner), 
 - **Dupliquer sur une plage** : reporter les options d'un jour sur plusieurs dates en une fois (sélecteur multi-dates), pour ouvrir toute une semaine rapidement.
 
 > ⚠️ **À faire régulièrement** : sans options créées **et** de services ouverts, les résidentes voient « Service fermé » et ne peuvent pas s'inscrire.
+
+### 5.3. Verrouillage des inscriptions
+En haut du même écran, deux réglages.
+
+- **Heure de clôture (le jour même)** : passé cette heure, les repas du jour ne sont plus modifiables par les habitantes. Réglez-la sur l'heure où votre cuisine arrête de compter. Vous, vous gardez la main.
+- **Jours fermés d'avance** : les sept boutons **Lun → Dim**. Un jour allumé se verrouille **avant** sa propre journée. Une phrase sous les boutons annonce l'effet exact de vos cases — lisez-la, elle évite les surprises.
+
+**Comment se calcule la fermeture.** Des jours allumés **qui se suivent** comptent pour **un seul bloc**, fermé dès l'heure de clôture **de la veille du premier**. Concrètement :
+
+| Jours allumés | Effet |
+|---|---|
+| Samedi + dimanche | Les deux se ferment **le vendredi** à l'heure de clôture *(réglage par défaut)* |
+| Mercredi seul | Le mercredi se ferme **le mardi** |
+| Dimanche + lundi | Les deux se ferment **le samedi** — la semaine est circulaire |
+| Aucun | Chaque jour se ferme le jour même, règle ordinaire |
+
+> **Les sept jours ne peuvent pas être allumés** : plus rien ne serait jamais modifiable. L'enregistrement est refusé avec un message.
+
+> À ne pas confondre avec le **délai de commande** d'une option (§5.1), qui ferme *une option* plus tôt que les autres. Les deux peuvent jouer ensemble : c'est **la fermeture la plus précoce qui l'emporte**.
+
+Côté habitante, un jour fermé affiche le motif (« Les repas du dimanche sont verrouillés dès le vendredi 21:00 ») — inutile de l'expliquer une par une.
 
 ---
 

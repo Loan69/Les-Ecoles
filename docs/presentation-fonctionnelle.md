@@ -95,7 +95,7 @@ Il n'y a **pas de menu figé dans le programme** : l'intendance compose un **cat
 Un service peut se trouver dans **trois** états, et l'appli les distingue clairement : une **option choisie**, un **« Non »** assumé, ou **« à renseigner »** tant que l'habitante n'a rien répondu. Ce troisième état est l'**état de départ** : « Non » doit être choisi explicitement. Les jours dont un service reste sans réponse portent un discret **badge orange** côté habitante (pour l'inciter à répondre), et apparaissent en gris « — » dans le détail de l'intendance, qui sait ainsi **qui relancer**. Ni « Non » ni « sans réponse » ne comptent de repas.
 
 Deux limites de temps ferment un service :
-- l'**heure de verrouillage** du jour même, réglée par l'intendance (avec une clôture anticipée du week-end dès le vendredi si elle le souhaite) ;
+- l'**heure de verrouillage** du jour même, réglée par l'intendance — qui peut en outre désigner les **jours fermés d'avance**, verrouillés dès la veille (le samedi et le dimanche par défaut, fermés dès le vendredi) ;
 - le **délai de commande propre à l'option** : un pique-nique peut ainsi devoir être commandé la veille, alors que le repas classique reste ouvert jusqu'au soir.
 
 ### 4.4. La planification de la semaine — l'onglet « Repas »
@@ -177,7 +177,7 @@ Le **catalogue** liste les repas possibles. Pour chacun :
 
 L'**ouverture des services** se fait ensuite semaine par semaine : pour chaque jour et chaque service, on coche les options proposées. Un jour sans aucune option est un **service fermé** — il n'existe **aucun repas proposé par défaut**, donc tant que l'intendance n'a rien ouvert, les habitantes ne voient que des services fermés. Pour éviter la saisie répétitive, on peut **dupliquer les options d'un jour sur une plage de dates**.
 
-L'**heure de verrouillage des repas** et la **clôture anticipée du week-end** se règlent en haut de ce même écran.
+L'**heure de verrouillage des repas** et les **jours fermés d'avance** se règlent en haut de ce même écran.
 
 ### 5.4. Suivi des inscriptions aux repas — onglet « Organisation »
 

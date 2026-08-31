@@ -177,6 +177,11 @@ Sur le même écran, l'**heure de verrouillage des repas** : passé cette heure,
 résidente ne peut plus modifier son inscription du jour. L'intendance, elle, garde la
 main. Réglez-la sur l'heure où votre cuisine arrête de compter.
 
+Juste à côté, les **jours fermés d'avance** (boutons Lun → Dim) : un jour allumé se
+verrouille dès la veille, pour les repas qu'il faut commander plus tôt. Le foyer démarre
+avec **samedi et dimanche** allumés — donc fermés dès le vendredi. Éteignez-les si votre
+cuisine compte au fil de l'eau. Une phrase sous les boutons annonce l'effet exact.
+
 **Présence foyer** porte le même réglage pour les nuits : l'heure après laquelle la
 présence du soir n'est plus modifiable.
 
@@ -231,6 +236,6 @@ logo, et refaire entièrement la structure des chambres.
 - [ ] Ma chambre choisie *(si je loge au foyer)*
 - [ ] Intendance invitée, droits réglés section par section
 - [ ] Options de repas créées, services ouverts
-- [ ] Heures de verrouillage réglées (repas et présence)
+- [ ] Heures de verrouillage réglées (repas et présence) et jours fermés d'avance vérifiés
 - [ ] Rubriques de l'espace Administratif remplies
 - [ ] Résidentes invitées

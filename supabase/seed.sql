@@ -25,7 +25,7 @@ select v.key, v.value, v.label
 from (values
   ('verrouillage_repas',   '09:00', 'Heure après laquelle les repas du jour ne sont plus modifiables'),
   ('verrouillage_foyer',   '23:00', 'Heure limite pour modifier la présence au foyer'),
-  ('verrouillage_weekend', 'true',  'Verrouille les repas du week-end dès le vendredi')
+  ('verrouillage_jours_anticipes', '6,0', 'Jours dont les repas sont verrouillés dès la veille de leur série')
 ) as v(key, value, label)
 where not exists (
   select 1 from public.app_settings s where s.key = v.key

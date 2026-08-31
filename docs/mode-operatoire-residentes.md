@@ -105,7 +105,7 @@ Les repas d'un jour se ferment **le jour même**, à l'**heure de verrouillage**
 - Les repas d'**aujourd'hui** restent modifiables **jusqu'à cette heure**, puis sont **figés**.
 - Les repas d'un **jour passé** ne sont plus modifiables.
 - Certaines **options** (ex. pique-nique) peuvent fermer **plus tôt** (un ou plusieurs jours avant), selon leur réglage.
-- Si le **verrouillage week-end** est activé, les repas du week-end se verrouillent dès le vendredi.
+- Certains **jours** sont **fermés d'avance** par l'intendance : leurs repas se verrouillent dès la veille (par défaut le samedi et le dimanche, fermés dès le vendredi). Le jour concerné affiche la phrase qui l'explique.
 
 Un jour verrouillé est signalé par un cadenas 🔒. En cas de besoin, rapproche-toi de l'intendance.
 

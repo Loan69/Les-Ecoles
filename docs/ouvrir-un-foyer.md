@@ -75,7 +75,8 @@ fichier à la fois :
 | 1 | `supabase/migrations/20260824120000_socle.sql` | 22 tables, 49 policies, RLS partout, 4 fonctions, index |
 | 2 | `supabase/p4-options-evenement-en-code.sql` | retire deux tables devenues inutiles |
 | 3 | `supabase/storage-branding.sql` | dépôt du logo et de l'icône |
-| 4 | `supabase/seed.sql` | contenu d'un foyer vierge |
+| 4 | `supabase/verrouillage-jours-anticipes.sql` | `verrouillage_weekend` → `verrouillage_jours_anticipes` (liste de jours) |
+| 5 | `supabase/seed.sql` | contenu d'un foyer vierge |
 
 **La règle générale** : prendre le socle le plus récent de `supabase/migrations/`,
 puis passer **tous** les fichiers `.sql` restés à la racine de `supabase/` dans

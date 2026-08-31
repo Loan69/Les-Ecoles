@@ -151,11 +151,12 @@ export default function SemaineRepas() {
   }, [currentMonday]);
 
   // --- Helpers ---
-  const dayLocked = (dateKey: string) => computeLockState(parseDateKeyLocal(dateKey), settings, foyer.fuseau).locked;
+  const lockState = (dateKey: string) =>
+    computeLockState(parseDateKeyLocal(dateKey), settings, foyer.fuseau, foyer.locale);
   const orderable = (dateKey: string, opt: MealOptionCatalog) => {
     const cutoff = parseDateKeyLocal(dateKey);
     cutoff.setDate(cutoff.getDate() - (opt.delai_commande || 0));
-    return !computeLockState(cutoff, settings, foyer.fuseau).locked;
+    return !computeLockState(cutoff, settings, foyer.fuseau, foyer.locale).locked;
   };
   // Valeur du sélecteur : "" = à renseigner · "non" = Non explicite · sinon l'id de l'option.
   const selectionFor = (dateKey: string, service: Service) => {
@@ -277,7 +278,7 @@ export default function SemaineRepas() {
         ) : (
           <div className="space-y-3">
             {days.map((dateKey) => {
-              const locked = dayLocked(dateKey);
+              const { locked, message: lockMessage } = lockState(dateKey);
               const isToday = dateKey === formatDateKeyLocal(new Date());
               const dayEvents = eventsForDay(dateKey);
               const away = isAwayForMeal(absences, user?.id ?? "", dateKey);
@@ -300,6 +301,13 @@ export default function SemaineRepas() {
                       </span>
                     ) : null}
                   </div>
+
+                  {/* Motif du verrou : depuis que les jours fermés d'avance se règlent foyer par
+                      foyer (R-LOCK-07), « Verrouillé » seul ne se devine plus. Un jour passé n'a
+                      pas de message — il n'y a rien à expliquer. */}
+                  {locked && lockMessage && (
+                    <p className="px-4 pt-2 text-xs text-gray-500">{lockMessage}</p>
+                  )}
 
                   {dayEvents.length > 0 && (
                     <div className="px-4 pt-2 space-y-1">
