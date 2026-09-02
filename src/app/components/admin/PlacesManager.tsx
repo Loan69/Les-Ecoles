@@ -40,13 +40,21 @@ type Form = {
 const EMPTY_FORM: Form = { open: false, editingId: null, residence: "", kind: "chambre", etage: "", name: "" };
 
 // Modale d'ajout / renommage d'un bloc.
+// La modale règle DEUX choses distinctes, et c'est tout l'objet du changement :
+//   · le TYPE (Lieu / Équipe) → ce que le bloc contient : des chambres réparties par
+//     étage, ou des postes. Structurel, figé dès que le bloc contient quelque chose.
+//   · les CINQ CASES → où le bloc apparaît. Réglables à tout moment.
+// Le type ne fait que PRÉREMPLIR les cases : il ne les commande plus.
 type BlocForm = {
   open: boolean; editing: Bloc | null; label: string; kind: PlaceKind;
   couleur: CouleurResidence; ecrans: Record<EcranBloc, boolean>;
+  // Le bloc contient-il déjà des étages ou des places ? Calculé par le parent, qui seul
+  // connaît les étages — `nb_places` ne les compte pas.
+  fige: boolean;
 };
 const EMPTY_BLOC_FORM: BlocForm = {
   open: false, editing: null, label: "", kind: "chambre", couleur: "blue",
-  ecrans: ecransPourKind("chambre"),
+  ecrans: ecransPourKind("chambre"), fige: false,
 };
 
 // Modale d'ajout / renommage d'un étage.
@@ -212,7 +220,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
         blocForm.editing
-          ? { value: blocForm.editing.value, label: blocForm.label, couleur: blocForm.couleur, ecrans: blocForm.ecrans, ...(blocForm.editing.nb_places === 0 ? { kind: blocForm.kind } : {}) }
+          ? { value: blocForm.editing.value, label: blocForm.label, couleur: blocForm.couleur, ecrans: blocForm.ecrans, ...(blocForm.fige ? {} : { kind: blocForm.kind }) }
           : { label: blocForm.label, kind: blocForm.kind, couleur: blocForm.couleur, ecrans: blocForm.ecrans }
       ),
     });
@@ -725,7 +733,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
                         <button onClick={() => moveBloc(b, 1)} disabled={i === arr.length - 1} className="p-2 rounded-full text-gray-400 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default cursor-pointer" title="Descendre">
                           <ArrowDown className="w-4 h-4" />
                         </button>
-                        <button onClick={() => setBlocForm({ open: true, editing: b, label: b.label, kind: b.kind, couleur: b.couleur, ecrans: b.ecrans })} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 cursor-pointer" title="Modifier">
+                        <button onClick={() => setBlocForm({ open: true, editing: b, label: b.label, kind: b.kind, couleur: b.couleur, ecrans: b.ecrans, fige: b.nb_places > 0 || etagesDe(b.value).length > 0 })} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 cursor-pointer" title="Modifier">
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button onClick={() => toggleBloc(b)} className={`p-2 rounded-full cursor-pointer ${b.is_active ? "text-gray-500 hover:bg-gray-100" : "text-green-600 hover:bg-green-50"}`} title={b.is_active ? "Désactiver" : "Réactiver"}>
@@ -1264,10 +1272,11 @@ function AssignModal({
 }
 
 // --- Modale création / édition d'un bloc du foyer ---
-// Le type (chambres / postes) se fige dès qu'il y a des places : les changer après coup
-// laisserait des chambres sans étage, ou des postes rangés sous un étage inexistant.
+// Le type (Lieu = chambres par étage / Équipe = postes) se fige dès que le bloc contient
+// des étages ou des places : le changer après coup laisserait des chambres sans étage, ou
+// des postes rangés sous un étage inexistant. Il ne décide PLUS de l'endroit où le bloc
+// apparaît — ce sont les cinq cases, qu'il se contente de préremplir.
 function BlocModal({ form, setForm, onSave, saving }: { form: BlocForm; setForm: (f: BlocForm) => void; onSave: () => void; saving: boolean }) {
-  const typeFige = !!form.editing && form.editing.nb_places > 0;
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
@@ -1281,6 +1290,28 @@ function BlocModal({ form, setForm, onSave, saving }: { form: BlocForm; setForm:
         </p>
         <div className="space-y-4">
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Type de bloc</label>
+            <select
+              value={form.kind}
+              disabled={form.fige}
+              // Changer le type PRÉREMPLIT les cases, il ne les commande pas : c'est le
+              // point de départ « Lieu » ou « Équipe », qu'on ajuste ensuite case par case.
+              onChange={(e) => {
+                const kind = e.target.value as PlaceKind;
+                setForm({ ...form, kind, ecrans: ecransPourKind(kind) });
+              }}
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none disabled:bg-gray-100 cursor-pointer"
+            >
+              <option value="chambre">Bloc Lieu — des chambres, réparties par étage</option>
+              <option value="poste">Bloc Équipe — des postes, sans étage</option>
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              {form.fige
+                ? "Ce bloc contient déjà des étages ou des places : son type ne peut plus changer."
+                : "Décide de ce qu’on range dedans. Le choix prérègle les cases ci-dessous, que vous pouvez ensuite ajuster."}
+            </p>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nom du bloc</label>
             <input
               autoFocus
@@ -1292,38 +1323,15 @@ function BlocModal({ form, setForm, onSave, saving }: { form: BlocForm; setForm:
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ce que le bloc contient</label>
-            <select
-              value={form.kind}
-              disabled={typeFige}
-              onChange={(e) => setForm({ ...form, kind: e.target.value as PlaceKind })}
-              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none disabled:bg-gray-100 cursor-pointer"
-            >
-              <option value="chambre">Des chambres, réparties par étage</option>
-              <option value="poste">Des postes, sans étage</option>
-            </select>
-            <p className="text-xs text-gray-400 mt-1">
-              {typeFige
-                ? `Ce bloc contient déjà ${form.editing!.nb_places} place(s) : ce réglage ne peut plus changer.`
-                : "Décide seulement s’il y a un niveau « étage » à l’intérieur, pas de l’endroit où le bloc apparaît."}
-            </p>
-          </div>
-
-          <div>
             <div className="flex items-baseline justify-between gap-2 mb-2">
               <label className="block text-sm font-medium text-gray-700">Où ce bloc apparaît</label>
-              <span className="flex gap-1">
-                {(["chambre", "poste"] as const).map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setForm({ ...form, ecrans: ecransPourKind(k) })}
-                    className="text-[11px] font-semibold rounded-md border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-50 cursor-pointer"
-                  >
-                    {k === "chambre" ? "Tout cocher (Lieu)" : "Tout décocher (Équipe)"}
-                  </button>
-                ))}
-              </span>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, ecrans: ecransPourKind(form.kind) })}
+                className="text-[11px] font-semibold rounded-md border border-gray-300 px-2 py-1 text-gray-600 hover:bg-gray-50 cursor-pointer shrink-0"
+              >
+                Revenir au préréglage
+              </button>
             </div>
             <div className="space-y-1.5">
               {ECRANS_BLOC.map((e) => (

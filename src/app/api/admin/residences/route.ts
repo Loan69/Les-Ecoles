@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSectionView, requireSuperAdmin } from "@/lib/apiAuth";
 import { COULEURS_RESIDENCE, toResidences } from "@/lib/residences";
+import { blocEstVide } from "@/lib/structureBloc";
 import { ECRANS_BLOC, ECRAN_BLOC_COLONNE, type EcranBloc, type ResidenceKind } from "@/types/Residence";
 
 // --- Les blocs du foyer (table `residences`) --------------------------------
@@ -112,8 +113,8 @@ export async function POST(req: NextRequest) {
     .from("residences")
     .insert({
       value, label, kind: body.kind, couleur: body.couleur ?? "blue", ordre, is_active: true,
-      // Absentes du corps : on retombe sur le préréglage porté par `kind`, pour qu'un bloc
-      // créé par un client qui ignore ces cases se comporte comme avant.
+      // Cases absentes du corps : on retombe sur le préréglage porté par `kind`, pour
+      // qu'un appel qui ignore ces cases se comporte comme avant.
       ...(body.ecrans
         ? colonnesEcrans(body.ecrans)
         : colonnesEcrans(Object.fromEntries(ECRANS_BLOC.map((e) => [e, body.kind === "chambre"])))),
@@ -152,9 +153,11 @@ export async function PUT(req: NextRequest) {
 
   if (body.kind !== undefined) {
     if (body.kind !== "chambre" && body.kind !== "poste") return NextResponse.json({ error: "Type invalide." }, { status: 400 });
-    const { count } = await supabase.from("places").select("id", { count: "exact", head: true }).eq("residence", body.value);
-    if (count && count > 0)
-      return NextResponse.json({ error: "Ce bloc contient déjà des places : son type ne peut plus changer." }, { status: 409 });
+    // Gel dès que le bloc contient quelque chose — places **ou** étages. Ne compter que
+    // les places laissait basculer en « Équipe » un bloc dont les étages étaient déjà
+    // déclarés : ils devenaient orphelins, rattachés à un bloc qui n'en admet pas.
+    if (!(await blocEstVide(supabase, body.value)))
+      return NextResponse.json({ error: "Ce bloc contient déjà des étages ou des places : son type ne peut plus changer." }, { status: 409 });
     update.kind = body.kind;
   }
 
