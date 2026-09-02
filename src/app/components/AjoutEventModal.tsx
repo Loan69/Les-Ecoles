@@ -7,6 +7,7 @@ import DateSelector from "./DatesSelector";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import { toast } from "sonner";
 import { useResidences } from "@/lib/useResidences";
+import { blocsPourEcran } from "@/lib/residences";
 import { CATEGORIES_EVENEMENT, DELAIS_RAPPEL } from "@/lib/evenementOptions";
 
 type ModalProps = {
@@ -41,12 +42,11 @@ export default function ModalAjoutEvenement({
 
   // État pour les valeurs initiales du multiselect lieu
   // Blocs du foyer, source unique des lieux possibles.
-  // Seuls les blocs de LIEU peuvent accueillir un événement. Un bloc d'équipe
-  // (intendance, bénévoles) n'est pas un endroit physique : il n'a pas d'intercalaire
-  // sur l'accueil, et un événement qu'on y rattacherait n'aurait nulle part où
-  // s'afficher. Il se cible par la visibilité, pas par le lieu.
+  // Lieux d'événement possibles : les blocs que l'intendance a réglés pour en accueillir.
+  // Un bloc écarté d'ici se cible toujours par la visibilité — le lieu dit OÙ l'événement
+  // s'affiche, pas qui a le droit de le voir (voir src/lib/eventVisibility.ts).
   const { residences } = useResidences();
-  const blocs = residences.filter((b) => b.kind === "chambre");
+  const blocs = blocsPourEcran(residences, "evenements");
 
   useEffect(() => {
     if (open) {

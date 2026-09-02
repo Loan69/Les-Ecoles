@@ -13,7 +13,7 @@ import EventVisibilitySelector from "@/app/components/EventVisibilitySelector";
 import { Switch } from "@/components/ui/switch";
 import { useMyRights } from "@/lib/useMyRights";
 import { useResidences } from "@/lib/useResidences";
-import { labelResidenceCourt, themeResidence } from "@/lib/residences";
+import { blocsPourEcran, labelResidenceCourt, themeResidence } from "@/lib/residences";
 import type { Residence } from "@/types/Residence";
 
 const SERVICES: { value: Service; label: string }[] = [
@@ -63,12 +63,11 @@ function ResBadge({ r, blocs }: { r: string; blocs: Residence[] }) {
 
 export default function RepasOptionsManager() {
   const canEdit = useMyRights().canEdit("repas");
-  // Rattachements possibles d'une option : les **lieux de service**, c'est-à-dire les
-  // blocs qui contiennent des chambres. Un bloc de postes (Corail, l'intendance) n'est pas
-  // un lieu physique où l'on sert un repas — on n'y rattache donc pas d'option. La liste
-  // reste celle de l'Administration : une nouvelle résidence s'y ajoute d'elle-même.
+  // Rattachements possibles d'une option : les blocs auxquels l'intendance a permis
+  // d'imputer un couvert. La liste reste celle de l'Administration — un bloc ajouté s'y
+  // ajoute de lui-même. Le contrôle est refait côté serveur (api/admin/meal-options).
   const { residences: blocs } = useResidences();
-  const blocsLieux = useMemo(() => blocs.filter((b) => b.kind === "chambre"), [blocs]);
+  const blocsLieux = useMemo(() => blocsPourEcran(blocs, "rattachement_repas"), [blocs]);
   const [catalog, setCatalog] = useState<MealOptionCatalog[]>([]);
   const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([]);
   const [loading, setLoading] = useState(true);

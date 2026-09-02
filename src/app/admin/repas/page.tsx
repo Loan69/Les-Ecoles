@@ -7,7 +7,7 @@ import { CalendarDays, Table2, Scale, Soup, Moon as MoonIcon, CalendarCheck, Dow
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AdminDaysSkeleton } from "@/app/components/Skeleton";
-import { labelResidenceDefaut } from "@/lib/residences";
+import { blocDeRepli, blocsPourEcran } from "@/lib/residences";
 import { Presence, MealOptionCatalog, Service, type OptionVisibilite } from "@/types/MealOption";
 import { PersonneDetail, PersonneAdmin, sortAdminPeople, estCompteActive, formatChambre } from "@/lib/adminPeople";
 import { isAwayForMeal, type AbsenceCompta } from "@/lib/mealCompta";
@@ -46,7 +46,7 @@ export default function AdminRepasPage() {
   // - COMPTABILITÉ : le bloc de rattachement de **chaque personne**, Corail compris —
   //   sinon les comptes qui y sont rattachés disparaîtraient du décompte (voir blocsCompta).
   const { residences, labelEtage, ordreStructure } = useResidences();
-  const blocsLieux = useMemo(() => residences.filter((r) => r.kind === "chambre"), [residences]);
+  const blocsLieux = useMemo(() => blocsPourEcran(residences, "organisation_repas"), [residences]);
   const [allPeople, setAllPeople] = useState<PersonneAdmin[]>([]);
   const [presences, setPresences] = useState<Presence[]>([]);
   const [absences, setAbsences] = useState<AbsenceCompta[]>([]);
@@ -195,11 +195,7 @@ export default function AdminRepasPage() {
       const v = p.residence ?? "";
       if (connus.has(v)) return;
       connus.add(v);
-      list.push({
-        value: v,
-        label: v ? `${labelResidenceDefaut(v)} (hors foyer)` : "Sans bloc",
-        kind: "chambre", ordre: 900, couleur: "blue", is_active: false,
-      });
+      list.push(blocDeRepli(v));
     });
     return list;
   }, [residences, people]);

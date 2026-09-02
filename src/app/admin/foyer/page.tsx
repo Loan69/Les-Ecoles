@@ -6,7 +6,7 @@ import { useSupabase } from "@/app/providers";
 import { CalendarDays, Home, Moon, Plus, Table2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { AdminDaysSkeleton } from "@/app/components/Skeleton";
-import { labelResidenceDefaut } from "@/lib/residences";
+import { blocDeRepli, blocsPourEcran } from "@/lib/residences";
 import { Absence } from "@/types/Absence";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
@@ -39,11 +39,14 @@ export default function AdminFoyerView() {
   // Un encadré par bloc du foyer (Résidence 12, Résidence 36, Corail…) : la liste vient
   // de la table `residences`, un bloc ajouté depuis l'Administration apparaît ici aussitôt.
   const { residences, labelEtage, ordreStructure } = useResidences();
-  // La présence au foyer, c'est « qui dort ici cette nuit ». Un bloc d'intendance
-  // regroupe des personnes qui travaillent au foyer sans y loger : la question n'a pas
-  // de sens pour elles, on n'affiche donc que les blocs d'habitation (R-RES-02, R-RES-06).
-  const blocsHabitation = useMemo(() => residences.filter((r) => r.kind === "chambre"), [residences]);
-  const blocsPostes = useMemo(() => new Set(residences.filter((r) => r.kind === "poste").map((r) => r.value)), [residences]);
+  // La présence au foyer, c'est « qui dort ici cette nuit ». Le bloc dont les membres
+  // travaillent au foyer sans y loger n'a pas à répondre : l'intendance décoche la case
+  // « Présences au foyer » et il disparaît d'ici (R-RES-06, R-RES-09).
+  const blocsHabitation = useMemo(() => blocsPourEcran(residences, "presences"), [residences]);
+  const blocsPostes = useMemo(
+    () => new Set(residences.filter((r) => !r.ecrans.presences).map((r) => r.value)),
+    [residences]
+  );
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -177,11 +180,7 @@ export default function AdminFoyerView() {
       const v = p.residence ?? "";
       if (connus.has(v)) return;
       connus.add(v);
-      list.push({
-        value: v,
-        label: v ? `${labelResidenceDefaut(v)} (hors foyer)` : "Sans bloc",
-        kind: "chambre", ordre: 900, couleur: "blue", is_active: false,
-      });
+      list.push(blocDeRepli(v));
     });
     return list;
   }, [residences, blocsHabitation, people]);

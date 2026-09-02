@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSectionView, requireSuperAdmin } from "@/lib/apiAuth";
 import { COULEURS_RESIDENCE, toResidences } from "@/lib/residences";
-import type { ResidenceKind } from "@/types/Residence";
+import { ECRANS_BLOC, ECRAN_BLOC_COLONNE, type EcranBloc, type ResidenceKind } from "@/types/Residence";
 
 // --- Les blocs du foyer (table `residences`) --------------------------------
 // Un bloc = Résidence 12, Résidence 36, Corail (intendance), une future résidence…
@@ -18,7 +18,24 @@ type Body = {
   couleur?: string;
   ordre?: number;
   is_active?: boolean;
+  // Où le bloc apparaît, écran par écran. Partiel : seules les clés présentes sont écrites.
+  ecrans?: Partial<Record<EcranBloc, boolean>>;
 };
+
+/**
+ * Traduit `ecrans` en colonnes `ecran_*`, en n'acceptant que des booléens sur des écrans
+ * connus. Un client qui inventerait une clé, ou passerait autre chose qu'un booléen, ne
+ * doit pas pouvoir écrire dans une colonne arbitraire.
+ */
+function colonnesEcrans(ecrans: Body["ecrans"]): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  if (!ecrans) return out;
+  for (const e of ECRANS_BLOC) {
+    const v = ecrans[e];
+    if (typeof v === "boolean") out[ECRAN_BLOC_COLONNE[e]] = v;
+  }
+  return out;
+}
 
 // Identifiant technique dérivé du nom (jamais saisi). « Basse-Frette » → « basse_frette ».
 function slugify(s: string): string {
@@ -40,6 +57,17 @@ function validate(body: Body): string | null {
 // Message clair quand supabase/blocs-dynamiques.sql n'a pas encore été exécuté.
 function migrationManquante(message: string): boolean {
   return /column .*(kind|ordre|couleur|is_active)/i.test(message);
+}
+
+// Message clair quand supabase/blocs-par-ecran.sql n'a pas encore été exécuté.
+function migrationEcransManquante(message: string): boolean {
+  return /column .*ecran_/i.test(message);
+}
+
+function messageErreur(message: string): string {
+  if (migrationEcransManquante(message)) return "Cases par écran non initialisées en base : exécutez supabase/blocs-par-ecran.sql.";
+  if (migrationManquante(message)) return "Blocs non initialisés en base : exécutez supabase/blocs-dynamiques.sql.";
+  return message;
 }
 
 // --- Liste des blocs (actifs et inactifs) + nombre de places rattachées ------
@@ -82,15 +110,19 @@ export async function POST(req: NextRequest) {
 
   const { data, error: dbError } = await supabase
     .from("residences")
-    .insert({ value, label, kind: body.kind, couleur: body.couleur ?? "blue", ordre, is_active: true })
+    .insert({
+      value, label, kind: body.kind, couleur: body.couleur ?? "blue", ordre, is_active: true,
+      // Absentes du corps : on retombe sur le préréglage porté par `kind`, pour qu'un bloc
+      // créé par un client qui ignore ces cases se comporte comme avant.
+      ...(body.ecrans
+        ? colonnesEcrans(body.ecrans)
+        : colonnesEcrans(Object.fromEntries(ECRANS_BLOC.map((e) => [e, body.kind === "chambre"])))),
+    })
     .select()
     .single();
 
   if (dbError) {
-    const msg = migrationManquante(dbError.message)
-      ? "Blocs non initialisés en base : exécutez supabase/blocs-dynamiques.sql."
-      : dbError.message;
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return NextResponse.json({ error: messageErreur(dbError.message) }, { status: 400 });
   }
   return NextResponse.json({ success: true, residence: data });
 }
@@ -116,6 +148,7 @@ export async function PUT(req: NextRequest) {
   }
   if (body.ordre !== undefined) update.ordre = body.ordre;
   if (body.is_active !== undefined) update.is_active = body.is_active;
+  Object.assign(update, colonnesEcrans(body.ecrans));
 
   if (body.kind !== undefined) {
     if (body.kind !== "chambre" && body.kind !== "poste") return NextResponse.json({ error: "Type invalide." }, { status: 400 });
@@ -129,10 +162,7 @@ export async function PUT(req: NextRequest) {
 
   const { error: dbError } = await supabase.from("residences").update(update).eq("value", body.value);
   if (dbError) {
-    const msg = migrationManquante(dbError.message)
-      ? "Blocs non initialisés en base : exécutez supabase/blocs-dynamiques.sql."
-      : dbError.message;
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return NextResponse.json({ error: messageErreur(dbError.message) }, { status: 400 });
   }
   return NextResponse.json({ success: true });
 }

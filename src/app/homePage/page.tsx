@@ -21,6 +21,7 @@ import { statutRepas } from "@/lib/presenceStatut";
 import { nomInvite } from "@/lib/invites";
 import { useMyRights } from "@/lib/useMyRights";
 import { useResidences } from "@/lib/useResidences";
+import { blocsPourEcran } from "@/lib/residences";
 import { evenementVisiblePour } from "@/lib/eventVisibility";
 import VisionConfirmation from "../components/VisionConfirmation";
 import ConfirmationToggle from "../components/ConfirmationToggle";
@@ -50,11 +51,10 @@ export default function HomePage() {
   // Intercalaires du haut : un par bloc du foyer (Résidence 12, Résidence 36, Corail…),
   // lus dans la table `residences` — un bloc ajouté depuis l'Administration s'y ajoute seul.
   const { residences, theme: themeResidence } = useResidences();
-  // Intercalaires : seuls les blocs d'habitation (des chambres) sont des **lieux
-  // d'événement**. Un bloc de postes (Corail, l'intendance) est un lieu de travail :
-  // il n'a pas d'onglet ici — ses membres voient les événements qui les ciblent via
-  // les rappels « Aujourd'hui » et la visibilité par groupe/personne.
-  const blocsLieux = residences.filter((r) => r.kind === "chambre");
+  // Intercalaires : les blocs que l'intendance a réglés pour en avoir un. Un bloc sans
+  // intercalaire n'est pas absent de l'appli — ses membres voient les événements qui les
+  // ciblent via les rappels « Aujourd'hui » et la visibilité par groupe/personne.
+  const blocsLieux = blocsPourEcran(residences, "intercalaires");
   const [selectedResidenceValue, setSelectedResidenceValue] = useState<string | null>(null);
   const [reminders, setReminders] = useState<CalendarEvent[]>([]);
 
