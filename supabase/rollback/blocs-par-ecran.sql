@@ -1,4 +1,8 @@
 -- RETOUR ARRIÈRE de supabase/blocs-par-ecran.sql
+--
+-- Rangé dans supabase/rollback/ et NON à la racine : la procédure d'ouverture d'un
+-- foyer passe tous les .sql de la racine dans l'ordre alphabétique, et ce fichier s'y
+-- serait exécuté juste après la migration qu'il annule.
 -- ----------------------------------------------
 -- Rend la table `residences` à son état d'avant les cases par écran.
 --

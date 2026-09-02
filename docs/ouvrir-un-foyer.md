@@ -73,16 +73,18 @@ fichier à la fois :
 | # | Fichier | Contenu |
 |---|---|---|
 | 1 | `supabase/migrations/20260824120000_socle.sql` | 22 tables, 49 policies, RLS partout, 4 fonctions, index |
-| 2 | `supabase/p4-options-evenement-en-code.sql` | retire deux tables devenues inutiles |
-| 3 | `supabase/storage-branding.sql` | dépôt du logo et de l'icône |
-| 4 | `supabase/verrouillage-jours-anticipes.sql` | `verrouillage_weekend` → `verrouillage_jours_anticipes` (liste de jours) |
-| 5 | `supabase/seed.sql` | contenu d'un foyer vierge |
+| 2 | `supabase/blocs-par-ecran.sql` | cinq cases par bloc : où il apparaît, écran par écran |
+| 3 | `supabase/p4-options-evenement-en-code.sql` | retire deux tables devenues inutiles |
+| 4 | `supabase/storage-branding.sql` | dépôt du logo et de l'icône |
+| 5 | `supabase/verrouillage-jours-anticipes.sql` | `verrouillage_weekend` → `verrouillage_jours_anticipes` (liste de jours) |
+| 6 | `supabase/seed.sql` | contenu d'un foyer vierge |
 
 **La règle générale** : prendre le socle le plus récent de `supabase/migrations/`,
 puis passer **tous** les fichiers `.sql` restés à la racine de `supabase/` dans
 l'ordre alphabétique, entre le socle et le seed — hors `audit-rls.sql`,
 `verif-socle.sql` et `sync-modes-emploi-inapp.sql`, qui sont des outils et non des
-migrations. Une régénération du socle les absorbe et vide cette liste.
+migrations. Le sous-dossier `supabase/rollback/` n'en fait pas partie non plus : il
+contient les retours arrière, à ne jouer que pour défaire une migration précise. Une régénération du socle les absorbe et vide cette liste.
 
 Un foyer neuf peut sauter `p4` sans dommage — il ne fait que supprimer deux tables
 inutilisées — mais le passer garde les foyers strictement identiques, ce qui est la
