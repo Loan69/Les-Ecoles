@@ -18,9 +18,15 @@ L'équipe d'intendance (les administratrices) dispose en parallèle d'un **table
 
 Le foyer est organisé en **blocs**, déclarés dans l'application et non figés dans le programme. Un bloc est
 soit une **résidence** — un lieu physique, avec ses étages et ses chambres — soit une **équipe** rattachée au
-foyer sans y loger, avec ses **postes** plutôt que des chambres. Aux Écoles, cela donne aujourd'hui la
-**Résidence 12**, la **Résidence 36** et **Corail** (l'intendance), mais l'intendance peut en ajouter,
-en renommer et en réordonner : tout écran qui présente « un encadré par bloc » suit cette liste.
+foyer sans y loger, avec ses **postes** plutôt que des chambres. L'intendance peut en ajouter, en renommer
+et en réordonner : tout écran qui présente « un encadré par bloc » suit cette liste.
+
+Chaque bloc décide en outre **où il apparaît**, écran par écran : intercalaires de l'accueil, lieu d'un
+événement, organisation des repas, rattachement comptable d'une option, présences au foyer. Cinq cases,
+préréglées selon le type du bloc puis ajustables — de quoi tenir un bloc dont les membres mangent au foyer
+sans y dormir, ou l'inverse. Trois écrans échappent au réglage et listent **toujours** tous les blocs : la
+comptabilité des repas, le ciblage des contenus et l'écran d'Administration, sous peine de faire disparaître
+des personnes d'un décompte.
 
 ---
 
