@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSectionView, requireSuperAdmin } from "@/lib/apiAuth";
 import { COULEURS_RESIDENCE, toResidences } from "@/lib/residences";
-import { blocEstVide } from "@/lib/structureBloc";
+import { blocEstVide, libererPlaces, listeNoms, occupantesActives } from "@/lib/structureBloc";
 import { ECRANS_BLOC, ECRAN_BLOC_COLONNE, type EcranBloc, type ResidenceKind } from "@/types/Residence";
 
 // --- Les blocs du foyer (table `residences`) --------------------------------
@@ -178,13 +178,36 @@ export async function DELETE(req: NextRequest) {
   const { value } = (await req.json()) as { value?: string };
   if (!value) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
 
-  const { count: placeCount } = await supabase.from("places").select("id", { count: "exact", head: true }).eq("residence", value);
-  if (placeCount && placeCount > 0)
-    return NextResponse.json({ error: "Ce bloc contient des chambres ou des postes. Désactivez-le plutôt que de le supprimer." }, { status: 409 });
+  // Un bloc se supprime AVEC ses étages et ses places, du moment que personne n'y loge.
+  //
+  // Deux verrous ont sauté ici. « Il contient des chambres » obligeait à vider le bloc à
+  // la main avant de le supprimer, sans rien protéger de plus. « Des comptes y sont
+  // rattachés, historique compris » rendait la suppression **définitivement** impossible :
+  // il suffisait qu'une personne y ait logé un jour. Or une personne archivée a quitté le
+  // foyer, et son passage reste lisible même sans le bloc — les écrans d'intendance lui
+  // fabriquent un encadré « (hors foyer) » (R-RES-05).
+  //
+  // Ne reste que ce qui se défend : on ne supprime pas le toit de quelqu'un qui dort
+  // dessous.
+  const { data: places } = await supabase.from("places").select("id").eq("residence", value);
+  const placeIds = (places ?? []).map((p) => p.id as string);
 
-  const { count: resCount } = await supabase.from("residentes").select("id", { count: "exact", head: true }).eq("residence", value);
-  if (resCount && resCount > 0)
-    return NextResponse.json({ error: "Des comptes sont rattachés à ce bloc (occupant ou historique). Désactivez-le plutôt." }, { status: 409 });
+  const occupees = await occupantesActives(supabase, placeIds);
+  if (occupees.length > 0)
+    return NextResponse.json(
+      { error: `Ce bloc est encore habité par ${listeNoms(occupees)}. Déplacez-la ou archivez-la d'abord.` },
+      { status: 409 }
+    );
+
+  if (placeIds.length > 0) {
+    await libererPlaces(supabase, placeIds);
+    const { error: ePlaces } = await supabase.from("places").delete().in("id", placeIds);
+    if (ePlaces) return NextResponse.json({ error: ePlaces.message }, { status: 500 });
+  }
+
+  // Les étages référencent le bloc : ils partent avec lui.
+  const { error: eEtages } = await supabase.from("etages").delete().eq("residence", value);
+  if (eEtages) return NextResponse.json({ error: eEtages.message }, { status: 500 });
 
   const { error: dbError } = await supabase.from("residences").delete().eq("value", value);
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });

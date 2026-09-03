@@ -250,9 +250,18 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
     await Promise.all([load(), reloadBlocsPartages()]);
   };
 
+  // La confirmation dit ce qui part AVEC le bloc : étages et places comprises. Le refus,
+  // lui, ne vient plus que d'une occupante encore en place (voir api/admin/residences).
   const removeBloc = (b: Bloc) => {
+    const nbEtages = etagesDe(b.value).length;
+    const morceaux = [
+      nbEtages > 0 ? `${nbEtages} étage${nbEtages > 1 ? "s" : ""}` : null,
+      b.nb_places > 0 ? `${b.nb_places} ${b.kind === "poste" ? "poste" : "chambre"}${b.nb_places > 1 ? "s" : ""}` : null,
+    ].filter(Boolean);
     toast(`Supprimer le bloc « ${b.label} » ?`, {
-      description: "Possible seulement s'il ne contient aucune chambre, aucun poste et aucun compte.",
+      description: morceaux.length
+        ? `${morceaux.join(" et ")} seront supprimés avec lui. Refusé s'il reste une résidente active ; les comptes archivés qui y ont logé sont conservés.`
+        : "Refusé s'il reste une résidente active ; les comptes archivés qui y ont logé sont conservés.",
       action: {
         label: "Supprimer",
         onClick: async () => {
@@ -312,7 +321,9 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
 
   const removeEtage = (e: EtageWithCount) => {
     toast(`Supprimer l'étage « ${e.label} » ?`, {
-      description: "Possible seulement s'il ne contient plus aucune chambre.",
+      description: e.nb_places > 0
+        ? `Ses ${e.nb_places} chambre${e.nb_places > 1 ? "s" : ""} seront supprimées avec lui. Refusé s'il reste une résidente active.`
+        : "Refusé s'il reste une résidente active.",
       action: {
         label: "Supprimer",
         onClick: async () => {
@@ -388,7 +399,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
     const j = await res.json();
     setInviting(false);
     if (!res.ok) return toast.error(j.error || "Erreur.");
-    toast.success(j.reassigned ? "Compte existant réactivé et réassigné (sans nouvel email)." : "Invitation envoyée par email.");
+    toast.success(j.reassigned ? "Compte réintégré : réactivé et rattaché à cette place, sans email." : "Invitation envoyée par email.");
     setInviteFor(null);
     setInviteEmail("");
     await load();
@@ -869,7 +880,7 @@ export default function PlacesManager({ currentUserId }: { currentUserId: string
           </button>
           {archivedOpen && (
             <div className="px-4 sm:px-5 pb-4 space-y-2">
-              <p className="text-xs text-gray-400">Ces comptes sont désactivés (connexion bloquée, historique conservé). Pour en réactiver un, utilisez « Inviter » sur une chambre libre et sélectionnez-le.</p>
+              <p className="text-xs text-gray-400">Ces comptes sont désactivés (connexion bloquée, historique conservé). Pour en réactiver un, ouvrez « Inviter » sur une chambre libre et choisissez-le dans la liste : la fenêtre bascule en réintégration.</p>
               {canEdit && (
                 <p className="text-xs text-gray-400">La <b>suppression définitive</b> (🗑) efface le compte et retire ses repas passés de la comptabilité : ne l&apos;utilisez qu&apos;une fois la période facturée.</p>
               )}
@@ -1115,11 +1126,26 @@ function InviteModal({
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
         <h3 className="text-lg font-semibold text-blue-800 mb-1 flex items-center gap-2">
-          <Mail className="w-5 h-5" /> Inviter une résidente
+          {matched ? <><UserCheck className="w-5 h-5" /> Réintégrer {matched.prenom} {matched.nom.toUpperCase()}</> : <><Mail className="w-5 h-5" /> Inviter une résidente</>}
         </h3>
         <p className="text-sm text-gray-500 mb-4">
           {place.kind === "poste" ? "Poste" : "Chambre"} <span className="font-medium">{placeName(place)}</span> — {blocs.find((b) => b.value === place.residence)?.label ?? labelResidenceDefaut(place.residence)}.
         </p>
+
+        {/* Un compte désactivé reconnu ne reçoit AUCUN email : il est réactivé sur-le-champ.
+            Le dire ici évite qu'on attende un message qui ne partira pas — et qu'on prévienne
+            la personne « je t'ai envoyé une invitation » alors qu'elle peut déjà se connecter. */}
+        {matched && (
+          <div className="mb-4 rounded-xl border border-green-200 bg-green-50 p-3">
+            <p className="text-sm text-green-900 flex items-start gap-2">
+              <UserCheck className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>
+                Compte désactivé reconnu. Il sera <b>réactivé immédiatement</b> et rattaché à cette place —
+                <b> aucun email ne part</b>, et son mot de passe habituel fonctionne toujours.
+              </span>
+            </p>
+          </div>
+        )}
 
         {archived.length > 0 && (
           <div className="mb-4">
@@ -1137,7 +1163,7 @@ function InviteModal({
                 <option key={a.user_id} value={a.user_id}>{a.nom.toUpperCase()} {a.prenom} · {a.email}</option>
               ))}
             </select>
-            <p className="text-xs text-gray-400 mt-1">Son compte sera réactivé et réassigné, sans nouvel email.</p>
+            <p className="text-xs text-gray-400 mt-1">Choisir quelqu’un ici bascule la fenêtre en <b>réintégration</b> : pas d’invitation, réactivation directe.</p>
           </div>
         )}
 
@@ -1153,7 +1179,11 @@ function InviteModal({
           placeholder="email@exemple.fr"
           className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-600 focus:outline-none"
         />
-        <p className="text-xs text-gray-400 mt-1">Nouvelle personne : un email d&apos;activation lui sera envoyé.</p>
+        <p className="text-xs text-gray-400 mt-1">
+          {matched
+            ? "Effacez ou changez l’email pour inviter quelqu’un d’autre à la place."
+            : "Nouvelle personne : un email d’activation lui sera envoyé."}
+        </p>
 
         {showRightsChoice && (
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -1173,7 +1203,11 @@ function InviteModal({
         <div className="flex justify-end gap-2 mt-6">
           <button onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-400 text-gray-600 hover:bg-gray-100 cursor-pointer">Annuler</button>
           <button onClick={() => onSend(showRightsChoice && !keepRights)} disabled={sending} className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-800 disabled:opacity-50 cursor-pointer">
-            <Mail className="w-4 h-4" /> {sending ? "Envoi…" : "Envoyer l'invitation"}
+            {matched ? (
+              <><UserCheck className="w-4 h-4" /> {sending ? "Réintégration…" : "Réintégrer"}</>
+            ) : (
+              <><Mail className="w-4 h-4" /> {sending ? "Envoi…" : "Envoyer l'invitation"}</>
+            )}
           </button>
         </div>
       </div>

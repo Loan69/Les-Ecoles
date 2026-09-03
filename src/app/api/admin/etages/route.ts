@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSectionView, requireSuperAdmin } from "@/lib/apiAuth";
 import { toResidence } from "@/lib/residences";
+import { libererPlaces, listeNoms, occupantesActives } from "@/lib/structureBloc";
 import type { Etage } from "@/types/Etage";
 
 // --- Les étages d'un bloc « résidence » (table `etages`) ---------------------
@@ -123,13 +124,29 @@ export async function DELETE(req: NextRequest) {
   const { data: etage } = await supabase.from("etages").select("residence, value, label").eq("id", id).maybeSingle();
   if (!etage) return NextResponse.json({ error: "Étage introuvable." }, { status: 404 });
 
-  const { count } = await supabase
+  // Un étage se supprime AVEC ses chambres, du moment que personne n'y loge.
+  // Exiger qu'il soit vide obligeait à supprimer les chambres une par une avant lui —
+  // long, et sans rien protéger de plus : ce qu'on protège, c'est une occupante, pas
+  // une chambre vide.
+  const { data: places } = await supabase
     .from("places")
-    .select("id", { count: "exact", head: true })
+    .select("id")
     .eq("residence", etage.residence)
     .eq("etage", etage.value);
-  if (count && count > 0)
-    return NextResponse.json({ error: `« ${etage.label} » contient encore ${count} chambre(s). Videz-le d'abord.` }, { status: 409 });
+  const placeIds = (places ?? []).map((p) => p.id as string);
+
+  const occupees = await occupantesActives(supabase, placeIds);
+  if (occupees.length > 0)
+    return NextResponse.json(
+      { error: `« ${etage.label} » est encore habité par ${listeNoms(occupees)}. Déplacez-la ou archivez-la d'abord.` },
+      { status: 409 }
+    );
+
+  if (placeIds.length > 0) {
+    await libererPlaces(supabase, placeIds);
+    const { error: ePlaces } = await supabase.from("places").delete().in("id", placeIds);
+    if (ePlaces) return NextResponse.json({ error: ePlaces.message }, { status: 500 });
+  }
 
   const { error: dbError } = await supabase.from("etages").delete().eq("id", id);
   if (dbError) return NextResponse.json({ error: erreurTable(dbError.message) }, { status: 500 });
