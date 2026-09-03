@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer, createSupabaseAdmin } from "@/lib/supabaseServer";
 import { optionRefuseePour } from "@/lib/mealOptionAccess";
 import { nomInviteManquant } from "@/lib/invites";
+import { messageVerrouOption, messageVerrouRepas } from "@/lib/verrouRepas";
 
 type Body = {
   id?: number;
@@ -51,6 +52,12 @@ export async function POST(req: Request) {
   const refus = await optionRefuseePour(supabase, user.id, body.date!, body.service!, body.option_id!);
   if (refus) return NextResponse.json({ error: refus }, { status: 403 });
 
+  // Un invité mange ce que son invitante peut choisir — y compris quant à l'heure
+  // (R-REPAS-07, R-LOCK-05). Sans ce contrôle, inviter quelqu'un restait un moyen
+  // d'ajouter un couvert sur un jour déjà clos.
+  const verrou = await messageVerrouOption(supabase, body.date!, body.service!, body.option_id!);
+  if (verrou) return NextResponse.json({ error: verrou }, { status: 403 });
+
   const g = await resolveGuest(supabase, body.guestId, (body.nom ?? "").trim(), (body.prenom ?? "").trim());
   if (g.error || !g.id) return NextResponse.json({ error: g.error ?? "Invité introuvable." }, { status: 500 });
 
@@ -84,6 +91,22 @@ export async function PUT(req: Request) {
   const refus = await optionRefuseePour(supabase, user.id, body.date!, body.service!, body.option_id!);
   if (refus) return NextResponse.json({ error: refus }, { status: 403 });
 
+  // Déplacer un invité touche DEUX journées : celle qu'il quitte et celle où il arrive.
+  // Les deux doivent être ouvertes — sinon on retirerait un couvert d'un jour déjà
+  // compté. Même raisonnement que pour les séjours d'absence (R-LOCK-12).
+  const { data: avant } = await supabase
+    .from("invites_repas")
+    .select("date_repas")
+    .eq("id", body.id)
+    .eq("invite_par", user.id)
+    .maybeSingle();
+  if (avant?.date_repas && avant.date_repas !== body.date) {
+    const verrouDepart = await messageVerrouRepas(supabase, avant.date_repas as string);
+    if (verrouDepart) return NextResponse.json({ error: verrouDepart }, { status: 403 });
+  }
+  const verrouArrivee = await messageVerrouOption(supabase, body.date!, body.service!, body.option_id!);
+  if (verrouArrivee) return NextResponse.json({ error: verrouArrivee }, { status: 403 });
+
   const g = await resolveGuest(supabase, body.guestId, (body.nom ?? "").trim(), (body.prenom ?? "").trim());
   if (g.error || !g.id) return NextResponse.json({ error: g.error ?? "Invité introuvable." }, { status: 500 });
 
@@ -112,6 +135,18 @@ export async function DELETE(req: Request) {
 
   const { id } = (await req.json()) as { id?: number };
   if (!id) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
+
+  // Retirer un couvert d'un jour clos, c'est modifier ce jour-là : même refus qu'un ajout.
+  const { data: ligne } = await supabase
+    .from("invites_repas")
+    .select("date_repas")
+    .eq("id", id)
+    .eq("invite_par", user.id)
+    .maybeSingle();
+  if (ligne?.date_repas) {
+    const verrou = await messageVerrouRepas(supabase, ligne.date_repas as string);
+    if (verrou) return NextResponse.json({ error: verrou }, { status: 403 });
+  }
 
   const admin = await createSupabaseAdmin();
   const { error } = await admin.from("invites_repas").delete().eq("id", id).eq("invite_par", user.id);

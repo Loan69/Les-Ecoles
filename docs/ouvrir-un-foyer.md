@@ -181,7 +181,7 @@ Puis fabriquer le registre, en listant **tous** les foyers, l'ancien compris :
 
 ```
 node scripts/foyers-json.mjs \
-  ecoles=.env.local.ecoles:les-ecoles.vercel.app \
+  ecoles=.env.local.ecoles:les-ecoles-orpin.vercel.app \
   <slug>=.env.<slug>:<slug>-foyer.vercel.app
 ```
 
@@ -214,7 +214,7 @@ Deux contrôles automatiques, à lancer depuis le dépôt.
 **Le cloisonnement des adresses**
 
 ```
-node scripts/verif-foyers.mjs https://les-ecoles.vercel.app https://<slug>-foyer.vercel.app
+node scripts/verif-foyers.mjs https://les-ecoles-orpin.vercel.app https://<slug>-foyer.vercel.app
 ```
 
 Attendu : `✅ Chaque adresse sert un foyer distinct, sur sa propre base.`

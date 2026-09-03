@@ -107,7 +107,7 @@ Les repas d'un jour se ferment **le jour même**, à l'**heure de verrouillage**
 - Certaines **options** (ex. pique-nique) peuvent fermer **plus tôt** (un ou plusieurs jours avant), selon leur réglage.
 - Certains **jours** sont **fermés d'avance** par l'intendance : leurs repas se verrouillent dès la veille (par défaut le samedi et le dimanche, fermés dès le vendredi). Le jour concerné affiche la phrase qui l'explique.
 
-Un jour verrouillé est signalé par un cadenas 🔒. En cas de besoin, rapproche-toi de l'intendance.
+Un jour verrouillé est signalé par un cadenas 🔒 et par la phrase qui explique pourquoi. Une fois fermé, il l'est pour tout : tu ne peux ni t'inscrire, ni te noter « Non », ni retirer ta réponse. **Tes invités suivent la même règle** — on ne peut pas ajouter, déplacer ni retirer un invité sur un jour clos. En cas de besoin, rapproche-toi de l'intendance : elle seule peut corriger après coup.
 
 ---
 

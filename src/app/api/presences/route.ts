@@ -3,6 +3,7 @@ import { createSupabaseServer } from "@/lib/supabaseServer";
 import { CHOIX_NON } from "@/lib/presenceStatut";
 import { requireSectionAccess } from "@/lib/apiAuth";
 import { cibleEstVide, dansCible, estExclue, type Cible } from "@/lib/visibilite";
+import { messageVerrouOption, messageVerrouRepas } from "@/lib/verrouRepas";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -51,6 +52,13 @@ export async function POST(req: NextRequest) {
 
   if (!date || !DATE_RE.test(date)) return NextResponse.json({ error: "Date invalide." }, { status: 400 });
   if (service !== "dejeuner" && service !== "diner") return NextResponse.json({ error: "Service invalide." }, { status: 400 });
+
+  // Jour verrouillé : on refuse AVANT toute écriture, et pour les trois chemins — retirer
+  // sa réponse, dire « Non », choisir une option. Un jour clos ne doit pas plus se vider
+  // que se remplir. L'écran anticipe déjà ce refus (sélecteur désactivé) ; ici c'est la
+  // vraie barrière. L'intendance, elle, corrige par /api/admin/presences (R-NIV-08).
+  const verrouJour = await messageVerrouRepas(supabase, date);
+  if (verrouJour) return NextResponse.json({ error: verrouJour }, { status: 403 });
 
   // Sans réponse → on retire la ligne
   if (!choix) {
@@ -111,6 +119,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cette option ne vous est pas proposée." }, { status: 403 });
     }
   }
+
+  // Délai de commande (R-LOCK-05) : cette option-là peut fermer plus tôt que le jour.
+  // Un pique-nique en délai 1 se commande la veille — passé l'heure de clôture de la
+  // veille, il n'est plus choisissable même si le repas lui-même reste ouvert.
+  const verrouOption = await messageVerrouOption(supabase, date, service, option_id);
+  if (verrouOption) return NextResponse.json({ error: verrouOption }, { status: 403 });
 
   const { error: upErr } = await supabase
     .from("presences")
