@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSectionView, requireSuperAdmin } from "@/lib/apiAuth";
 import { COULEURS_RESIDENCE, toResidences } from "@/lib/residences";
-import type { ResidenceKind } from "@/types/Residence";
+import { blocEstVide, libererPlaces, listeNoms, occupantesActives } from "@/lib/structureBloc";
+import { ECRANS_BLOC, ECRAN_BLOC_COLONNE, type EcranBloc, type ResidenceKind } from "@/types/Residence";
 
 // --- Les blocs du foyer (table `residences`) --------------------------------
 // Un bloc = Résidence 12, Résidence 36, Corail (intendance), une future résidence…
@@ -18,7 +19,24 @@ type Body = {
   couleur?: string;
   ordre?: number;
   is_active?: boolean;
+  // Où le bloc apparaît, écran par écran. Partiel : seules les clés présentes sont écrites.
+  ecrans?: Partial<Record<EcranBloc, boolean>>;
 };
+
+/**
+ * Traduit `ecrans` en colonnes `ecran_*`, en n'acceptant que des booléens sur des écrans
+ * connus. Un client qui inventerait une clé, ou passerait autre chose qu'un booléen, ne
+ * doit pas pouvoir écrire dans une colonne arbitraire.
+ */
+function colonnesEcrans(ecrans: Body["ecrans"]): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  if (!ecrans) return out;
+  for (const e of ECRANS_BLOC) {
+    const v = ecrans[e];
+    if (typeof v === "boolean") out[ECRAN_BLOC_COLONNE[e]] = v;
+  }
+  return out;
+}
 
 // Identifiant technique dérivé du nom (jamais saisi). « Basse-Frette » → « basse_frette ».
 function slugify(s: string): string {
@@ -40,6 +58,17 @@ function validate(body: Body): string | null {
 // Message clair quand supabase/blocs-dynamiques.sql n'a pas encore été exécuté.
 function migrationManquante(message: string): boolean {
   return /column .*(kind|ordre|couleur|is_active)/i.test(message);
+}
+
+// Message clair quand supabase/blocs-par-ecran.sql n'a pas encore été exécuté.
+function migrationEcransManquante(message: string): boolean {
+  return /column .*ecran_/i.test(message);
+}
+
+function messageErreur(message: string): string {
+  if (migrationEcransManquante(message)) return "Cases par écran non initialisées en base : exécutez supabase/blocs-par-ecran.sql.";
+  if (migrationManquante(message)) return "Blocs non initialisés en base : exécutez supabase/blocs-dynamiques.sql.";
+  return message;
 }
 
 // --- Liste des blocs (actifs et inactifs) + nombre de places rattachées ------
@@ -82,15 +111,19 @@ export async function POST(req: NextRequest) {
 
   const { data, error: dbError } = await supabase
     .from("residences")
-    .insert({ value, label, kind: body.kind, couleur: body.couleur ?? "blue", ordre, is_active: true })
+    .insert({
+      value, label, kind: body.kind, couleur: body.couleur ?? "blue", ordre, is_active: true,
+      // Cases absentes du corps : on retombe sur le préréglage porté par `kind`, pour
+      // qu'un appel qui ignore ces cases se comporte comme avant.
+      ...(body.ecrans
+        ? colonnesEcrans(body.ecrans)
+        : colonnesEcrans(Object.fromEntries(ECRANS_BLOC.map((e) => [e, body.kind === "chambre"])))),
+    })
     .select()
     .single();
 
   if (dbError) {
-    const msg = migrationManquante(dbError.message)
-      ? "Blocs non initialisés en base : exécutez supabase/blocs-dynamiques.sql."
-      : dbError.message;
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return NextResponse.json({ error: messageErreur(dbError.message) }, { status: 400 });
   }
   return NextResponse.json({ success: true, residence: data });
 }
@@ -116,12 +149,15 @@ export async function PUT(req: NextRequest) {
   }
   if (body.ordre !== undefined) update.ordre = body.ordre;
   if (body.is_active !== undefined) update.is_active = body.is_active;
+  Object.assign(update, colonnesEcrans(body.ecrans));
 
   if (body.kind !== undefined) {
     if (body.kind !== "chambre" && body.kind !== "poste") return NextResponse.json({ error: "Type invalide." }, { status: 400 });
-    const { count } = await supabase.from("places").select("id", { count: "exact", head: true }).eq("residence", body.value);
-    if (count && count > 0)
-      return NextResponse.json({ error: "Ce bloc contient déjà des places : son type ne peut plus changer." }, { status: 409 });
+    // Gel dès que le bloc contient quelque chose — places **ou** étages. Ne compter que
+    // les places laissait basculer en « Équipe » un bloc dont les étages étaient déjà
+    // déclarés : ils devenaient orphelins, rattachés à un bloc qui n'en admet pas.
+    if (!(await blocEstVide(supabase, body.value)))
+      return NextResponse.json({ error: "Ce bloc contient déjà des étages ou des places : son type ne peut plus changer." }, { status: 409 });
     update.kind = body.kind;
   }
 
@@ -129,10 +165,7 @@ export async function PUT(req: NextRequest) {
 
   const { error: dbError } = await supabase.from("residences").update(update).eq("value", body.value);
   if (dbError) {
-    const msg = migrationManquante(dbError.message)
-      ? "Blocs non initialisés en base : exécutez supabase/blocs-dynamiques.sql."
-      : dbError.message;
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return NextResponse.json({ error: messageErreur(dbError.message) }, { status: 400 });
   }
   return NextResponse.json({ success: true });
 }
@@ -145,13 +178,36 @@ export async function DELETE(req: NextRequest) {
   const { value } = (await req.json()) as { value?: string };
   if (!value) return NextResponse.json({ error: "Identifiant manquant." }, { status: 400 });
 
-  const { count: placeCount } = await supabase.from("places").select("id", { count: "exact", head: true }).eq("residence", value);
-  if (placeCount && placeCount > 0)
-    return NextResponse.json({ error: "Ce bloc contient des chambres ou des postes. Désactivez-le plutôt que de le supprimer." }, { status: 409 });
+  // Un bloc se supprime AVEC ses étages et ses places, du moment que personne n'y loge.
+  //
+  // Deux verrous ont sauté ici. « Il contient des chambres » obligeait à vider le bloc à
+  // la main avant de le supprimer, sans rien protéger de plus. « Des comptes y sont
+  // rattachés, historique compris » rendait la suppression **définitivement** impossible :
+  // il suffisait qu'une personne y ait logé un jour. Or une personne archivée a quitté le
+  // foyer, et son passage reste lisible même sans le bloc — les écrans d'intendance lui
+  // fabriquent un encadré « (hors foyer) » (R-RES-05).
+  //
+  // Ne reste que ce qui se défend : on ne supprime pas le toit de quelqu'un qui dort
+  // dessous.
+  const { data: places } = await supabase.from("places").select("id").eq("residence", value);
+  const placeIds = (places ?? []).map((p) => p.id as string);
 
-  const { count: resCount } = await supabase.from("residentes").select("id", { count: "exact", head: true }).eq("residence", value);
-  if (resCount && resCount > 0)
-    return NextResponse.json({ error: "Des comptes sont rattachés à ce bloc (occupant ou historique). Désactivez-le plutôt." }, { status: 409 });
+  const occupees = await occupantesActives(supabase, placeIds);
+  if (occupees.length > 0)
+    return NextResponse.json(
+      { error: `Ce bloc est encore habité par ${listeNoms(occupees)}. Déplacez-la ou archivez-la d'abord.` },
+      { status: 409 }
+    );
+
+  if (placeIds.length > 0) {
+    await libererPlaces(supabase, placeIds);
+    const { error: ePlaces } = await supabase.from("places").delete().in("id", placeIds);
+    if (ePlaces) return NextResponse.json({ error: ePlaces.message }, { status: 500 });
+  }
+
+  // Les étages référencent le bloc : ils partent avec lui.
+  const { error: eEtages } = await supabase.from("etages").delete().eq("residence", value);
+  if (eEtages) return NextResponse.json({ error: eEtages.message }, { status: 500 });
 
   const { error: dbError } = await supabase.from("residences").delete().eq("value", value);
   if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });

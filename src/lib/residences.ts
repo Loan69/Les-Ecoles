@@ -1,4 +1,11 @@
-import type { CouleurResidence, Residence, ResidenceKind } from "@/types/Residence";
+import {
+  ECRANS_BLOC,
+  ECRAN_BLOC_COLONNE,
+  type CouleurResidence,
+  type EcranBloc,
+  type Residence,
+  type ResidenceKind,
+} from "@/types/Residence";
 
 // --- Les blocs du foyer, en un seul endroit --------------------------------
 //
@@ -61,6 +68,84 @@ function couleurParRang(index: number): CouleurResidence {
   return COULEURS_RESIDENCE[index % COULEURS_RESIDENCE.length];
 }
 
+/**
+ * Les cinq cases « où ce bloc apparaît-il ? », lues sur une ligne `residences`.
+ *
+ * **Repli sur `kind` quand la colonne est absente**, et c'est volontaire : il rend le
+ * déploiement réversible dans les deux sens. Tant que `supabase/blocs-par-ecran.sql`
+ * n'est pas passé, le code se comporte exactement comme avant (Lieu partout, Équipe
+ * nulle part) ; et si l'on joue le rollback alors que le code est encore déployé, il
+ * y retombe au lieu d'échouer. Ni l'ordre des deux opérations ni leur écart dans le
+ * temps ne peuvent donc casser un foyer.
+ *
+ * Une colonne présente mais nulle est traitée comme absente : même repli.
+ */
+function ecransDepuisLigne(
+  row: Record<string, unknown>,
+  kind: ResidenceKind
+): Record<EcranBloc, boolean> {
+  const defaut = ecransPourKind(kind);
+  const ecrans = {} as Record<EcranBloc, boolean>;
+  for (const e of ECRANS_BLOC) {
+    const brut = row[ECRAN_BLOC_COLONNE[e]];
+    ecrans[e] = typeof brut === "boolean" ? brut : defaut[e];
+  }
+  return ecrans;
+}
+
+/**
+ * Les deux préréglages, exprimés en cases : « Lieu » les coche toutes, « Équipe » aucune.
+ *
+ * C'est **exactement** ce que `kind` décidait avant les cases par écran. D'où le double
+ * emploi : préréglage d'un clic dans l'écran de réglage, et valeur de repli tant que la
+ * migration n'est pas passée. Les deux doivent rester la même fonction, sans quoi un
+ * foyer non migré n'afficherait pas ce que son bouton « Lieu » promet.
+ */
+export function ecransPourKind(kind: ResidenceKind): Record<EcranBloc, boolean> {
+  const actif = kind === "chambre";
+  return Object.fromEntries(ECRANS_BLOC.map((e) => [e, actif])) as Record<EcranBloc, boolean>;
+}
+
+/**
+ * Bloc de secours pour un rattachement **inconnu ou désactivé** (R-RES-05).
+ *
+ * Ses cinq cases sont à `true` — jamais dérivées d'un réglage, puisqu'il n'y en a pas.
+ * C'est la seule valeur juste : ce bloc n'existe que pour **empêcher quelqu'un de
+ * disparaître** d'un décompte, et une case à `false` le ferait filtrer précisément là
+ * où on l'a fabriqué pour qu'il s'affiche.
+ */
+export function blocDeRepli(value: string, kind: ResidenceKind = "chambre"): Residence {
+  return {
+    value,
+    label: value ? `${labelResidenceDefaut(value)} (hors foyer)` : "Sans bloc",
+    kind,
+    ordre: 900,
+    couleur: "blue",
+    is_active: false,
+    ecrans: Object.fromEntries(ECRANS_BLOC.map((e) => [e, true])) as Record<EcranBloc, boolean>,
+  };
+}
+
+/**
+ * Nom court d'un jeu de cases, pour la liste des blocs.
+ *
+ * « Lieu » et « Équipe » ne sont plus des types mais des **préréglages** : on ne les
+ * affiche donc que si les cases y correspondent encore exactement. Dès qu'une case
+ * est décochée à la main, le bloc est « Sur mesure » — annoncer « Lieu » sur un bloc
+ * qui n'a plus d'intercalaire serait précisément le mensonge qu'on vient de supprimer.
+ */
+export function libelleEcrans(ecrans: Record<EcranBloc, boolean>): string {
+  const actifs = ECRANS_BLOC.filter((e) => ecrans[e]).length;
+  if (actifs === ECRANS_BLOC.length) return "Lieu";
+  if (actifs === 0) return "Équipe";
+  return "Sur mesure";
+}
+
+/** Les blocs actifs qui apparaissent sur un écran donné, dans l'ordre d'affichage. */
+export function blocsPourEcran(residences: Residence[], ecran: EcranBloc): Residence[] {
+  return residences.filter((r) => r.ecrans[ecran]);
+}
+
 // Lecture d'une ligne `residences`, tolérante aux colonnes absentes : elles sont
 // toutes NOT NULL depuis le socle, mais une lecture partielle (`select` restreint)
 // reste possible, et l'objet doit rester utilisable.
@@ -68,6 +153,7 @@ export function toResidence(row: Record<string, unknown>, index = 0): Residence 
   const value = String(row.value ?? "");
   const kind: ResidenceKind = row.kind === "poste" ? "poste" : "chambre";
   return {
+    ecrans: ecransDepuisLigne(row, kind),
     value,
     label: typeof row.label === "string" && row.label.trim() ? row.label : labelResidenceDefaut(value),
     kind,

@@ -91,15 +91,30 @@ Trois niveaux, à créer dans cet ordre :
 Chaque bloc a un nom et une couleur, qui le rendra reconnaissable partout dans
 l'application.
 
-Chaque bloc a un **type**, et c'est le choix le plus lourd de conséquences :
+Chaque bloc se règle en deux temps.
 
-| Type | Ce que c'est | Ce qu'il permet |
+**Son type** — ce qu'on range dedans :
+
+| Type | Ce que c'est | Ce qu'il contient |
 |---|---|---|
-| **Bloc Lieu** | une partie du foyer — un bâtiment, une aile, une maison | contient des étages et des chambres, apparaît comme **intercalaire sur l'accueil**, peut **accueillir un événement** et porter des **options de repas** |
-| **Bloc Équipe** | un groupe de personnes — intendance, bénévoles | contient des **postes** sans étage. Ses membres ont un compte et des repas, mais pas de chambre. N'étant pas un endroit, il n'a pas d'intercalaire et ne peut pas accueillir d'événement — on l'atteint par la **visibilité** |
+| **Bloc Lieu** | une partie du foyer — un bâtiment, une aile, une maison | des **étages**, et des chambres à l'intérieur |
+| **Bloc Équipe** | un groupe de personnes — intendance, bénévoles | des **postes**, sans étage. Ses membres ont un compte et des repas, mais pas de chambre |
 
-Ce choix devient **définitif** dès que le bloc contient des places : prenez le temps
-d'y penser.
+Ce choix devient **définitif** dès que le bloc contient un étage ou une place : prenez
+le temps d'y penser.
+
+**Où il apparaît** — cinq cases, que vous pourrez changer quand vous voudrez :
+intercalaires de l'accueil, lieu d'un événement, organisation des repas, rattachement
+compta d'une option, présences au foyer.
+
+Choisir le type prérègle ces cinq cases : *Lieu* les coche toutes, *Équipe* les décoche
+toutes. C'est un point de départ raisonnable — ajustez ensuite. Un bloc « Hors les murs »
+pour des personnes rattachées au foyer sans y loger, par exemple, gardera l'organisation
+des repas mais perdra les présences et l'intercalaire.
+
+> Trois écrans ne se règlent pas et accueillent **toujours** tous les blocs : la
+> comptabilité des repas, le ciblage des contenus et l'écran d'Administration. En retirer
+> un bloc ferait disparaître ses membres d'un décompte — ce n'est jamais ce qu'on veut.
 
 **Les étages** — à l'intérieur d'un bloc Lieu. Donnez-leur le nom que les
 résidentes emploient réellement (« Rez-de-chaussée », « 2ᵉ »), pas un code.
@@ -230,7 +245,7 @@ logo, et refaire entièrement la structure des chambres.
 - [ ] Connectée, mot de passe choisi
 - [ ] Nom et nom court du foyer saisis
 - [ ] Logo et icône chargés *(facultatif)*
-- [ ] Blocs créés, avec le bon type (Lieu ou Équipe)
+- [ ] Blocs créés, avec le bon type (Lieu ou Équipe) et leurs cinq cases vérifiées
 - [ ] Étages créés
 - [ ] Chambres et postes créés, nommés comme le foyer les nomme
 - [ ] Ma chambre choisie *(si je loge au foyer)*

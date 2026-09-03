@@ -78,12 +78,12 @@ Panneau ⚙️ **Administration**. L'écran affiche **directement** la gestion d
 1. Clique **« Inviter »**.
 2. Deux possibilités :
    - **Nouvelle personne** : saisis son **email** → elle reçoit un email d'activation.
-   - **Compte désactivé** (déjà eu un compte) : choisis-le dans la liste **« Réassigner une ancienne résidente »** → son compte est **réactivé et réassigné sans nouvel email**. **Si cette personne avait des droits admin**, un choix apparaît : **repartir de zéro** (simple résidente, recommandé) ou **garder ses anciens droits**.
+   - **Compte désactivé** (déjà eu un compte) : choisis-le dans la liste **« Réassigner une ancienne résidente »**. La fenêtre bascule alors en **réintégration** — titre, bandeau et bouton **« Réintégrer »** au lieu d'« Envoyer l'invitation ». ⚠️ **Aucun email ne part** : le compte est réactivé sur-le-champ et **son mot de passe habituel fonctionne toujours**. Ne lui annonce donc pas une invitation à attendre — dis-lui qu'elle peut se reconnecter. **Si cette personne avait des droits admin**, un choix apparaît : **repartir de zéro** (simple résidente, recommandé) ou **garder ses anciens droits**.
 3. Elle définit son mot de passe et complète son profil (résidence/chambre **imposées**) ; la place passe à **« Occupée »**.
 
 **Départ d'une résidente** : bouton **« Libérer / désactiver »** (⤴) → le compte est **désactivé** (il ne peut plus se connecter, mais son **historique de repas/présence est conservé** pour la compta) et la **place se libère** (réattribuable).
 
-**Comptes désactivés** : un panneau repliable en bas liste les anciens comptes (avec leurs droits en sommeil). Ils se réactivent via **« Inviter »** sur une chambre libre.
+**Comptes désactivés** : un panneau repliable en bas liste les anciens comptes (avec leurs droits en sommeil). Ils se réactivent en ouvrant **« Inviter »** sur une chambre libre puis en les choisissant dans la liste — la fenêtre passe alors en **réintégration**, sans email.
 
 **Supprimer définitivement un compte** : dans ce même panneau, le bouton 🗑 efface le compte pour de bon. Il n'est proposé que sur un compte **déjà désactivé** — pour supprimer quelqu'un d'actif, il faut donc d'abord le **libérer / désactiver**. Le niveau **Admin · gérer** sur Comptes suffit ; seul un super-admin peut supprimer un autre super-admin.
 
@@ -91,11 +91,27 @@ Panneau ⚙️ **Administration**. L'écran affiche **directement** la gestion d
 
 **Gérer les blocs, chambres & étages** : un second panneau repliable, **réservé au super-admin**, contient la **structure physique** du foyer, séparée de la liste des personnes.
 
-- **Blocs du foyer** (en haut du panneau) — un « bloc », c'est une **résidence** (Résidence 12, Résidence 36) ou un **ensemble de postes** (Corail, l'intendance). On peut en **ajouter**, les **renommer**, changer leur **couleur**, les **réordonner** (↑ ↓), les **désactiver** ou les **supprimer**. À la création, on choisit ce que le bloc contient : *des chambres réparties par étage* (une résidence) ou *des postes sans étage* (une intendance).
-  > **Un bloc ajouté ici obtient tout de suite son propre encadré partout** : comptabilité des repas, ciblage des événements et — s'il s'agit d'une **résidence** — organisation des services, présences au foyer, rattachement d'une option de repas et intercalaires de l'accueil. Rien d'autre n'est à faire.
-  > Un bloc d'**intendance** n'apparaît pas dans les **présences au foyer** : ses membres travaillent au foyer sans y dormir, la question « au foyer ce soir ? » ne les concerne pas. Ils restent en revanche dans la **comptabilité des repas**, qu'ils prennent sur place.
-  > **Suppression** : possible seulement si le bloc ne contient **aucune chambre/poste** et **aucun compte** (même parti). Sinon, le **désactiver**. Et son contenu (chambres ou postes) se **fige** dès qu'il contient une place.
-- **Étages**, dans chaque bloc « résidence » : **ajouter / renommer / réordonner (↑ ↓) / supprimer**. Un étage peut exister **avant** d'avoir la moindre chambre — c'est ainsi qu'on dessine la structure d'un foyer qui démarre. Il ne se supprime que **vide**.
+- **Blocs du foyer** (en haut du panneau) — un « bloc », c'est une partie du foyer (une résidence, une aile) ou un groupe de personnes (l'intendance). On peut en **ajouter**, les **renommer**, changer leur **couleur**, les **réordonner** (↑ ↓), les **désactiver** ou les **supprimer**.
+
+  La fenêtre règle **deux choses distinctes** :
+
+  **1. Le type** — ce que le bloc contient. *Bloc Lieu* : des chambres réparties par étage. *Bloc Équipe* : des postes sans étage. Il se **fige** dès que le bloc contient un étage ou une place.
+
+  **2. Où le bloc apparaît** — cinq cases, modifiables à tout moment :
+
+  | Case | Effet quand elle est cochée |
+  |---|---|
+  | Intercalaires de l'accueil | le bloc a son onglet en haut de l'accueil |
+  | Lieu d'un événement | on peut situer un événement dans ce bloc |
+  | Organisation des repas | il a son encadré dans l'organisation des services |
+  | Rattachement compta d'une option | une option de repas peut lui être imputée |
+  | Présences au foyer | on suit qui y dort, nuit par nuit |
+
+  > Choisir le type **prérègle** les cinq cases — *Lieu* les coche toutes, *Équipe* les décoche toutes — puis vous ajustez. Le bouton **« Revenir au préréglage »** les remet dans cet état. Un bloc dont les cases ne correspondent plus à un préréglage est marqué **« Sur mesure »** dans la liste.
+  > **Trois écrans ne se règlent pas** et accueillent toujours tous les blocs : la **comptabilité des repas**, le **ciblage** des contenus et cet écran d'**Administration**. En retirer un bloc ferait disparaître ses membres d'un décompte.
+  > **Exemple.** Un bloc « Hors les murs » pour des personnes rattachées au foyer sans y loger : décochez *Présences au foyer* (elles n'y dorment pas) et *Intercalaires* (ce n'est pas un lieu de vie), gardez *Organisation des repas* — elles mangent sur place. Elles restent comptées en comptabilité, toujours.
+  > **Suppression** : le bloc part **avec ses étages et ses places**. Refusé dans un seul cas — qu'une résidente **active** y occupe encore une chambre ; le message vous dit laquelle. Les comptes **désactivés** qui y ont logé ne bloquent rien et sont **conservés**.
+- **Étages**, dans chaque bloc Lieu : **ajouter / renommer / réordonner (↑ ↓) / supprimer**. Un étage peut exister **avant** d'avoir la moindre chambre — c'est ainsi qu'on dessine la structure d'un foyer qui démarre. Le supprimer emporte **ses chambres**, sauf si l'une d'elles est encore occupée par une résidente active.
 - **Chambres**, à l'intérieur de chaque étage (bouton **« + Chambre »** sur la ligne de l'étage), et **postes** pour un bloc d'intendance : **ajouter / modifier / désactiver / supprimer**. L'ajout est rare une fois le foyer en place. Une chambre désactivée disparaît de la liste des utilisatrices.
   > Le formulaire de chambre **choisit son étage dans la liste** : on ne le tape plus à la main, ce qui évitait qu'« Étage 3 » et « étage 3 » deviennent deux étages différents. Renommer un étage est sans risque : ses chambres et les événements ciblés dessus suivent.
 

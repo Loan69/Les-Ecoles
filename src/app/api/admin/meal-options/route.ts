@@ -19,7 +19,9 @@ type Body = {
 async function validate(supabase: SupabaseClient, body: Body): Promise<string | null> {
   if (!body.label || !body.label.trim()) return "Le libellé est requis.";
   const { data } = await supabase.from("residences").select("*");
-  const lieux = toResidences(data as Record<string, unknown>[] | null).filter((r) => r.is_active && r.kind === "chambre");
+  const lieux = toResidences(data as Record<string, unknown>[] | null).filter(
+    (r) => r.is_active && r.ecrans.rattachement_repas
+  );
   if (body.residence !== "personne" && !lieux.some((r) => r.value === body.residence))
     return "Rattachement invalide (une résidence active, ou la résidence de la personne).";
   if (body.delai_commande != null && (!Number.isInteger(body.delai_commande) || body.delai_commande < 0))
