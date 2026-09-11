@@ -32,10 +32,10 @@ function SectionView({ section, montrerCiblage = false }: { section: AdminSectio
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <h2 className="text-lg font-bold text-blue-800">{section.title}</h2>
-        {/* L'intendance reçoit toutes les rubriques, y compris celles qui ne la ciblent
-            pas — sans quoi une administratrice pouvait s'exclure d'une rubrique et ne
-            plus jamais la retrouver, même en modification. Cette pastille lui dit
-            lesquelles ne sont pas vues par tout le monde. */}
+        {/* Cette pastille dit à l'intendance quelles rubriques ne sont pas vues de
+            toutes. Elle ne dit plus « vous voyez ceci par faveur » : depuis le
+            2026-09-11, une rubrique restreinte n'arrive ici que si son ciblage vous
+            désigne, ou si vous l'avez écrite (`contourneLeCiblage`). */}
         {montrerCiblage && ciblee && (
           <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 rounded px-1.5 py-0.5">
             Visibilité restreinte

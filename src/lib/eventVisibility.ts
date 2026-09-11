@@ -1,5 +1,12 @@
 import { CalendarEvent } from "@/types/CalendarEvent";
-import { cibleEstVide, dansCible, estExclue, type CibleViewer } from "@/lib/visibilite";
+import {
+  cibleEstVide,
+  contourneLeCiblage,
+  dansCible,
+  estExclue,
+  type CibleViewer,
+  type ContournementViewer,
+} from "@/lib/visibilite";
 
 // --- « Cette personne a-t-elle le droit de voir cet événement ? » -------------
 //
@@ -22,7 +29,7 @@ import { cibleEstVide, dansCible, estExclue, type CibleViewer } from "@/lib/visi
 // il ne décide pas du droit de le voir. Mélanger les deux est ce qui a produit
 // l'incohérence entre les deux chemins de l'accueil.
 
-export type EventViewer = CibleViewer & {
+export type EventViewer = CibleViewer & ContournementViewer & {
   /**
    * A-t-elle une ligne `residentes` ? Et NON « a-t-elle une chambre ».
    *
@@ -37,6 +44,13 @@ export type EventViewer = CibleViewer & {
 export function evenementVisiblePour(event: CalendarEvent, v: EventViewer): boolean {
   // Invitée externe : uniquement ce qui lui est explicitement ouvert.
   if (!v.estResidente) return event.visible_invites === true;
+
+  // L'autrice voit toujours son événement — AVANT l'exclusion nominative, car c'est
+  // précisément en se décochant elle-même qu'elle s'enfermerait dehors.
+  // `evenements.user_id` porte l'autrice depuis toujours ; il n'était simplement lu
+  // nulle part. Voir `contourneLeCiblage` pour ce que cette exception couvre et,
+  // surtout, ce qu'elle ne couvre plus.
+  if (contourneLeCiblage(event.user_id, v)) return true;
 
   // Décochée nommément à la création : prime sur tout le reste.
   if (estExclue(event.visibilite, v)) return false;

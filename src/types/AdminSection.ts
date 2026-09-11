@@ -19,5 +19,12 @@ export interface AdminSection {
   // Ciblage commun (résidences / étages / groupes + exclusions), cf. src/lib/visibilite.ts.
   // Vide = visible par toutes.
   visibilite?: Cible | null;
+  /**
+   * Qui a créé la rubrique. Elle lui reste visible quel que soit son ciblage, afin
+   * qu'une autrice ne puisse pas s'enfermer dehors (`contourneLeCiblage`).
+   * `null` = rubrique antérieure au 2026-09-11, ou autrice dont le compte a été
+   * supprimé : l'ancienne règle s'applique, toute l'intendance la voit.
+   */
+  auteur_user_id?: string | null;
   updated_at?: string;
 }

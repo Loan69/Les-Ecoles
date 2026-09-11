@@ -170,7 +170,9 @@ export default function SemaineRepas() {
       .map((so) => so.option as MealOptionCatalog)
       .filter((o) => o.is_active && optionVisibleFor(o, { residence: profil?.residence, etage: profil?.etage, user_id: user?.id, groupes: myRights.groupes }));
 
-  const eventViewer = { residence: profil?.residence, etage: profil?.etage, chambre: profil?.chambre, user_id: user?.id, groupes: myRights.groupes, estResidente: profil != null };
+  // Écran de consultation : l'autrice et le compte technique passent outre le ciblage,
+  // pas l'intendance (pas de `rattrapageGestion` — voir `contourneLeCiblage`).
+  const eventViewer = { residence: profil?.residence, etage: profil?.etage, chambre: profil?.chambre, user_id: user?.id, groupes: myRights.groupes, estResidente: profil != null, estTechnique: myRights.rights.is_technique };
   // Droit de voir, ET rattachement au lieu de vie : deux questions distinctes.
   const eventsForDay = (dateKey: string) =>
     weekEvents.filter(

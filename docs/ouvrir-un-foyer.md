@@ -83,8 +83,12 @@ fichier à la fois :
 puis passer **tous** les fichiers `.sql` restés à la racine de `supabase/` dans
 l'ordre alphabétique, entre le socle et le seed — hors `audit-rls.sql`,
 `verif-socle.sql` et `sync-modes-emploi-inapp.sql`, qui sont des outils et non des
-migrations. Le sous-dossier `supabase/rollback/` n'en fait pas partie non plus : il
-contient les retours arrière, à ne jouer que pour défaire une migration précise. Une régénération du socle les absorbe et vide cette liste.
+migrations. Une régénération du socle les absorbe et vide cette liste.
+
+Les **sous-dossiers** de `supabase/` ne font jamais partie de ce parcours :
+`rollback/` contient les retours arrière, à ne jouer que pour défaire une migration
+précise ; `ponctuel/` contient des scripts propres à **une** base déjà en service —
+un foyer neuf n'en a jamais besoin, et les y passer serait une erreur.
 
 Un foyer neuf peut sauter `p4` sans dommage — il ne fait que supprimer deux tables
 inutilisées — mais le passer garde les foyers strictement identiques, ce qui est la

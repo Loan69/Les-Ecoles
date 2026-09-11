@@ -141,21 +141,28 @@ export default function CalendrierPage() {
 
   // Événements réellement montrés.
   //
-  // L'intendance (Événements >= Admin · consulter) voit tout : elle doit pouvoir
-  // gérer ce qu'elle a créé pour d'autres. Une habitante ne voit que ce qui la
-  // cible — même règle qu'à l'accueil et dans la semaine des repas.
-  const eventsVisibles = myRights.canView("evenements")
-    ? events
-    : events.filter((e) =>
-        evenementVisiblePour(e, {
-          residence: profil?.residence,
-          etage: profil?.etage,
-          chambre: profil?.chambre,
-          user_id: user?.id,
-          groupes: myRights.groupes,
-          estResidente: profil != null,
-        })
-      );
+  // L'intendance ne voit plus tout. Jusqu'au 2026-09-11, *Événements >= Admin ·
+  // consulter* donnait accès à l'intégralité de la table, ciblage compris — un
+  // événement réservé à quelques-unes était donc lu par toutes les administratrices,
+  // y compris celles qui n'ont même pas le droit de le modifier. Le ciblage vaut
+  // maintenant aussi entre elles, et ce qui empêche de s'enfermer dehors n'est plus
+  // le droit d'intendance mais le fait d'être l'autrice (`contourneLeCiblage`).
+  //
+  // `rattrapageGestion` ne concerne que les événements **sans autrice enregistrée** :
+  // c'est ici, sur l'écran qui les gère, qu'ils doivent rester rattrapables. L'accueil
+  // et la semaine des repas ne le passent pas — ils ne l'ont jamais eu.
+  const eventsVisibles = events.filter((e) =>
+    evenementVisiblePour(e, {
+      residence: profil?.residence,
+      etage: profil?.etage,
+      chambre: profil?.chambre,
+      user_id: user?.id,
+      groupes: myRights.groupes,
+      estResidente: profil != null,
+      estTechnique: myRights.rights.is_technique,
+      rattrapageGestion: canView,
+    })
+  );
 
   // Modifier un événement
   const handleEditEvent = async (id: number, updates: Partial<CalendarEvent>) => {

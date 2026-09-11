@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabaseServer";
 import { requireSectionEdit } from "@/lib/apiAuth";
-import { cibleEstVide, dansCible, estExclue, type Cible } from "@/lib/visibilite";
+import { cibleEstVide, contourneLeCiblage, dansCible, estExclue, type Cible } from "@/lib/visibilite";
 import { rightsFromRow, canEditSection, RIGHTS_COLUMNS } from "@/lib/roles";
 
 // --- Lecture : sections visibles pour l'utilisatrice connectée ---
@@ -24,31 +24,33 @@ export async function GET() {
     .order("position", { ascending: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Qui peut MODIFIER la section « Infos pratiques » (Admin · gérer) reçoit TOUTES
-  // les rubriques, ciblage compris.
-  //
-  // Sans cela, une administratrice qui donnait à une rubrique un ciblage l'excluant
-  // elle-même la voyait disparaître — y compris du mode « Modifier », qui travaille sur
-  // cette même liste. La rubrique devenait irrécupérable depuis l'interface : il fallait
-  // passer par la base. Le ciblage ne décide donc plus que de ce que voient les
-  // habitantes. Réservé au niveau « gérer » : c'est le seul qui puisse tomber dans le
-  // piège, et le seul qui ait besoin d'en sortir.
-  const rights = rightsFromRow(profil as Record<string, unknown> | null);
-  if (canEditSection(rights, "infos")) {
-    return NextResponse.json({ sections: data ?? [] });
-  }
-
   // Ciblage (résidences / étages / groupes) : une rubrique sans ciblage reste visible par
   // toutes. Le filtrage se fait ici, côté serveur : une rubrique hors périmètre n'est même
   // pas transmise au navigateur.
+  //
+  // ⚠️ Ce que ce filtre ne fait PLUS. Jusqu'au 2026-09-11, toute personne ayant
+  // *Infos = Admin · gérer* recevait l'intégralité des rubriques et sortait d'ici par
+  // un retour anticipé. Cette exception ne servait qu'à empêcher un enfermement — une
+  // administratrice qui ciblait une rubrique en s'excluant elle-même la perdait, y
+  // compris en modification, sans recours hors de la base. Il suffit de l'autrice pour
+  // ça : le ciblage vaut désormais aussi entre administratrices.
+  const rights = rightsFromRow(profil as Record<string, unknown> | null);
   const viewer = {
     residence: (profil as { residence?: string | null } | null)?.residence,
     etage: (profil as { etage?: string | null } | null)?.etage,
     chambre: (profil as { chambre?: string | null } | null)?.chambre,
     user_id: user.id,
     groupes: (mesGroupes ?? []).map((g) => g.groupe_id as string),
+    estTechnique: rights.is_technique,
+    // Rubriques **sans autrice** — celles d'avant la migration, ou dont le compte a été
+    // supprimé (`ON DELETE SET NULL`). Elles restent rattrapables par qui les gère,
+    // sans quoi une rubrique restreinte d'avant deviendrait irrécupérable : exactement
+    // le mal qu'on soigne. Les rubriques créées depuis ont une autrice et ne passent
+    // jamais par ce rattrapage.
+    rattrapageGestion: canEditSection(rights, "infos"),
   };
   const sections = (data ?? []).filter((s) => {
+    if (contourneLeCiblage(s.auteur_user_id as string | null, viewer)) return true;
     const vis = s.visibilite as Cible | null | undefined;
     if (cibleEstVide(vis)) return true;
     return !estExclue(vis, viewer) && dansCible(vis, viewer);
@@ -59,7 +61,7 @@ export async function GET() {
 
 // --- Créer une section (admin) ---
 export async function POST(req: NextRequest) {
-  const { supabase, error } = await requireSectionEdit('infos');
+  const { supabase, userId, error } = await requireSectionEdit('infos');
   if (error) return error;
 
   const body = await req.json();
@@ -77,9 +79,25 @@ export async function POST(req: NextRequest) {
 
   const content = type === "contacts" ? { contacts: [] } : { type: "doc", content: [] };
 
+  // L'autrice est enregistrée ici, et nulle part ailleurs : c'est elle qui garantit
+  // qu'une rubrique restreinte reste joignable par qui l'a écrite (`contourneLeCiblage`).
+  // Une modification ultérieure ne la réécrit pas — la première main compte, pas la
+  // dernière.
+  //
+  // ⚠️ `userId` vient du garde, et non de `supabase.auth.getUser()` : le client rendu
+  // par `requireSectionEdit` est un client **service role**, sans session. L'interroger
+  // renverrait `null`, et toutes les rubriques naîtraient sans autrice — le défaut
+  // serait passé inaperçu, puisque « sans autrice » est un état parfaitement légitime.
   const { data, error: dbError } = await supabase
     .from("admin_sections")
-    .insert({ title: title.trim(), type, position: nextPos, content, visibilite: visibilite ?? null })
+    .insert({
+      title: title.trim(),
+      type,
+      position: nextPos,
+      content,
+      visibilite: visibilite ?? null,
+      auteur_user_id: userId,
+    })
     .select()
     .single();
 

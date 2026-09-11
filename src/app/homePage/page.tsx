@@ -303,6 +303,10 @@ export default function HomePage() {
     // `profil` est la ligne `residentes` : une invitée n'en a pas. Ce n'est PAS la
     // même chose que « sans chambre » — une super-administratrice en a une, sans place.
     estResidente: profil != null,
+    // L'autrice voit ses propres événements ici aussi. Pas de `rattrapageGestion` :
+    // l'accueil est un écran de consultation, il n'a jamais montré à l'intendance ce
+    // qui ne la ciblait pas, et ce n'est pas le moment de commencer.
+    estTechnique: myRights.rights.is_technique,
   };
 
   const filteredEvents = selectedResidenceValue

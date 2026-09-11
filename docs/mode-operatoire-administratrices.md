@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.26 — 2026-08-21.
+> Version 1.27 — 2026-09-11.
 
 Une administratrice est une résidente qui a **au moins un droit d'intendance sur une section**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), des outils d'intendance correspondant à ses droits.
 
@@ -168,6 +168,32 @@ Ce ciblage est appliqué **côté serveur** : une rubrique qui ne concerne pas u
 > **Les cases « réservé aux administratrices » et « réservé au staff » n'existent plus.** Elles visaient *toute* personne ayant un droit d'intendance, fût-ce sur une seule section sans rapport. Pour réserver un contenu à l'intendance, **crée un groupe** (ex. « Intendance ») et cible-le dessus : tu choisis exactement qui le voit.
 >
 > ⚠️ **Un contenu sans aucun ciblage est visible par toutes.** C'est le comportement voulu pour la plupart des rubriques et des options ; ne l'oublie pas pour celles qui doivent rester internes.
+
+**Le ciblage s'applique aussi aux administratrices** *(depuis le 11 septembre 2026)*
+
+Avant, avoir un droit d'intendance sur une section revenait à voir **tout** le contenu de
+cette section, ciblage ou pas : un événement réservé à trois personnes s'affichait chez
+toutes les administratrices. Ce n'est plus le cas. Un **événement** ou une **rubrique
+Administratif** restreints ne sont vus que des personnes ciblées — et de **celle qui les a
+créés**, quoi qu'elle ait coché.
+
+> **Pourquoi cette exception pour la créatrice ?** Sans elle, il suffisait de cocher un
+> ciblage qui ne t'inclut pas pour que ta propre rubrique disparaisse de ton écran — y
+> compris du mode **Modifier**. Elle devenait impossible à rattraper. Tu vois donc
+> toujours ce que tu as écrit, avec la pastille **« Visibilité restreinte »** qui te
+> rappelle que tout le monde ne le voit pas.
+
+Trois choses à savoir :
+
+- **les options de repas ne sont pas concernées** : l'intendance continue de toutes les
+  voir, sans quoi la comptabilité des repas serait fausse ;
+- **les rubriques créées avant cette date** n'ont pas de créatrice enregistrée — l'appli
+  ne peut pas la deviner. Elles restent donc visibles de toute l'intendance, comme avant.
+  Pour en restreindre une pour de bon, la recréer ;
+- **si la créatrice quitte le foyer**, son contenu restreint n'est plus visible de
+  personne. Un super-admin peut le récupérer en s'ajoutant au groupe ciblé. C'est aussi
+  la limite honnête du dispositif : il sert à **ne pas encombrer** les autres, pas à leur
+  cacher quelque chose pour de bon.
 
 ---
 
