@@ -66,7 +66,7 @@ Au départ d'une résidente, l'intendance **libère sa place** : le compte est *
 
 ### 4.1. L'écran d'accueil (la journée en cours)
 
-C'est l'écran central de l'application, pensé comme un **récap du jour** : une **page de consultation** (les actions se font dans les écrans dédiés — repas dans l'onglet *Repas*, absences dans *Présences et absences*). Il affiche **une journée à la fois** ; on navigue d'un jour à l'autre par des **chevrons ‹ ›** (mobile **et** ordinateur), et une **icône calendrier** à côté de la date ouvre le calendrier pour choisir une autre date. La date consultée est mémorisée et partagée avec les autres écrans — mais cette mémoire se **périme** : après quelques heures sans revenir dans l'appli, ou le lendemain, on rouvre sur **aujourd'hui**, pour ne pas consulter la veille sans s'en apercevoir.
+C'est l'écran central de l'application, pensé comme un **récap du jour** : une **page de consultation** (les actions se font dans les écrans dédiés — repas dans l'onglet *Repas*, absences dans *Présences et absences*). Il affiche **une journée à la fois** ; on navigue d'un jour à l'autre par des **chevrons ‹ ›** (mobile **et** ordinateur), et une **icône calendrier** à côté de la date ouvre le calendrier pour choisir une autre date. La date consultée est mémorisée et partagée avec les autres écrans — mais cette mémoire se **périme** : après une heure sans revenir dans l'appli, ou le lendemain, on rouvre sur **aujourd'hui**, pour ne pas consulter la veille sans s'en apercevoir.
 
 On y trouve, de haut en bas :
 - en haut à droite, l'accès **Administration** (pour l'intendance), **Profil** et **Déconnexion** ; au centre, le **logo** ;

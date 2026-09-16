@@ -15,13 +15,14 @@ const CLE_DATE = "dateSelectionnee";
 const CLE_CHOISIE_LE = "dateSelectionneeChoisieLe";
 
 /** Au-delà de ce délai sans revenir sur l'appli, la date choisie n'est plus la bonne. */
-export const PEREMPTION_DATE_MS = 4 * 60 * 60 * 1000; // 4 heures
+export const PEREMPTION_DATE_MS = 60 * 60 * 1000; // 1 heure
 
 /**
  * La date mémorisée a-t-elle cessé d'être pertinente ?
  *
- * Deux cas : le délai est passé, ou l'on a changé de jour depuis (rouvrir l'appli à
- * 8 h après l'avoir quittée à 23 h reste « un autre jour », même si 4 h n'ont pas couru).
+ * Deux cas : le délai est passé, ou l'on a **changé de journée** depuis. Le second n'est
+ * pas couvert par le premier — rouvrir l'appli à 0 h 20 après l'avoir quittée à 23 h 50,
+ * c'est demain, même si l'heure de péremption n'a pas couru.
  */
 export function dateSelectionneePerimee(maintenant: Date = new Date()): boolean {
   if (typeof window === "undefined") return true;

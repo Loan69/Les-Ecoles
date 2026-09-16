@@ -27,7 +27,7 @@ Tu **ne t'inscris pas toi-même** : l'intendance t'ouvre une place et t'envoie u
 
 > **Tu restes connectée.** Une fois ton mot de passe saisi la première fois, tu n'as plus à le retaper : rouvrir l'appli te ramène directement à l'accueil. Tu ne reverras l'écran de connexion que si tu utilises le bouton **Déconnexion** (en haut à droite).
 
-> **Tu reviens toujours sur aujourd'hui.** Si tu consultes un autre jour puis que tu laisses l'appli de côté quelques heures — ou jusqu'au lendemain —, elle rouvre sur **la date du jour**, pour que tu ne lises pas les repas de mardi en croyant lire ceux d'aujourd'hui.
+> **Tu reviens toujours sur aujourd'hui.** Si tu consultes un autre jour puis que tu laisses l'appli de côté une heure — ou jusqu'au lendemain —, elle rouvre sur **la date du jour**, pour que tu ne lises pas les repas de mardi en croyant lire ceux d'aujourd'hui.
 
 ---
 
