@@ -18,6 +18,7 @@ import { optionVisibleFor } from "@/lib/optionVisibility";
 import { formatLieu } from "@/lib/eventLieu";
 import { nomInvite } from "@/lib/invites";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
+import { lireDateSelectionnee, memoriserDateSelectionnee } from "@/lib/dateSelectionnee";
 import { WeekDaysSkeleton } from "../components/Skeleton";
 import LogoutButton from "../components/logoutButton";
 import ProfileButton from "../components/profileButton";
@@ -79,13 +80,9 @@ export default function SemaineRepas() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [editingInvite, setEditingInvite] = useState<EditingInvite | null>(null);
 
-  const [currentMonday, setCurrentMonday] = useState<Date>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("dateSelectionnee");
-      if (stored) return getMonday(parseDateKeyLocal(stored));
-    }
-    return getMonday(new Date());
-  });
+  // La date mémorisée se périme (cf. lireDateSelectionnee) : après une longue absence
+  // on ouvre la semaine d'aujourd'hui, pas celle qu'on consultait la dernière fois.
+  const [currentMonday, setCurrentMonday] = useState<Date>(() => getMonday(lireDateSelectionnee()));
 
   const days = useMemo(() => weekDates(currentMonday), [currentMonday]);
   const accesSection = useSectionGuard("repas"); // niveau Aucun → redirigé vers l'accueil
@@ -95,8 +92,7 @@ export default function SemaineRepas() {
   const canRepas = myRights.canView("repas"); // accès à l'Espace intendance repas
 
   // Semaine de référence (date sélectionnée dans l'appli)
-  const storedDate = typeof window !== "undefined" ? localStorage.getItem("dateSelectionnee") : null;
-  const refMonday = getMonday(storedDate ? parseDateKeyLocal(storedDate) : new Date());
+  const refMonday = getMonday(lireDateSelectionnee());
   const isRefWeek = formatDateKeyLocal(currentMonday) === formatDateKeyLocal(refMonday);
 
   // Auth + profil + settings (une fois)
@@ -147,7 +143,7 @@ export default function SemaineRepas() {
   }, [loadWeek]);
 
   useEffect(() => {
-    localStorage.setItem("dateSelectionnee", formatDateKeyLocal(currentMonday));
+    memoriserDateSelectionnee(currentMonday);
   }, [currentMonday]);
 
   // --- Helpers ---

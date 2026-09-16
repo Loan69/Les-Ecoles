@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.27 — 2026-09-11.
+> Version 1.28 — 2026-09-16.
 
 Une administratrice est une résidente qui a **au moins un droit d'intendance sur une section**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), des outils d'intendance correspondant à ses droits.
 
@@ -28,7 +28,7 @@ Les droits se règlent **section par section** de l'appli. Sur chaque section, u
 |---|---|
 | 📅 Calendrier | Événements |
 | 🍴 Repas de la semaine | Repas |
-| 🧍 Présence foyer | Absences |
+| 🧍 Présences et absences | Absences |
 | 📖 Administratif | Infos pratiques |
 | 🏠 Accueil | *(aucune — toujours accessible)* |
 
@@ -42,7 +42,7 @@ Les **5 sections** :
 |---|---|
 | **Repas** | Visu des repas (compta + organisation), paramétrage & options de repas, verrouillage, édition des inscriptions. *La comptabilité déduisant les repas des absences, cette section permet de voir **les dates** des séjours d'absence ; consulter et modifier les absences relève de la section **Absences**.* |
 | **Événements** | **Habitante** : voir les événements et les rappels, confirmer sa participation. **Admin · consulter** : voir en plus **qui s'est inscrit** à un événement (« Voir les inscrits »). **Admin · gérer** : créer / modifier / supprimer des événements. |
-| **Absences** | Vue « Présence foyer » (staff) + marquage des absences. |
+| **Absences** | Vue « Présences et absences » (staff) + marquage des absences. |
 | **Comptes** | Comptes, chambres/places, invitations, paramètres généraux. **Admin · consulter** : voir qui occupe quelle chambre et avec quels droits, **sans aucune action possible** (pas d'invitation, pas de déplacement, pas de désactivation). **Admin · gérer** : inviter, relancer/annuler une invitation, déplacer une résidente, libérer une place. Régler les **droits** d'une personne et gérer la **structure physique** (chambres, étages, postes) restent réservés au **super-admin**. |
 | **Infos pratiques** | Rubriques de l'onglet Administratif. |
 
@@ -50,7 +50,7 @@ S'ajoute un rôle **Super-admin** (global) : **tous les droits partout**, **plus
 
 - **Seul un super-admin** peut régler les droits des autres, depuis l'onglet **Utilisatrices** → bouton **« Droits »** (voir §3). Il **ne peut pas** changer ses propres droits (anti-blocage).
 - Un **compte technique** (maintenance) existe en coulisse : **caché**, non listé, non modifiable, accès total.
-- Le bouton ⚙️ **Administration** n'apparaît qu'aux personnes ayant la section **Comptes** ; les autres écrans s'atteignent depuis leur onglet (repas, présence foyer, calendrier, administratif).
+- Le bouton ⚙️ **Administration** n'apparaît qu'aux personnes ayant la section **Comptes** ; les autres écrans s'atteignent depuis leur onglet (repas, présences et absences, calendrier, administratif).
 
 ---
 
@@ -58,7 +58,7 @@ S'ajoute un rôle **Super-admin** (global) : **tous les droits partout**, **plus
 
 - **Panneau d'administration** : bouton **roue crantée ⚙️** en **haut à droite** des écrans (visible pour la section **Comptes**). Il ouvre **directement** la gestion des **utilisatrices** (personnes + chambres réunies ; plus d'onglets).
 - **Navigation repas (admin)** : sur l'onglet 🍴 **Repas de la semaine** et les écrans d'intendance repas, une **barre de pastilles** en haut permet de basculer entre **Repas de la semaine**, **Inscriptions & comptabilité** et **Paramétrer les repas** (la pastille de l'écran courant est mise en avant), sans repasser par l'accueil.
-- **Présences au foyer (vue staff)** : via l'onglet 🧍 **Présence foyer** → bouton **« Voir les présences »**.
+- **Présences et absences (vue staff)** : via l'onglet 🧍 **Présences et absences** → bouton **« Voir les présences »**.
 
 ---
 
@@ -105,11 +105,11 @@ Panneau ⚙️ **Administration**. L'écran affiche **directement** la gestion d
   | Lieu d'un événement | on peut situer un événement dans ce bloc |
   | Organisation des repas | il a son encadré dans l'organisation des services |
   | Rattachement compta d'une option | une option de repas peut lui être imputée |
-  | Présences au foyer | on suit qui y dort, nuit par nuit |
+  | Présences et absences | on suit qui y dort, nuit par nuit |
 
   > Choisir le type **prérègle** les cinq cases — *Lieu* les coche toutes, *Équipe* les décoche toutes — puis vous ajustez. Le bouton **« Revenir au préréglage »** les remet dans cet état. Un bloc dont les cases ne correspondent plus à un préréglage est marqué **« Sur mesure »** dans la liste.
   > **Trois écrans ne se règlent pas** et accueillent toujours tous les blocs : la **comptabilité des repas**, le **ciblage** des contenus et cet écran d'**Administration**. En retirer un bloc ferait disparaître ses membres d'un décompte.
-  > **Exemple.** Un bloc « Hors les murs » pour des personnes rattachées au foyer sans y loger : décochez *Présences au foyer* (elles n'y dorment pas) et *Intercalaires* (ce n'est pas un lieu de vie), gardez *Organisation des repas* — elles mangent sur place. Elles restent comptées en comptabilité, toujours.
+  > **Exemple.** Un bloc « Hors les murs » pour des personnes rattachées au foyer sans y loger : décochez *Présences et absences* (elles n'y dorment pas) et *Intercalaires* (ce n'est pas un lieu de vie), gardez *Organisation des repas* — elles mangent sur place. Elles restent comptées en comptabilité, toujours.
   > **Suppression** : le bloc part **avec ses étages et ses places**. Refusé dans un seul cas — qu'une résidente **active** y occupe encore une chambre ; le message vous dit laquelle. Les comptes **désactivés** qui y ont logé ne bloquent rien et sont **conservés**.
 - **Étages**, dans chaque bloc Lieu : **ajouter / renommer / réordonner (↑ ↓) / supprimer**. Un étage peut exister **avant** d'avoir la moindre chambre — c'est ainsi qu'on dessine la structure d'un foyer qui démarre. Le supprimer emporte **ses chambres**, sauf si l'une d'elles est encore occupée par une résidente active.
 - **Chambres**, à l'intérieur de chaque étage (bouton **« + Chambre »** sur la ligne de l'étage), et **postes** pour un bloc d'intendance : **ajouter / modifier / désactiver / supprimer**. L'ajout est rare une fois le foyer en place. Une chambre désactivée disparaît de la liste des utilisatrices.
@@ -249,9 +249,9 @@ Côté habitante, un jour fermé affiche le motif (« Les repas du dimanche sont
 
 ---
 
-## 6. Présences au foyer (vue staff)
+## 6. Présences et absences (vue staff)
 
-Via l'onglet 🧍 **Présence foyer** → **« Voir les présences »**. Elle indique **qui est au foyer ou sorti**, **par résidence**, déduit des **séjours d'absence**.
+Via l'onglet 🧍 **Présences et absences** → **« Voir les présences »**. Elle indique **qui est au foyer ou sorti**, **par résidence**, déduit des **séjours d'absence**.
 
 **Choisir la période** : deux champs de date en haut (par défaut une semaine à partir d'aujourd'hui).
 
@@ -288,6 +288,14 @@ Accès : **barre de navigation repas** → **Inscriptions & compta**. Deux ongle
 
 ### Onglet « Organisation » — repas à préparer
 Les jours sont **empilés** ; pour chaque jour et chaque résidence, les **options ouvertes** au midi et au soir, avec leur nombre d'inscrits. **Chaque option est cliquable** → la **liste des personnes comptées**. Les **invités** ne forment plus une tuile à part : chacun est compté **dans l'option** à laquelle il est rattaché et apparaît dans cette liste, annoté **« invité par Prénom Nom »**.
+
+**La tuile grise « Non »** ferme la rangée : elle compte les personnes du bloc qui **ne mangent pas** — une réponse à part entière, pas une absence de réponse. Elle est cliquable comme les autres : on y lit **qui** a dit non, on y **note** quelqu'un « Non », et on l'en sort vers une option ou vers « sans réponse ». Elle reste **grise** parce qu'il n'y a rien à préparer, et l'on n'y ajoute **aucun invité**.
+
+Elle réunit **deux cas** en un seul nombre — c'est bien le total des couverts en moins :
+- celles qui ont **répondu « Non »** dans *Repas de la semaine* ;
+- celles qui sont **en séjour d'absence** avec l'option *« Me noter Non aux repas »* laissée cochée. Elles portent la mention **« absente — notée Non par son séjour »** et sont en **lecture seule** : leur repas est *déduit* de l'absence, pas enregistré. Pour le changer, il faut lever ou raccourcir l'absence dans **🧍 Présences et absences** (§6) — la corriger ici n'aurait aucun effet visible.
+
+> **Ce que la rangée ne dit pas.** Les personnes qui **n'ont rien répondu** n'ont pas de tuile : les compter reviendrait à inventer un repas. Pour les repérer et les relancer, ouvrez **« Voir le détail »** — elles y portent un **—** gris.
 
 > **Admin · gérer.** Dans cette liste, une admin ayant ce niveau peut corriger les inscriptions, même après l'heure de verrouillage : **changer l'option** de chaque inscrit (ou la passer à **« Non »**, ou **retirer sa réponse**), **ajouter une résidente** — seuls les **comptes activés** sont proposés (§3.1) — (déplacée automatiquement si elle était inscrite ailleurs pour ce service), et **ajouter / retirer un invité** — au choix **depuis le carnet** (champ de recherche parmi les invités déjà venus) ou **nouveau** (**le nom ou le prénom suffit**) — en indiquant la **résidente qui invite** (pour la comptabilité). Tout se reporte aussitôt sur le **détail** et la **compta**.
 

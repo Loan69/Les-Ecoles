@@ -1,7 +1,7 @@
 # Installer son foyer dans l'application
 
 > **Guide de démarrage — pour la super-administratrice du foyer.**
-> Version 1.0 — 2026-08-24.
+> Version 1.1 — 2026-09-16.
 > À lire une fois, le jour de l'installation. Pour l'usage quotidien, voir le
 > *Mode opératoire — Administratrices (intendance)*.
 
@@ -42,7 +42,7 @@ chambre n'existe encore. C'est normal.
 > fois, le lien s'use. Demandez qu'on vous en renvoie un.
 
 Une fois connectée, vous arrivez sur l'accueil. En bas de l'écran, cinq onglets :
-**Calendrier · Repas de la semaine · Accueil · Présence foyer · Administratif**.
+**Calendrier · Repas de la semaine · Accueil · Présences et absences · Administratif**.
 Le bouton **⚙️ Administration** de l'accueil ouvre votre espace de gestion.
 
 ---
@@ -105,12 +105,17 @@ le temps d'y penser.
 
 **Où il apparaît** — cinq cases, que vous pourrez changer quand vous voudrez :
 intercalaires de l'accueil, lieu d'un événement, organisation des repas, rattachement
-compta d'une option, présences au foyer.
+compta d'une option, présences et absences.
 
 Choisir le type prérègle ces cinq cases : *Lieu* les coche toutes, *Équipe* les décoche
 toutes. C'est un point de départ raisonnable — ajustez ensuite. Un bloc « Hors les murs »
 pour des personnes rattachées au foyer sans y loger, par exemple, gardera l'organisation
 des repas mais perdra les présences et l'intercalaire.
+
+> **Un foyer d'un seul tenant n'a pas besoin d'intercalaires.** Si **aucun** bloc ne coche
+> *Intercalaires de l'accueil*, l'accueil n'affiche ni rangée d'onglets ni carte
+> Événements : tous les événements du jour se lisent directement en haut, avec les
+> rappels. C'est le bon réglage quand il n'y aurait de toute façon qu'un seul onglet.
 
 > Trois écrans ne se règlent pas et accueillent **toujours** tous les blocs : la
 > comptabilité des repas, le ciblage des contenus et l'écran d'Administration. En retirer
@@ -197,7 +202,7 @@ verrouille dès la veille, pour les repas qu'il faut commander plus tôt. Le foy
 avec **samedi et dimanche** allumés — donc fermés dès le vendredi. Éteignez-les si votre
 cuisine compte au fil de l'eau. Une phrase sous les boutons annonce l'effet exact.
 
-**Présence foyer** porte le même réglage pour les nuits : l'heure après laquelle la
+**Présences et absences** porte le même réglage pour les nuits : l'heure après laquelle la
 présence du soir n'est plus modifiable.
 
 ---

@@ -5,7 +5,7 @@ import LogoFoyer from "@/app/components/LogoFoyer";
 import { useSupabase } from "../providers";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react"; 
-import { formatDateKeyLocal } from "@/lib/utilDate";
+import { memoriserDateSelectionnee } from "@/lib/dateSelectionnee";
 
 export default function SignInPage() {
     const { supabase } = useSupabase();
@@ -21,7 +21,7 @@ export default function SignInPage() {
 
     // Par défaut on arrive sur la date du jour
     useEffect(() => {
-        localStorage.setItem("dateSelectionnee", formatDateKeyLocal(new Date()))
+        memoriserDateSelectionnee(new Date())
       }, []);
 
     useEffect(() => {

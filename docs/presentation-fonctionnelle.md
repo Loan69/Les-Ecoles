@@ -1,7 +1,7 @@
 # Les Écoles — Présentation fonctionnelle de l'application
 
 > **Document vivant** — mis à jour à chaque nouvelle fonctionnalité ou évolution.
-> Dernière mise à jour : 21 août 2026 · Version 1.9
+> Dernière mise à jour : 16 septembre 2026 · Version 1.10
 
 ---
 
@@ -22,7 +22,7 @@ foyer sans y loger, avec ses **postes** plutôt que des chambres. L'intendance p
 et en réordonner : tout écran qui présente « un encadré par bloc » suit cette liste.
 
 Chaque bloc décide en outre **où il apparaît**, écran par écran : intercalaires de l'accueil, lieu d'un
-événement, organisation des repas, rattachement comptable d'une option, présences au foyer. Cinq cases,
+événement, organisation des repas, rattachement comptable d'une option, présences et absences. Cinq cases,
 préréglées selon le type du bloc puis ajustables — de quoi tenir un bloc dont les membres mangent au foyer
 sans y dormir, ou l'inverse. Trois écrans échappent au réglage et listent **toujours** tous les blocs : la
 comptabilité des repas, le ciblage des contenus et l'écran d'Administration, sous peine de faire disparaître
@@ -66,21 +66,21 @@ Au départ d'une résidente, l'intendance **libère sa place** : le compte est *
 
 ### 4.1. L'écran d'accueil (la journée en cours)
 
-C'est l'écran central de l'application, pensé comme un **récap du jour** : une **page de consultation** (les actions se font dans les écrans dédiés — repas dans l'onglet *Repas*, absences dans *Présence foyer*). Il affiche **une journée à la fois** ; on navigue d'un jour à l'autre par des **chevrons ‹ ›** (mobile **et** ordinateur), et une **icône calendrier** à côté de la date ouvre le calendrier pour choisir une autre date. La date consultée est mémorisée et partagée avec les autres écrans.
+C'est l'écran central de l'application, pensé comme un **récap du jour** : une **page de consultation** (les actions se font dans les écrans dédiés — repas dans l'onglet *Repas*, absences dans *Présences et absences*). Il affiche **une journée à la fois** ; on navigue d'un jour à l'autre par des **chevrons ‹ ›** (mobile **et** ordinateur), et une **icône calendrier** à côté de la date ouvre le calendrier pour choisir une autre date. La date consultée est mémorisée et partagée avec les autres écrans — mais cette mémoire se **périme** : après quelques heures sans revenir dans l'appli, ou le lendemain, on rouvre sur **aujourd'hui**, pour ne pas consulter la veille sans s'en apercevoir.
 
 On y trouve, de haut en bas :
 - en haut à droite, l'accès **Administration** (pour l'intendance), **Profil** et **Déconnexion** ; au centre, le **logo** ;
 - la **date du jour** avec les chevrons et l'icône calendrier ;
+- les **rappels** compacts : événements à venir (J-n) et événements du jour rattachés à aucun bloc ;
+- un **sélecteur de bloc** — un onglet par bloc, dans sa **couleur** et son **ordre** réglés en administration — pour filtrer les événements, suivi de la carte **Événements** du bloc ouvert. Un bloc n'y figure que si sa case *Intercalaires de l'accueil* est cochée ; **si aucun bloc ne l'est, les onglets et la carte disparaissent** et tous les événements du jour se lisent dans les rappels ci-dessus ;
 - une carte **Présence au foyer** (lecture seule : au foyer / sortie ce soir) ;
-- un **sélecteur de résidence** — un onglet par **résidence**, dans sa **couleur** et son **ordre** réglés en administration — pour filtrer les événements. Une équipe (Corail) n'y figure pas : n'étant pas un lieu physique, elle n'accueille pas d'événement ;
-- une carte **Événements** : rappels compacts des événements à venir + événements du jour ;
 - une carte **Repas du jour** (lecture seule : déjeuner / dîner choisis), suivie de ses éventuels **invités**, seuls éléments modifiables de l'accueil.
 
 Chaque carte disparaît pour qui a la section correspondante au niveau **Masquée**.
 
 ### 4.2. La présence au foyer (la nuit)
 
-Un **écran dédié « Présence foyer »** permet à chaque habitante de gérer ses **absences sous forme de séjours** : « du jour de départ au jour de retour ». Par défaut, tout le monde est présent ; on déclare uniquement les périodes où l'on dort à l'extérieur.
+Un **écran dédié « Présences et absences »** permet à chaque habitante de gérer ses **absences sous forme de séjours** : « du jour de départ au jour de retour ». Par défaut, tout le monde est présent ; on déclare uniquement les périodes où l'on dort à l'extérieur.
 
 L'écran présente :
 - un **calendrier mensuel** qui met en évidence les jours d'absence ;
@@ -144,7 +144,7 @@ Un écran **profil** récapitule les informations de l'habitante : nom, prénom,
 
 ## 5. Côté administratrice (outils d'intendance)
 
-Il n'y a pas de « panneau d'administration » unique : chaque outil vit **au plus près de son usage**. Le bouton ⚙️ en haut à droite ouvre la gestion des **comptes** ; les autres écrans s'atteignent depuis leur onglet : **inscriptions repas** et **paramétrage des repas** (via *Repas de la semaine*), **vue présence foyer** (via *Présence foyer*), **événements** (via *Calendrier*), **rubriques d'informations** (via *Administratif*). Chaque outil n'apparaît qu'aux personnes qui ont le droit correspondant.
+Il n'y a pas de « panneau d'administration » unique : chaque outil vit **au plus près de son usage**. Le bouton ⚙️ en haut à droite ouvre la gestion des **comptes** ; les autres écrans s'atteignent depuis leur onglet : **inscriptions repas** et **paramétrage des repas** (via *Repas de la semaine*), **vue des présences et absences** (via *Présences et absences*), **événements** (via *Calendrier*), **rubriques d'informations** (via *Administratif*). Chaque outil n'apparaît qu'aux personnes qui ont le droit correspondant.
 
 ### 5.1. Gestion des comptes, chambres et structure du foyer
 
@@ -237,7 +237,7 @@ La **visibilité** de la rubrique (§5.2) se règle dès sa création, en même 
 ## 6. Navigation
 
 Une **barre de navigation** fixe en bas d'écran donne accès à :
-**Calendrier · Repas de la semaine · Accueil · Présence foyer · Administratif**.
+**Calendrier · Repas de la semaine · Accueil · Présences et absences · Administratif**.
 
 Chaque onglet correspond à une section : il **disparaît** pour qui a cette section au niveau **Masquée**. Seul l'**Accueil** est toujours présent.
 

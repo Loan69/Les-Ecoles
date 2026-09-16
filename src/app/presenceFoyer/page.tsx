@@ -233,7 +233,7 @@ export default function PresenceFoyerPage() {
       <div className="w-full max-w-md flex flex-col items-center">
         <LogoFoyer className="mb-3" />
         <h1 className="text-xl font-semibold text-center text-blue-800 mb-4">
-          Mes présences au foyer
+          Mes présences et absences
         </h1>
         <hr className="w-full border-gray-200 mb-4" />
 

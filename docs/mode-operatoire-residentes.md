@@ -1,7 +1,7 @@
 # Mode opératoire — Résidentes & invitées
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour les **habitantes** (résidentes et invitées). À mettre à jour à chaque évolution de l'appli.
-> Version 1.10 — 2026-08-21.
+> Version 1.11 — 2026-09-16.
 
 Cette application sert à gérer, au quotidien, **ta présence au foyer la nuit** et **tes repas** (midi et soir), à consulter les **événements** du foyer et les **informations pratiques**. Elle est pensée pour le **téléphone** (mais marche aussi sur ordinateur).
 
@@ -27,6 +27,8 @@ Tu **ne t'inscris pas toi-même** : l'intendance t'ouvre une place et t'envoie u
 
 > **Tu restes connectée.** Une fois ton mot de passe saisi la première fois, tu n'as plus à le retaper : rouvrir l'appli te ramène directement à l'accueil. Tu ne reverras l'écran de connexion que si tu utilises le bouton **Déconnexion** (en haut à droite).
 
+> **Tu reviens toujours sur aujourd'hui.** Si tu consultes un autre jour puis que tu laisses l'appli de côté quelques heures — ou jusqu'au lendemain —, elle rouvre sur **la date du jour**, pour que tu ne lises pas les repas de mardi en croyant lire ceux d'aujourd'hui.
+
 ---
 
 ## 2. Se repérer dans l'appli
@@ -38,14 +40,14 @@ En bas de l'écran, une **barre de navigation** :
 | 📅 | **Calendrier** | Voir les événements du foyer, mois par mois. |
 | 🍴 | **Repas de la semaine** | Choisir ses repas (midi/soir) et inviter quelqu'un. |
 | 🏠 | **Accueil** | Consulter sa journée (repas du jour, rappels, événements). Repas et présence en **lecture seule** ; les **invitations** du jour peuvent y être **modifiées / supprimées**. |
-| 🧍 | **Présence foyer** | Déclarer ses absences (nuits à l'extérieur). |
+| 🧍 | **Présences et absences** | Déclarer ses absences (nuits à l'extérieur). |
 | 📖 | **Administratif** | Consulter les infos pratiques du foyer (règlement, horaires, contacts, modes d'emploi). |
 
 En **haut à droite** de chaque écran : accès à ton **Profil** 👤 et à la **déconnexion**.
 
 > Tu ne vois peut-être **pas les cinq onglets** : l'intendance peut retirer un domaine qui ne te concerne pas (par exemple les repas si tu ne manges pas au foyer). L'onglet et la carte correspondante sur l'accueil n'apparaissent alors pas. Si un onglet te manque alors qu'il devrait être là, rapproche-toi de l'intendance.
 
-> L'**Accueil** sert surtout à **consulter** ta journée. Pour **modifier** tes repas, va sur **🍴 Repas de la semaine** ; pour tes absences, sur **🧍 Présence foyer**. Seule exception : tu peux **modifier ou supprimer une invitation** du jour directement depuis l'Accueil (rubrique « Mes invités »).
+> L'**Accueil** sert surtout à **consulter** ta journée. Pour **modifier** tes repas, va sur **🍴 Repas de la semaine** ; pour tes absences, sur **🧍 Présences et absences**. Seule exception : tu peux **modifier ou supprimer une invitation** du jour directement depuis l'Accueil (rubrique « Mes invités »).
 
 ---
 
@@ -53,7 +55,7 @@ En **haut à droite** de chaque écran : accès à ton **Profil** 👤 et à la 
 
 Par défaut, **tu es considérée présente** chaque nuit. Tu n'as à déclarer que les périodes où **tu dors à l'extérieur**.
 
-1. Va sur l'onglet 🧍 **Présence foyer**.
+1. Va sur l'onglet 🧍 **Présences et absences**.
 2. Le **calendrier du mois** montre tes jours d'absence (en rose). Navigue avec les flèches ‹ ›.
 3. Dans **« Mes absences »**, clique **« + Ajouter »**.
 4. Choisis la **date de départ** et la **date de retour** (les deux jours sont inclus dans l'absence).
@@ -130,6 +132,7 @@ Dans la rubrique **« Mes invités »** (sur *Repas de la semaine* **comme sur l
 
 - L'onglet 📅 **Calendrier** affiche les événements mois par mois ; clique un jour pour voir le détail.
 - Sur l'Accueil, les **rappels** annoncent les événements à venir (sous la date).
+- Toujours sur l'Accueil, les événements du jour se lisent dans la carte **Événements** du bloc ouvert (les onglets colorés du haut). Si ton foyer n'a **pas** d'onglets, il n'y a ni onglets ni carte : tous les événements du jour s'affichent directement en haut, avec les rappels.
 - Pour certains événements, on te demande de **confirmer ta participation** : utilise l'interrupteur de confirmation.
 
 ---

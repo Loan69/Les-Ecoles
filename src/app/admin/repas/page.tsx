@@ -13,7 +13,7 @@ import { PersonneDetail, PersonneAdmin, sortAdminPeople, estCompteActive, format
 import { isAwayForMeal, type AbsenceCompta } from "@/lib/mealCompta";
 import { optionVisibleFor } from "@/lib/optionVisibility";
 import { nomInvite } from "@/lib/invites";
-import { statutRepas, mangeUnRepas, type StatutRepas } from "@/lib/presenceStatut";
+import { statutRepas, mangeUnRepas, CHOIX_NON, type StatutRepas } from "@/lib/presenceStatut";
 import { downloadCSV } from "@/lib/csvExport";
 import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
 import DetailTable, { DetailColumn } from "@/app/components/admin/DetailTable";
@@ -33,7 +33,9 @@ function formatColDay(dateKey: string): string {
 
 type InviteMeal = { id: number; invite_par: string; nom: string; prenom: string; date_repas: string; type_repas: "dejeuner" | "diner"; option_id: string | null };
 type OpenServiceOption = { date: string; service: Service; option_id: string; label: string; residence: string; visibilite: OptionVisibilite | null };
-type OptionGroup = { option_id: string; label: string; people: PersonneDetail[]; notes: Record<string, string> };
+// `figes` : personnes que l'intendance ne peut pas déplacer depuis cette tuile — un
+// « Non » déduit d'un séjour d'absence ne se corrige que dans l'écran Présences et absences.
+type OptionGroup = { option_id: string; label: string; people: PersonneDetail[]; notes: Record<string, string>; figes?: string[] };
 type ServiceDetail = { open: boolean; options: OptionGroup[] };
 
 export default function AdminRepasPage() {
@@ -246,12 +248,56 @@ export default function AdminRepasPage() {
               return { option_id: so.option_id, label: so.label, people, notes };
             })
             .sort((a, b) => a.label.localeCompare(b.label));
+
+          // « Non » est une réponse à part entière (R-REPAS-12) : elle a sa tuile, comme
+          // les options, sinon les seules personnes visibles ici sont celles qui mangent —
+          // et l'on ne sait pas, d'un coup d'œil, qui a répondu qu'elle ne mangeait pas.
+          // Rattachement au bloc de la PERSONNE : un « Non » n'a pas d'option, donc pas de
+          // résidence de compta. Aucun invité ici — un invité sans repas n'existe pas.
+          //
+          // DEUX sources, un seul décompte : la réponse « Non » donnée à l'écran, et le
+          // « Non » **déduit d'un séjour d'absence** quand la résidente a laissé cochée
+          // « Me noter Non aux repas » (R-REPAS-10). Les séparer ferait deux nombres pour
+          // une même question — combien de couverts en moins ce midi.
+          const refus: PersonneDetail[] = [];
+          const notesRefus: Record<string, string> = {};
+          const figes: string[] = [];
+          const dejaRefuse = new Set<string>();
+          const ajouterRefus = (p: PersonneDetail, note?: string) => {
+            if (dejaRefuse.has(p.id)) return;
+            dejaRefuse.add(p.id);
+            refus.push(p);
+            if (note) notesRefus[p.id] = note;
+          };
+          presences
+            .filter(
+              (p) =>
+                p.date === dateKey && p.service === svc && p.option_id === null &&
+                !isAwayForMeal(absences, p.user_id, p.date) &&
+                peopleById.get(p.user_id)?.residence === r.value
+            )
+            .forEach((p) => {
+              const personne = peopleById.get(p.user_id);
+              if (personne) ajouterRefus(personne);
+            });
+          // Absences : le « Non » est déduit, pas enregistré — il n'y a donc pas de ligne
+          // à filtrer, on repart des personnes du bloc. Elles sont **figées** ici : tant
+          // que le séjour tient, la déduction l'emporterait sur toute correction, et la
+          // personne semblerait disparaître de la tuile sans réapparaître ailleurs.
+          people.forEach((personne) => {
+            if (personne.residence !== r.value) return;
+            if (!isAwayForMeal(absences, personne.id, dateKey)) return;
+            ajouterRefus(personne, "absente — notée Non par son séjour");
+            figes.push(personne.id);
+          });
+          options.push({ option_id: CHOIX_NON, label: "Non", people: refus, notes: notesRefus, figes });
+
           res[r.value][svc] = { open: true, options };
         });
       });
       return res;
     },
-    [blocsLieux, openServiceOptions, presences, absences, peopleById, comptaResidence, invites]
+    [blocsLieux, openServiceOptions, presences, absences, people, peopleById, comptaResidence, invites]
   );
 
   // Agrégat par personne (compta fin de mois) : nb de déjeuners/dîners mangés sur la période,
@@ -448,7 +494,8 @@ export default function AdminRepasPage() {
   };
   const addResidentToOption = async (userId: string) => {
     if (!listModal) return;
-    if (await postJson("/api/admin/presences", "POST", { user_id: userId, date: listModal.date, service: listModal.service, choix: listModal.option_id })) toast.success("Inscription ajoutée.");
+    if (await postJson("/api/admin/presences", "POST", { user_id: userId, date: listModal.date, service: listModal.service, choix: listModal.option_id }))
+      toast.success(listModal.option_id === CHOIX_NON ? "Réponse « Non » enregistrée." : "Inscription ajoutée.");
   };
   const addGuestToOption = async (nom: string, prenom: string, invitePar: string) => {
     if (!listModal) return;
@@ -527,17 +574,21 @@ export default function AdminRepasPage() {
                                     <div key={svc}>
                                       <p className={`text-[10px] font-bold uppercase tracking-wide mb-1 ${isMidi ? "text-orange-500" : "text-blue-500"}`}>{isMidi ? "Midi" : "Soir"}</p>
                                       <div className="grid grid-cols-2 gap-2">
-                                        {sd.options.map((grp) => (
+                                        {sd.options.map((grp) => {
+                                          // La tuile « Non » reste grise : ce n'est pas un repas à préparer.
+                                          const estNon = grp.option_id === CHOIX_NON;
+                                          return (
                                           <button
                                             key={grp.option_id}
                                             onClick={() => setListModal({ date, service: svc, residence: r.value, option_id: grp.option_id, title: `${grp.label} (${isMidi ? "Midi" : "Soir"}) — ${r.label} · ${formatJourLong(date)}` })}
-                                            className={`flex flex-col items-center rounded-xl py-2 px-1 transition cursor-pointer ${isMidi ? "bg-orange-50 hover:bg-orange-100 text-orange-900" : "bg-blue-50 hover:bg-blue-100 text-blue-900"}`}
-                                            title="Voir la liste"
+                                            className={`flex flex-col items-center rounded-xl py-2 px-1 transition cursor-pointer ${estNon ? "bg-gray-50 hover:bg-gray-100 text-gray-500" : isMidi ? "bg-orange-50 hover:bg-orange-100 text-orange-900" : "bg-blue-50 hover:bg-blue-100 text-blue-900"}`}
+                                            title={estNon ? "Voir qui a répondu « Non »" : "Voir la liste"}
                                           >
                                             <span className="text-[10px] font-bold uppercase text-center leading-tight">{grp.label}</span>
                                             <span className="text-lg font-black">{grp.people.length}</span>
                                           </button>
-                                        ))}
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   );
@@ -708,6 +759,7 @@ export default function AdminRepasPage() {
           residentes={residentesForAdd}
           inviteursPossibles={inviteursPossibles}
           optionsPourInvite={(inviteId) => optionsPourResidente(inviteurParInvite[inviteId] ?? "")}
+          figes={modalGroup?.figes}
           onSetResidentOption={setResidentOption}
           onSetGuestOption={setGuestOption}
           onAddResident={addResidentToOption}

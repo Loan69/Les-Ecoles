@@ -41,7 +41,7 @@ export const ECRAN_BLOC_LABEL: Record<EcranBloc, string> = {
     evenements: "Lieu d’un événement",
     organisation_repas: "Organisation des repas",
     rattachement_repas: "Rattachement compta d’une option",
-    presences: "Présences au foyer",
+    presences: "Présences et absences",
 };
 
 export const ECRAN_BLOC_AIDE: Record<EcranBloc, string> = {

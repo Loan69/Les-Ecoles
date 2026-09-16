@@ -253,7 +253,7 @@ export default function AdminFoyerView() {
       <div className="max-w-5xl mx-auto">
         <TopBar />
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-800 mb-2">Présences au foyer</h1>
+          <h1 className="text-3xl font-bold text-blue-800 mb-2">Présences et absences</h1>
           <p className="text-gray-600">Qui est au foyer ou sortie, par résidence, jour par jour.</p>
         </div>
 

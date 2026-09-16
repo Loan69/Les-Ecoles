@@ -54,7 +54,7 @@ export function niveauxPourSection(s: Section): NiveauSection[] {
 export const SECTION_AIDE: Record<Section, string> = {
   repas: "Masquée = onglet Repas caché, retirée des listes de l'intendance · Habitante = s'inscrire à ses repas · Admin consulter = voir les inscriptions et la compta · Admin gérer = paramétrer les repas et corriger les inscriptions",
   evenements: "Masquée = onglet Calendrier caché, aucun événement ni rappel · Habitante = voir les événements et les rappels · Admin consulter = voir en plus les inscrits et les événements ciblés sur l'intendance · Admin gérer = créer et modifier les événements",
-  absences: "Masquée = onglet Présence foyer caché, retirée des listes de présence · Habitante = déclarer ses propres absences · Admin consulter = voir les présences de tout le foyer · Admin gérer = marquer les absences des autres",
+  absences: "Masquée = onglet Présences et absences caché, retirée des listes de présence · Habitante = déclarer ses propres absences · Admin consulter = voir les présences de tout le foyer · Admin gérer = marquer les absences des autres",
   comptes: "Habitante = voir son profil · Admin consulter = voir les comptes et les chambres · Admin gérer = inviter, déplacer et archiver",
   infos: "Masquée = onglet Administratif caché · Habitante = lire les rubriques · Admin consulter = idem · Admin gérer = créer et modifier les rubriques",
 };

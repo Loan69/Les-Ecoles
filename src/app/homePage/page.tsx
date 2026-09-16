@@ -15,7 +15,8 @@ import { Residente } from "@/types/Residente";
 import { HomeSkeleton } from "../components/Skeleton";
 import { useSupabase } from "../providers";
 import { User } from "@supabase/supabase-js";
-import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
+import { formatDateKeyLocal } from "@/lib/utilDate";
+import { dateSelectionneePerimee, lireDateSelectionnee, memoriserDateSelectionnee } from "@/lib/dateSelectionnee";
 import { formatLieu } from "@/lib/eventLieu";
 import { statutRepas } from "@/lib/presenceStatut";
 import { nomInvite } from "@/lib/invites";
@@ -109,19 +110,30 @@ export default function HomePage() {
     setSelectedResidenceValue((mien ?? blocsLieux[0]).value);
   }, [blocsLieux, profil, selectedResidenceValue]);
 
+  // La date mémorisée ne survit pas à une longue absence : on revient à aujourd'hui
+  // plutôt que de rouvrir l'appli sur le jour qu'on regardait la dernière fois.
   useEffect(() => {
-    const storedDate = localStorage.getItem("dateSelectionnee");
-    if (storedDate) {
-      setCurrentDate(parseDateKeyLocal(storedDate));
-    } else {
-      setCurrentDate(new Date());
-    }
+    setCurrentDate(lireDateSelectionnee());
     setIsInitialized(true);
   }, []);
 
+  // Même chose au retour dans l'appli sans rechargement (onglet en arrière-plan,
+  // téléphone verrouillé) : l'écran n'est jamais remonté, donc l'effet ci-dessus
+  // n'a pas rejoué — c'est ici que la date se remet à jour.
   useEffect(() => {
     if (!isInitialized) return;
-    localStorage.setItem("dateSelectionnee", formatDateKeyLocal(currentDate));
+    const auRetour = () => {
+      if (document.visibilityState === "visible" && dateSelectionneePerimee()) {
+        setCurrentDate(new Date());
+      }
+    };
+    document.addEventListener("visibilitychange", auRetour);
+    return () => document.removeEventListener("visibilitychange", auRetour);
+  }, [isInitialized]);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+    memoriserDateSelectionnee(currentDate);
     localStorage.setItem("startDate", formatDateKeyLocal(currentDate));
     localStorage.setItem("endDate", formatDateKeyLocal(currentDate));
   }, [currentDate, isInitialized]);
@@ -414,6 +426,73 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* Intercalaires + Événements — seulement si au moins un bloc a coché
+            « Intercalaires de l'accueil ». Sans intercalaire, il n'y a pas de rangée
+            d'onglets vide ni d'encadré « Aucun évènement prévu pour ce bloc » : les
+            événements du jour remontent tous dans les rappels ci-dessus. */}
+        {accesEvenements && blocsLieux.length > 0 && (
+          <>
+          {/* Intercalaires — un par bloc de lieu, dans sa couleur.
+              Une seule ligne, toujours : au-delà de trois blocs ils passaient à la ligne
+              sur téléphone. Ils se resserrent d'abord, puis défilent horizontalement —
+              un débordement se fait glisser, un retour à la ligne casse la lecture.
+              La rangée intérieure fait « min-w-full w-max » : tant que les onglets
+              tiennent, elle occupe toute la largeur et les centre ; dès qu'ils
+              débordent, elle prend leur largeur et défile depuis le tout premier. */}
+          <div className="mb-4 overflow-x-auto snap-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex flex-nowrap justify-center gap-1 min-w-full w-max">
+              {blocsLieux.map((res) => {
+                const active = selectedResidenceValue === res.value;
+                // Onglet court : le numéro pour les résidences, le nom du bloc sinon (« Corail »).
+                const court = /^\d+$/.test(res.value) ? res.value : res.label;
+                return (
+                  <button
+                    key={res.value}
+                    onClick={() => setSelectedResidenceValue(res.value)}
+                    className={`cursor-pointer snap-start shrink-0 flex items-center justify-center h-12 border rounded-t-xl transition-colors font-bold ${
+                      // Plus il y a de blocs, plus les onglets se resserrent.
+                      blocsLieux.length > 4
+                        ? "min-w-14 max-w-28 px-2 text-sm truncate"
+                        : blocsLieux.length > 2
+                          ? "min-w-16 max-w-36 px-2.5 text-base truncate"
+                          : "min-w-20 px-3 text-lg"
+                    } ${active ? themeResidence(res.value).ongletActif : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"}`}
+                    title={res.label}
+                  >
+                    {court}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Carte ÉVÉNEMENTS — du bloc ouvert */}
+          <section className={`rounded-xl shadow-md border-2 p-4 mb-4 ${themeBloc.carte}`}>
+            <h3 className={`text-xs font-bold uppercase tracking-wide mb-3 ${themeBloc.titre}`}>Événements</h3>
+
+            {/* Événements du jour */}
+            {filteredEvents.length === 0 ? (
+              <p className="text-gray-400 italic text-sm">
+                Aucun évènement prévu pour {blocSelectionne?.label ?? "ce bloc"}.
+              </p>
+            ) : (
+              filteredEvents.map((e) => (
+                <div key={e.id} className={`border rounded-lg px-4 py-3 mb-2 ${e.couleur}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-800">{e.titre}</span>
+                    <div className="flex items-center space-x-2">
+                      {e.demander_confirmation && canViewEvents && <VisionConfirmation eventId={e.id} />}
+                      {e.demander_confirmation && <ConfirmationToggle eventId={e.id} />}
+                    </div>
+                  </div>
+                  {e.heures && <p className="text-xs text-gray-600 mt-1 italic">{e.heures}</p>}
+                </div>
+              ))
+            )}
+          </section>
+          </>
+        )}
+
         {/* Carte PRÉSENCE au foyer (lecture seule) — masquée si Absences = Aucun */}
         {accesAbsences && (
         <section className="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-4">
@@ -429,67 +508,6 @@ export default function HomePage() {
               </span>
             )}
           </div>
-        </section>
-        )}
-
-        {/* Intercalaires — un par bloc de lieu, dans sa couleur.
-            Une seule ligne, toujours : au-delà de trois blocs ils passaient à la ligne
-            sur téléphone. Ils se resserrent d'abord, puis défilent horizontalement —
-            un débordement se fait glisser, un retour à la ligne casse la lecture.
-            La rangée intérieure fait « min-w-full w-max » : tant que les onglets
-            tiennent, elle occupe toute la largeur et les centre ; dès qu'ils
-            débordent, elle prend leur largeur et défile depuis le tout premier. */}
-        <div className="mb-4 overflow-x-auto snap-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex flex-nowrap justify-center gap-1 min-w-full w-max">
-            {blocsLieux.map((res) => {
-              const active = selectedResidenceValue === res.value;
-              // Onglet court : le numéro pour les résidences, le nom du bloc sinon (« Corail »).
-              const court = /^\d+$/.test(res.value) ? res.value : res.label;
-              return (
-                <button
-                  key={res.value}
-                  onClick={() => setSelectedResidenceValue(res.value)}
-                  className={`cursor-pointer snap-start shrink-0 flex items-center justify-center h-12 border rounded-t-xl transition-colors font-bold ${
-                    // Plus il y a de blocs, plus les onglets se resserrent.
-                    blocsLieux.length > 4
-                      ? "min-w-14 max-w-28 px-2 text-sm truncate"
-                      : blocsLieux.length > 2
-                        ? "min-w-16 max-w-36 px-2.5 text-base truncate"
-                        : "min-w-20 px-3 text-lg"
-                  } ${active ? themeResidence(res.value).ongletActif : "bg-white text-blue-800 border-gray-300 hover:bg-gray-100"}`}
-                  title={res.label}
-                >
-                  {court}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Carte ÉVÉNEMENTS — masquée si Événements = Aucun */}
-        {accesEvenements && (
-        <section className={`rounded-xl shadow-md border-2 p-4 mb-4 ${themeBloc.carte}`}>
-          <h3 className={`text-xs font-bold uppercase tracking-wide mb-3 ${themeBloc.titre}`}>Événements</h3>
-
-          {/* Événements du jour */}
-          {filteredEvents.length === 0 ? (
-            <p className="text-gray-400 italic text-sm">
-              Aucun évènement prévu pour {blocSelectionne?.label ?? "ce bloc"}.
-            </p>
-          ) : (
-            filteredEvents.map((e) => (
-              <div key={e.id} className={`border rounded-lg px-4 py-3 mb-2 ${e.couleur}`}>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-800">{e.titre}</span>
-                  <div className="flex items-center space-x-2">
-                    {e.demander_confirmation && canViewEvents && <VisionConfirmation eventId={e.id} />}
-                    {e.demander_confirmation && <ConfirmationToggle eventId={e.id} />}
-                  </div>
-                </div>
-                {e.heures && <p className="text-xs text-gray-600 mt-1 italic">{e.heures}</p>}
-              </div>
-            ))
-          )}
         </section>
         )}
 

@@ -9,7 +9,7 @@ import ModalAjoutEvenement from "./AjoutEventModal";
 import { CalendarEvent } from "@/types/CalendarEvent";
 import ConfirmationToggle from "./ConfirmationToggle";
 import VisionConfirmation from "./VisionConfirmation";
-import { formatDateKeyLocal, parseDateKeyLocal } from "@/lib/utilDate";
+import { lireDateSelectionnee, memoriserDateSelectionnee } from "@/lib/dateSelectionnee";
 import { DeleteEventModal } from "./DeleteEventModal";
 
 type CalendrierViewProps = {
@@ -44,12 +44,10 @@ export default function CalendrierView({
 
     // Ouvrir le calendrier sur la bonne date
     useEffect(() => {
-        const stored = localStorage.getItem("dateSelectionnee");
-        if (stored) {
-        const parsed = parseDateKeyLocal(stored);
+        // Date mémorisée si elle tient encore, aujourd'hui sinon (cf. lireDateSelectionnee).
+        const parsed = lireDateSelectionnee();
         setCurrentDate(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
         setSelectedDay(parsed.getDate());
-        }
     }, []);
 
     useEffect(() => {
@@ -139,7 +137,7 @@ export default function CalendrierView({
                     onClick={() => {
                     setSelectedDay(day);
                     const selectedFullDate = new Date(currentYear, currentDate.getMonth(), day);
-                    localStorage.setItem("dateSelectionnee", formatDateKeyLocal(selectedFullDate));
+                    memoriserDateSelectionnee(selectedFullDate);
                     }}
                     className={`relative flex flex-col items-center justify-center w-10 h-10 rounded-full cursor-pointer text-sm font-medium transition-all
                     ${isSelected ? "bg-blue-700 text-white" : isToday ? "bg-yellow-100 text-yellow-700 font-semibold border border-yellow-300" : "text-slate-700 hover:bg-blue-50"}`}

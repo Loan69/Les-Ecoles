@@ -26,6 +26,10 @@ interface Props {
   // Options ouvertes à l'**invitante** de cet invité : un invité ne mange que ce que
   // la personne qui l'invite peut elle-même choisir.
   optionsPourInvite: (inviteId: number) => OptionChoice[];
+  // Personnes affichées en lecture seule : leur repas est **déduit** (absence qui note
+  // « Non »), donc corrigible seulement là où la déduction est décidée — l'écran
+  // Présences et absences. Un sélecteur ici ne changerait rien de visible.
+  figes?: string[];
   // choix : "" = sans réponse (retire la ligne) · "non" = « Non » explicite · sinon l'id de l'option.
   onSetResidentOption: (userId: string, choix: string) => Promise<void>;
   onSetGuestOption: (inviteId: number, optionId: string | null) => Promise<void>;
@@ -40,11 +44,14 @@ const guestInviteId = (p: PersonneDetail): number | null => {
 
 export default function MealOptionEditModal({
   open, onClose, title, people, notes, optionId, dayServiceOptions, residentes,
-  inviteursPossibles, optionsPourInvite,
+  inviteursPossibles, optionsPourInvite, figes,
   onSetResidentOption, onSetGuestOption, onAddResident, onAddGuest,
 }: Props) {
   const { supabase } = useSupabase();
   const sorted = sortAdminPeople(people);
+  // Tuile « Non » : on y note quelqu'un qui ne mange pas. Rien à y inviter — un invité
+  // qui ne mange pas n'est pas un invité, on ne propose donc pas le formulaire.
+  const estTuileNon = optionId === CHOIX_NON;
   const [busy, setBusy] = useState(false);
   const [addResId, setAddResId] = useState("");
   const [guestFormOpen, setGuestFormOpen] = useState(false);
@@ -117,6 +124,14 @@ export default function MealOptionEditModal({
                   <span className="font-medium text-gray-800 break-words">{guestInviteId(p) === null ? `${p.nom} ${p.prenom}` : nomInvite(p)}</span>
                   {notes?.[p.id] && <span className="text-xs bg-purple-50 text-purple-700 rounded px-1.5 py-0.5">{notes[p.id]}</span>}
                 </span>
+                {figes?.includes(p.id) ? (
+                  <span
+                    title="Déduit de son séjour d'absence — à corriger dans « Présences et absences »"
+                    className="w-full sm:w-auto sm:shrink-0 text-xs text-gray-500 italic sm:text-right"
+                  >
+                    déduit de son absence
+                  </span>
+                ) : (
                 <select
                   value={optionId}
                   disabled={busy}
@@ -129,6 +144,7 @@ export default function MealOptionEditModal({
                   <option value={CHOIX_NON}>— Non (ne mange pas)</option>
                   {guestInviteId(p) === null && <option value="">— Sans réponse (retirer)</option>}
                 </select>
+                )}
               </li>
             ))}
           </ul>
@@ -137,7 +153,9 @@ export default function MealOptionEditModal({
         {/* Ajouts */}
         <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Ajouter une résidente à cette option</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              {estTuileNon ? "Noter une résidente « Non »" : "Ajouter une résidente à cette option"}
+            </label>
             <select
               value={addResId}
               disabled={busy}
@@ -151,7 +169,7 @@ export default function MealOptionEditModal({
             </select>
           </div>
 
-          {!guestFormOpen ? (
+          {estTuileNon ? null : !guestFormOpen ? (
             <button onClick={() => setGuestFormOpen(true)} className="flex items-center gap-1 text-sm text-blue-700 hover:underline cursor-pointer">
               <UserPlus className="w-4 h-4" /> Ajouter un invité
             </button>

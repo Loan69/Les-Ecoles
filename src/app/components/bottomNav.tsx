@@ -22,7 +22,7 @@ export default function BottomNav() {
     { path: '/calendrier', icon: <Calendar size={22} />, label: 'Calendrier', section: 'evenements' },
     { path: '/repasSemaine', icon: <Utensils size={22} />, label: 'Repas de la semaine', section: 'repas' },
     { path: '/homePage', icon: <Home size={22} />, label: 'Accueil' },
-    { path: '/presenceFoyer', icon: <PersonStanding size={22} />, label: 'Présence foyer', section: 'absences' },
+    { path: '/presenceFoyer', icon: <PersonStanding size={22} />, label: 'Présences et absences', section: 'absences' },
     { path: '/administratif', icon: <BookOpen size={22} />, label: 'Administratif', section: 'infos' },
   ];
   const navItems = allItems.filter((item) => !item.section || canAccess(item.section));
