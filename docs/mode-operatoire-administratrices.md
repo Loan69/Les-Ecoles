@@ -28,7 +28,7 @@ Les droits se règlent **section par section** de l'appli. Sur chaque section, u
 |---|---|
 | 📅 Calendrier | Événements |
 | 🍴 Repas de la semaine | Repas |
-| 🧍 Présences et absences | Absences |
+| 🧍 Présences et absences | Présences et absences |
 | 📖 Administratif | Infos pratiques |
 | 🏠 Accueil | *(aucune — toujours accessible)* |
 
@@ -40,9 +40,9 @@ Les **5 sections** :
 
 | Section | Écrans concernés |
 |---|---|
-| **Repas** | Visu des repas (compta + organisation), paramétrage & options de repas, verrouillage, édition des inscriptions. *La comptabilité déduisant les repas des absences, cette section permet de voir **les dates** des séjours d'absence ; consulter et modifier les absences relève de la section **Absences**.* |
+| **Repas** | Visu des repas (compta + organisation), paramétrage & options de repas, verrouillage, édition des inscriptions. *La comptabilité déduisant les repas des absences, cette section permet de voir **les dates** des séjours d'absence ; consulter et modifier les absences relève de la section **Présences et absences**.* |
 | **Événements** | **Habitante** : voir les événements et les rappels, confirmer sa participation. **Admin · consulter** : voir en plus **qui s'est inscrit** à un événement (« Voir les inscrits »). **Admin · gérer** : créer / modifier / supprimer des événements. |
-| **Absences** | Vue « Présences et absences » (staff) + marquage des absences. |
+| **Présences et absences** | Vue du même nom (staff) + marquage des absences. |
 | **Comptes** | Comptes, chambres/places, invitations, paramètres généraux. **Admin · consulter** : voir qui occupe quelle chambre et avec quels droits, **sans aucune action possible** (pas d'invitation, pas de déplacement, pas de désactivation). **Admin · gérer** : inviter, relancer/annuler une invitation, déplacer une résidente, libérer une place. Régler les **droits** d'une personne et gérer la **structure physique** (chambres, étages, postes) restent réservés au **super-admin**. |
 | **Infos pratiques** | Rubriques de l'onglet Administratif. |
 
@@ -72,7 +72,7 @@ Panneau ⚙️ **Administration**. L'écran affiche **directement** la gestion d
 - **Invitation envoyée · email** → **relancer** (↻) ou **annuler** (✕).
 - **Occupée · Nom Prénom** → **« Droits »** (super-admin uniquement), **« Déplacer »** (⇄) et **« Libérer / désactiver »** (⤴).
 
-**Régler les droits** d'une occupante : bouton **« Droits »** → cocher **Super-admin** ou choisir, **par section** (Repas, Événements, Absences, Comptes, Infos pratiques), le niveau **Masquée / Habitante / Admin · consulter / Admin · gérer**. Réservé au **super-admin**. On ne peut pas régler **ses propres** droits (anti-blocage).
+**Régler les droits** d'une occupante : bouton **« Droits »** → cocher **Super-admin** ou choisir, **par section** (Repas, Événements, Présences et absences, Comptes, Infos pratiques), le niveau **Masquée / Habitante / Admin · consulter / Admin · gérer**. Réservé au **super-admin**. On ne peut pas régler **ses propres** droits (anti-blocage).
 
 **Inviter une résidente** (sur une place **libre**) :
 1. Clique **« Inviter »**.
@@ -259,7 +259,7 @@ Via l'onglet 🧍 **Présences et absences** → **« Voir les présences »**. 
 
 **Vue d'ensemble** : le bouton **« Voir le détail »** ouvre un **tableau** — en lignes les habitantes (classées **résidence → étage → chambre → nom**, invitées en fin de résidence), en colonnes les jours, chaque case indiquant **P** (au foyer) ou **A** (sortie). *Cette structure de tableau est réutilisée partout (présences, repas) pour ne pas se perdre.* Le bouton **« Exporter (CSV) »** y télécharge le tableau (comme pour les repas).
 
-**Modifier une présence (Absences — Admin · gérer)** : dans la liste ouverte au clic sur un compteur, chaque personne peut être basculée **Au foyer ↔ Sortie** pour ce jour, et on peut **ajouter** quelqu'un — sur le même principe que l'édition des inscriptions repas.
+**Modifier une présence (Présences et absences — Admin · gérer)** : dans la liste ouverte au clic sur un compteur, chaque personne peut être basculée **Au foyer ↔ Sortie** pour ce jour, et on peut **ajouter** quelqu'un — sur le même principe que l'édition des inscriptions repas.
 
 **Heure limite de modification (le verrouillage).** Le réglage se trouve **en haut de cette vue** (par défaut **23:00**). Il encadre **les habitantes, pas vous** :
 

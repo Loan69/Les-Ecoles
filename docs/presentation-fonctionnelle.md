@@ -36,7 +36,7 @@ des personnes d'un décompte.
 |---|---|---|
 | **Résidente** | Une habitante du foyer, invitée par l'intendance sur une chambre ou un poste | Déclarer ses présences (nuit + repas), inviter des personnes aux repas, consulter le calendrier, confirmer sa participation aux événements, lire les informations pratiques, consulter son profil. |
 | **Invitée** | Un compte simplifié (ex. étudiante de passage), créé librement | S'inscrire aux repas et consulter les contenus qui lui sont ouverts. Elle n'occupe ni chambre ni poste. |
-| **Administratrice** | Une résidente ayant des droits d'intendance | Tout ce qu'une résidente peut faire, **plus** des outils d'intendance selon ses **droits par section** (Repas · Événements · Absences · Comptes · Infos pratiques). Un **super-admin** a tous les droits + règle ceux des autres. |
+| **Administratrice** | Une résidente ayant des droits d'intendance | Tout ce qu'une résidente peut faire, **plus** des outils d'intendance selon ses **droits par section** (Repas · Événements · Présences et absences · Comptes · Infos pratiques). Un **super-admin** a tous les droits + règle ceux des autres. |
 
 > Une administratrice est une résidente à qui l'on a ouvert des droits **sur une ou plusieurs sections**. Il n'y a pas de compte admin séparé, et rien n'oblige à tout donner : on peut n'ouvrir que la comptabilité des repas, ou que les événements.
 

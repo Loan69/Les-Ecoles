@@ -7,7 +7,7 @@ export const SECTIONS: Section[] = ["repas", "evenements", "absences", "comptes"
 export const SECTION_LABEL: Record<Section, string> = {
   repas: "Repas",
   evenements: "Événements",
-  absences: "Absences",
+  absences: "Présences et absences",
   comptes: "Comptes",
   infos: "Infos pratiques",
 };

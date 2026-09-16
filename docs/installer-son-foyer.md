@@ -170,7 +170,7 @@ Puis réglez ses droits avec l'icône **⚙️ à côté de son nom**. Les droit
 | **Admin · consulter** | voir les données de tout le foyer |
 | **Admin · gérer** | modifier les données de tout le foyer |
 
-Les cinq sections sont **Repas, Événements, Absences, Comptes, Infos pratiques**. Une
+Les cinq sections sont **Repas, Événements, Présences et absences, Comptes, Infos pratiques**. Une
 personne peut très bien gérer les repas sans rien voir des comptes.
 
 > **Le réflexe utile** : donnez le niveau le plus bas qui suffit. C'est plus facile
