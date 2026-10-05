@@ -41,7 +41,6 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@tiptap/html": "^3.27.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

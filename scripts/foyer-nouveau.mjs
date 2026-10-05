@@ -138,4 +138,4 @@ console.log("\nÉtapes suivantes, depuis l'application :");
 console.log("  1. se connecter avec ce compte ;");
 console.log("  2. Administration → créer les blocs, étages, chambres et postes ;");
 console.log("  3. inviter l'intendance et lui donner ses droits ;");
-console.log("  4. importer les modes opératoires : node scripts/docs/md2tiptap.mjs\n");
+console.log("  4. envoyer les modes opératoires en PDF : node scripts/docs/md2pdf.mjs\n");

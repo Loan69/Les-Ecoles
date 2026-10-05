@@ -50,8 +50,8 @@ where not exists (
 );
 
 -- ── Rubriques de l'onglet Administratif ─────────────────────────────────────
--- Créées vides : chaque foyer y met son propre contenu. Les deux modes
--- opératoires sont ajoutés séparément (scripts/docs/md2tiptap.mjs).
+-- Créées vides : chaque foyer y met son propre contenu. Les modes opératoires,
+-- eux, ne sont plus recopiés dans l'appli (2026-09-16) : ils se transmettent en PDF.
 insert into public.admin_sections (title, type, position, content, updated_at)
 select v.title, v.type, v.position, v.content::jsonb, now()
 from (values

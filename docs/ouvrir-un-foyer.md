@@ -81,9 +81,8 @@ fichier à la fois :
 
 **La règle générale** : prendre le socle le plus récent de `supabase/migrations/`,
 puis passer **tous** les fichiers `.sql` restés à la racine de `supabase/` dans
-l'ordre alphabétique, entre le socle et le seed — hors `audit-rls.sql`,
-`verif-socle.sql` et `sync-modes-emploi-inapp.sql`, qui sont des outils et non des
-migrations. Une régénération du socle les absorbe et vide cette liste.
+l'ordre alphabétique, entre le socle et le seed — hors `audit-rls.sql` et
+`verif-socle.sql`, qui sont des outils et non des migrations. Une régénération du socle les absorbe et vide cette liste.
 
 Les **sous-dossiers** de `supabase/` ne font jamais partie de ce parcours :
 `rollback/` contient les retours arrière, à ne jouer que pour défaire une migration
@@ -261,8 +260,10 @@ En résumé, ce qu'elle fait, dans cet ordre :
 | Options de repas, heures de verrouillage | Repas → Paramétrer les repas |
 | Rubriques de l'onglet Administratif | Administratif |
 
-Enfin, importer les modes opératoires dans l'application :
-`node scripts/docs/md2tiptap.mjs`, puis exécuter le SQL produit.
+Les **modes opératoires ne sont plus recopiés dans l'application** (décision du
+2026-09-16 : le foyer préfère les recevoir en PDF et garder l'onglet Administratif
+pour ses propres rubriques). Ils vivent dans `docs/` et se transmettent par
+`node scripts/docs/md2pdf.mjs`.
 
 ---
 
