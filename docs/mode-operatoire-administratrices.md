@@ -1,7 +1,7 @@
 # Mode opératoire — Administratrices (intendance)
 
 > **Document vivant** — guide d'utilisation de l'application *Les Écoles* pour l'**intendance** (administratrices). À mettre à jour à chaque évolution de l'appli.
-> Version 1.28 — 2026-09-16.
+> Version 1.29 — 2026-10-05.
 
 Une administratrice est une résidente qui a **au moins un droit d'intendance sur une section**. Elle dispose, **en plus** de toutes les fonctions d'une habitante (voir le **Mode opératoire — Résidentes & invitées**), des outils d'intendance correspondant à ses droits.
 
@@ -340,6 +340,7 @@ Cette section se lit à trois niveaux (voir §1) :
 
 Avec le droit **Admin · gérer**, on renseigne pour un événement :
 - titre, dates (une ou plusieurs), horaires, lieu (résidence·s), couleur ;
+- l'**horaire** se tape librement, mais commence-le par une heure (« 18h30 », « 14h - 16h », « midi ») : c'est elle qui range l'événement dans la journée. Sans heure reconnaissable, l'événement s'affiche **en tête** de la journée ;
 - **visibilité** : coche des **résidences / étages** et/ou des **groupes** (§3.2) ; la liste des **résidentes concernées** — les **comptes activés** (§3.1) — s'affiche dessous, pré-cochée, et l'on peut **décocher** individuellement pour exclure quelqu'un. Voir §3.3. Le ciblage par résidence/étage est **dynamique** (les futures arrivantes correspondant au filtre sont incluses automatiquement) ; un **groupe**, lui, se tient à jour à la main ;
 - **rappel** (nombre de jours avant) ;
 - demande de **confirmation de participation**.

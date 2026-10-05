@@ -7,6 +7,7 @@ import { useResidences } from "@/lib/useResidences";
 import { ChevronLeft, ChevronRight, Edit } from "lucide-react";
 import ModalAjoutEvenement from "./AjoutEventModal";
 import { CalendarEvent } from "@/types/CalendarEvent";
+import { trierEvenementsDuJour } from "@/lib/heureEvenement";
 import ConfirmationToggle from "./ConfirmationToggle";
 import VisionConfirmation from "./VisionConfirmation";
 import { lireDateSelectionnee, memoriserDateSelectionnee } from "@/lib/dateSelectionnee";
@@ -96,7 +97,7 @@ export default function CalendrierView({
         ? `${currentYear}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDay).padStart(2, "0")}`
         : undefined;
 
-    const eventsDuJour = selectedDateKey ? eventsMap[selectedDateKey] || [] : [];
+    const eventsDuJour = selectedDateKey ? trierEvenementsDuJour(eventsMap[selectedDateKey] || []) : [];
 
     return (
         <div className="relative">

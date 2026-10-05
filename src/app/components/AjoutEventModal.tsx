@@ -171,7 +171,7 @@ export default function ModalAjoutEvenement({
             name="heures"
             value={form.heures}
             onChange={handleChange}
-            placeholder="Horaire de l'évènement"
+            placeholder="Horaire de l'évènement (ex. 18h30 ou 14h - 16h)"
             className="w-full px-4 py-2 border border-blue-500 text-blue-800 rounded-md"
           />
 

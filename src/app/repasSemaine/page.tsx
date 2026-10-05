@@ -10,6 +10,7 @@ import { User } from "@supabase/supabase-js";
 import { ServiceOption, MealOptionCatalog, Presence, Service } from "@/types/MealOption";
 import { Absence } from "@/types/Absence";
 import { CalendarEvent } from "@/types/CalendarEvent";
+import { trierEvenementsDuJour } from "@/lib/heureEvenement";
 import { computeLockState } from "@/lib/lockUtils";
 import { isAwayForMeal } from "@/lib/mealCompta";
 import { CHOIX_NON } from "@/lib/presenceStatut";
@@ -171,12 +172,12 @@ export default function SemaineRepas() {
   const eventViewer = { residence: profil?.residence, etage: profil?.etage, chambre: profil?.chambre, user_id: user?.id, groupes: myRights.groupes, estResidente: profil != null, estTechnique: myRights.rights.is_technique };
   // Droit de voir, ET rattachement au lieu de vie : deux questions distinctes.
   const eventsForDay = (dateKey: string) =>
-    weekEvents.filter(
+    trierEvenementsDuJour(weekEvents.filter(
       (e) =>
         e.dates_event?.includes(dateKey) &&
         evenementVisiblePour(e, eventViewer) &&
         evenementConcerneLeLieu(e, profil?.residence)
-    );
+    ));
 
   const invitesForDay = (dateKey: string) => myInvites.filter((i) => i.date_repas === dateKey);
   const optionLabelById = (id: string | null): string | null => {

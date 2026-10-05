@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import InviteModal, { EditingInvite } from "../components/inviteModal";
 import { useRouter } from "next/navigation";
 import { CalendarEvent } from "@/types/CalendarEvent";
+import { trierEvenementsDuJour } from "@/lib/heureEvenement";
 import { Residente } from "@/types/Residente";
 import { HomeSkeleton } from "../components/Skeleton";
 import { useSupabase } from "../providers";
@@ -177,7 +178,8 @@ export default function HomePage() {
         if (profilData) setProfil(profilData);
 
         if (eventsError) console.error("Erreur événements :", eventsError);
-        if (eventsData) setEvents(eventsData);
+        // Ordre chronologique dans la journée : toutes les listes de l'accueil en héritent.
+        if (eventsData) setEvents(trierEvenementsDuJour(eventsData));
 
         setIsAbsent((absData?.length ?? 0) > 0);
 

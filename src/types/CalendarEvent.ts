@@ -9,6 +9,8 @@ export interface CalendarEvent {
    * supprimer un compte supprime les événements qu'il a créés.
    */
   user_id?: string | null;
+  /** Date de création — sert à départager les événements sans heure lisible (`heureEvenement.ts`). */
+  created_at?: string;
   couleur?: string;
   titre: string;
   category?: string;
