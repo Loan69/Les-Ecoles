@@ -216,6 +216,15 @@ export default function AdminRepasPage() {
     [optionsById, peopleById]
   );
 
+  // Ciblage d'une résidente : ce qu'elle voit dans son propre sélecteur de repas.
+  const cibleDe = useCallback(
+    (userId: string) => {
+      const p = peopleById.get(userId);
+      return { residence: p?.residence, etage: p?.etage, chambre: p?.chambre, user_id: userId, groupes: groupesByUser[userId] ?? [] };
+    },
+    [peopleById, groupesByUser]
+  );
+
   // Détail d'un jour par service : options OUVERTES (même à 0 inscrit) + inscrits par option.
   const getDayOptionDetail = useCallback(
     (dateKey: string): Record<string, { dejeuner: ServiceDetail; diner: ServiceDetail }> => {
@@ -223,6 +232,26 @@ export default function AdminRepasPage() {
       blocsLieux.forEach((r) => (res[r.value] = { dejeuner: { open: false, options: [] }, diner: { open: false, options: [] } }));
       (["dejeuner", "diner"] as Service[]).forEach((svc) => {
         const openOpts = openServiceOptions.filter((so) => so.date === dateKey && so.service === svc);
+        // Encadrés qui ont une tuile pour ce service (même règle que `relevant` ci-dessous).
+        const blocsOuverts = blocsLieux
+          .filter((r) => openOpts.some((so) => so.residence === r.value || so.residence === "personne"))
+          .map((r) => r.value);
+        // Encadré où ranger le « Non » d'une personne : là où elle aurait mangé, c'est-à-dire
+        // le bloc de compta des options qui lui sont proposées — la même règle qu'un « Oui ».
+        // Le bloc de la personne ne suffit pas : il peut n'avoir aucun encadré (case
+        // « organisation des repas » décochée) ou aucune option ouverte (toutes rattachées
+        // à un autre bloc), et le « Non » disparaissait alors de la vue.
+        // Repli : son propre encadré s'il est ouvert. Sans aucun des deux, `undefined` : à
+        // l'appelant de décider (une réponse donnée ne doit pas disparaître, une absence
+        // de quelqu'un à qui rien n'est proposé n'a rien à faire dans la vue).
+        const blocDuNon = (userId: string): string | undefined => {
+          const sien = peopleById.get(userId)?.residence;
+          const proposes = openOpts
+            .filter((so) => optionVisibleFor({ visibilite: so.visibilite } as MealOptionCatalog, cibleDe(userId)))
+            .map((so) => (so.residence === "personne" ? sien : so.residence));
+          if (sien && proposes.includes(sien) && blocsOuverts.includes(sien)) return sien;
+          return blocsOuverts.find((b) => proposes.includes(b)) ?? (sien && blocsOuverts.includes(sien) ? sien : undefined);
+        };
         blocsLieux.forEach((r) => {
           // Options ouvertes pertinentes pour ce lieu (résidence de l'option, ou « personne »).
           const relevant = new Map<string, OpenServiceOption>();
@@ -252,8 +281,8 @@ export default function AdminRepasPage() {
           // « Non » est une réponse à part entière (R-REPAS-12) : elle a sa tuile, comme
           // les options, sinon les seules personnes visibles ici sont celles qui mangent —
           // et l'on ne sait pas, d'un coup d'œil, qui a répondu qu'elle ne mangeait pas.
-          // Rattachement au bloc de la PERSONNE : un « Non » n'a pas d'option, donc pas de
-          // résidence de compta. Aucun invité ici — un invité sans repas n'existe pas.
+          // Rattachement : l'encadré où elle aurait mangé (voir `blocDuNon`), et non son
+          // propre bloc. Aucun invité ici — un invité sans repas n'existe pas.
           //
           // DEUX sources, un seul décompte : la réponse « Non » donnée à l'écran, et le
           // « Non » **déduit d'un séjour d'absence** quand la résidente a laissé cochée
@@ -274,18 +303,18 @@ export default function AdminRepasPage() {
               (p) =>
                 p.date === dateKey && p.service === svc && p.option_id === null &&
                 !isAwayForMeal(absences, p.user_id, p.date) &&
-                peopleById.get(p.user_id)?.residence === r.value
+                (blocDuNon(p.user_id) ?? blocsOuverts[0]) === r.value
             )
             .forEach((p) => {
               const personne = peopleById.get(p.user_id);
               if (personne) ajouterRefus(personne);
             });
           // Absences : le « Non » est déduit, pas enregistré — il n'y a donc pas de ligne
-          // à filtrer, on repart des personnes du bloc. Elles sont **figées** ici : tant
-          // que le séjour tient, la déduction l'emporterait sur toute correction, et la
-          // personne semblerait disparaître de la tuile sans réapparaître ailleurs.
+          // à filtrer, on repart des personnes. Elles sont **figées** ici : tant que le
+          // séjour tient, la déduction l'emporterait sur toute correction, et la personne
+          // semblerait disparaître de la tuile sans réapparaître ailleurs.
           people.forEach((personne) => {
-            if (personne.residence !== r.value) return;
+            if (blocDuNon(personne.id) !== r.value) return;
             if (!isAwayForMeal(absences, personne.id, dateKey)) return;
             ajouterRefus(personne, "absente — notée Non par son séjour");
             figes.push(personne.id);
@@ -297,7 +326,7 @@ export default function AdminRepasPage() {
       });
       return res;
     },
-    [blocsLieux, openServiceOptions, presences, absences, people, peopleById, comptaResidence, invites]
+    [blocsLieux, openServiceOptions, presences, absences, people, peopleById, comptaResidence, invites, cibleDe]
   );
 
   // Agrégat par personne (compta fin de mois) : nb de déjeuners/dîners mangés sur la période,
@@ -417,15 +446,6 @@ export default function AdminRepasPage() {
     const det = getDayOptionDetail(listModal.date)[listModal.residence];
     return det?.[listModal.service].options.find((o) => o.option_id === listModal.option_id) ?? null;
   }, [listModal, getDayOptionDetail]);
-
-  // Ciblage d'une résidente : ce qu'elle voit dans son propre sélecteur de repas.
-  const cibleDe = useCallback(
-    (userId: string) => {
-      const p = peopleById.get(userId);
-      return { residence: p?.residence, etage: p?.etage, chambre: p?.chambre, user_id: userId, groupes: groupesByUser[userId] ?? [] };
-    },
-    [peopleById, groupesByUser]
-  );
 
   // Options du jour+service de la popup **ouvertes à cette résidente** : un invité ne
   // mange que ce que son invitante peut choisir — pas de pique-nique pour l'invité de

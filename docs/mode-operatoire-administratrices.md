@@ -289,7 +289,7 @@ Accès : **barre de navigation repas** → **Inscriptions & compta**. Deux ongle
 ### Onglet « Organisation » — repas à préparer
 Les jours sont **empilés** ; pour chaque jour et chaque résidence, les **options ouvertes** au midi et au soir, avec leur nombre d'inscrits. **Chaque option est cliquable** → la **liste des personnes comptées**. Les **invités** ne forment plus une tuile à part : chacun est compté **dans l'option** à laquelle il est rattaché et apparaît dans cette liste, annoté **« invité par Prénom Nom »**.
 
-**La tuile grise « Non »** ferme la rangée : elle compte les personnes du bloc qui **ne mangent pas** — une réponse à part entière, pas une absence de réponse. Elle est cliquable comme les autres : on y lit **qui** a dit non, on y **note** quelqu'un « Non », et on l'en sort vers une option ou vers « sans réponse ». Elle reste **grise** parce qu'il n'y a rien à préparer, et l'on n'y ajoute **aucun invité**.
+**La tuile grise « Non »** ferme la rangée : elle compte les personnes qui **ne mangent pas**, rangées dans l'encadré où elles auraient mangé (celui de leurs options, pas forcément celui de leur chambre) — une réponse à part entière, pas une absence de réponse. Elle est cliquable comme les autres : on y lit **qui** a dit non, on y **note** quelqu'un « Non », et on l'en sort vers une option ou vers « sans réponse ». Elle reste **grise** parce qu'il n'y a rien à préparer, et l'on n'y ajoute **aucun invité**.
 
 Elle réunit **deux cas** en un seul nombre — c'est bien le total des couverts en moins :
 - celles qui ont **répondu « Non »** dans *Repas de la semaine* ;
