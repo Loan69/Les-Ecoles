@@ -1,9 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSectionView, requireSectionEdit } from "@/lib/apiAuth";
 import { logMealEdit } from "@/lib/mealAudit";
 import { CHOIX_NON } from "@/lib/presenceStatut";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Supabase plafonne chaque réponse à 1000 lignes (max_rows) : un mois aux Écoles en
+// compte plus de 2000, et la compta s'arrêtait net vers le 14. On lit donc par pages,
+// avec un tri stable pour qu'aucune ligne ne soit sautée ni lue deux fois.
+const PAGE = 1000;
+async function lirePresences(supabase: SupabaseClient, start: string, end: string) {
+  const lignes: Record<string, unknown>[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("presences")
+      .select("*")
+      .gte("date", start)
+      .lte("date", end)
+      .order("date")
+      .order("id")
+      .range(from, from + PAGE - 1);
+    if (error) return { data: null, error };
+    lignes.push(...(data ?? []));
+    if (!data || data.length < PAGE) return { data: lignes, error: null };
+  }
+}
 
 // --- Toutes les inscriptions repas sur une période (admin), avec les séjours d'absence ---
 //
@@ -23,11 +45,7 @@ export async function GET(req: NextRequest) {
   }
 
   const [{ data, error: dbError }, { data: absData, error: absError }] = await Promise.all([
-    supabase
-      .from("presences")
-      .select("*")
-      .gte("date", start)
-      .lte("date", end),
+    lirePresences(supabase, start, end),
     // Chevauchement : date_debut <= end ET date_fin >= start
     supabase
       .from("absences_sejour")

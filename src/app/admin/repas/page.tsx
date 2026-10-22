@@ -593,7 +593,13 @@ export default function AdminRepasPage() {
                                   return (
                                     <div key={svc}>
                                       <p className={`text-[10px] font-bold uppercase tracking-wide mb-1 ${isMidi ? "text-orange-500" : "text-blue-500"}`}>{isMidi ? "Midi" : "Soir"}</p>
-                                      <div className="grid grid-cols-2 gap-2">
+                                      {/* Remplissage en colonnes (haut→bas, puis colonne de droite) : l'ordre
+                                          alphabétique se lit verticalement, et les options préfixées
+                                          (« 0 PN … ») se regroupent à gauche — demande de la cliente. */}
+                                      <div
+                                        className="grid grid-cols-2 grid-flow-col gap-2"
+                                        style={{ gridTemplateRows: `repeat(${Math.ceil(sd.options.length / 2)}, auto)` }}
+                                      >
                                         {sd.options.map((grp) => {
                                           // La tuile « Non » reste grise : ce n'est pas un repas à préparer.
                                           const estNon = grp.option_id === CHOIX_NON;
